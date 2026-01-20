@@ -1107,6 +1107,16 @@ Legal Requirements:
   - Cookie Policy
   - Data Processing Agreement
 ```
+---
+## Contributors
+**Aadesh Chaudhari\
+@aadesh006**
+
+**Hardik Gupta\
+@Hardikgupta1709**
+
+**Priyal Khandal\
+@priyal-2905**
 
 ---
 
