@@ -1,15 +1,48 @@
-# Ocean Hazard Reporting Platform - Technical Architecture & Production Guide
+# Tat-Sahayk: Ocean Hazard Reporting Platform
+
+#### **Tat-Sahayk** (meaning "Coast Helper") is a unified platform developed for the to solve the problem statement from **INCOIS** (Indian National Centre for Ocean Information Services). The platform crowdsources real-time ocean hazard reports and monitors social media trends to assist in emergency response during coastal disasters.
+---
 
 ## Table of Contents
-1. [System Architecture Overview](#system-architecture-overview)
-2. [Technology Stack](#technology-stack)
-3. [Component Details](#component-details)
-4. [Database Design](#database-design)
-5. [API Specifications](#api-specifications)
-6. [Security Architecture](#security-architecture)
-7. [Scalability & Performance](#scalability--performance)
-8. [Deployment Strategy](#deployment-strategy)
-9. [Monitoring & Observability](#monitoring--observability)
+1. [Key Features](#key-features)
+2. [System Architecture Overview](#system-architecture-overview)
+3. [Technology Stack](#technology-stack)
+4. [Component Details](#component-details)
+5. [Database Design](#database-design)
+6. [API Specifications](#api-specifications)
+7. [Security Architecture](#security-architecture)
+8. [Scalability & Performance](#scalability--performance)
+9. [Deployment Strategy](#deployment-strategy)
+10. [Monitoring & Observability](#monitoring--observability)
+---
+## Key Features
+
+### Citizen Reporting
+- **Mobile-First Interface:** PWA-based application for iOS and Android
+- **Geotagged Reports:** Automatic GPS coordinate capture with accuracy metadata
+- **Rich Media Support:** Photo and video upload with automatic compression
+- **Offline-First:** Reports stored locally and synced when connectivity returns
+- **Multi-Step Forms:** Guided hazard reporting with real-time validation
+
+### Social Media Intelligence
+- **Real-Time Monitoring:** Track Twitter/X, Facebook, and YouTube for hazard keywords
+- **NLP-Powered Analysis:** Sentiment analysis and panic level detection
+- **Trend Detection:** Identify emerging hazards from social conversations
+- **Named Entity Recognition:** Extract locations, dates, and event names
+
+### Official Dashboard
+- **Interactive GIS Map:** Visualize reports and hotspots with clustering
+- **Real-Time Updates:** WebSocket-powered live data streaming
+- **Report Verification:** Admin workflow for validating citizen reports
+- **Analytics & Insights:** Time-series trends, heatmaps, and summary statistics
+- **Export Capabilities:** CSV/PDF report generation
+
+### Advanced Capabilities
+- **Hotspot Detection:** AI-powered clustering of multiple reports in proximity
+- **Credibility Scoring:** ML-based verification of report authenticity
+- **Multi-Language Support:** Regional language support for coastal communities
+- **Alert System:** Push notifications for nearby users during emergencies
+
 ---
 
 ## System Architecture Overview
