@@ -1,0 +1,14 @@
+#Python Virtual Environment
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+
+#Environment Variables
+.env
+.DS_Store
+
+#Database Data
+postgres_data/
+redis_data/
