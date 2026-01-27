@@ -15,3 +15,13 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+        
+# New Schema for Login Request
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+# New Schema for Token Response
+class Token(BaseModel):
+    access_token: str
+    token_type: str
