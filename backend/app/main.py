@@ -1,13 +1,16 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from app.db.session import engine, Base, get_db
-from app.models import user # Import models so Alembic/SQLAlchemy sees them
+from app.models import user
 from sqlalchemy import text
+from app.api.v1.endpoints import auth
 
 # Create Tables automatically (In production, use Alembic instead!)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Tat-Sahayk API")
+
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 
 @app.get("/")
 def read_root():
