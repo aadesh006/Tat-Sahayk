@@ -10,3 +10,5 @@ python-jose[cryptography] # For JWT Auth
 passlib[bcrypt]           # Password hashing
 geoalchemy2==0.14.3       # For PostGIS support
 httpx==0.26.0             # Async HTTP client
+email-validator==2.1.0.post1
+bcrypt==4.0.1
