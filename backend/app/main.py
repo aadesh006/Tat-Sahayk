@@ -4,6 +4,7 @@ from app.db.session import engine, Base, get_db
 from app.models import user
 from sqlalchemy import text
 from app.api.v1.endpoints import auth
+from app.models import report
 
 # Create Tables automatically (In production, use Alembic instead!)
 Base.metadata.create_all(bind=engine)
