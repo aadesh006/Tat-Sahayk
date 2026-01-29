@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import random
@@ -11,8 +10,6 @@ import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
 from config.settings import settings
-
-
 random.seed(settings.RANDOM_SEED)
 np.random.seed(settings.RANDOM_SEED)
 
@@ -121,7 +118,7 @@ NON_HAZARD_TEMPLATES = [
     "Morning walk along {location} beach. So peaceful.",
 ]
 
-
+EMOJIS = ['', '', '', '', '', '', '', '', '', '']
 TIMES = ['morning', 'afternoon', 'evening', 'sunset', 'sunrise']
 
 PANIC_WORDS = {
@@ -132,14 +129,14 @@ PANIC_WORDS = {
 }
 
 class DataGenerator:
-
+    """Generate simulated ocean hazard data"""
     
     def __init__(self):
         self.output_dir = settings.RAW_DATA_DIR
         self.output_dir.mkdir(parents=True, exist_ok=True)
     
     def generate_social_media_posts(self, num_posts=1000):
-
+        """Generate simulated social media posts"""
         print(f"\n{'='*80}")
         print("GENERATING SOCIAL MEDIA POSTS")
         print(f"{'='*80}\n")
@@ -154,6 +151,7 @@ class DataGenerator:
 
         print(f"Generating {num_hazard} hazard posts...")
         for i in range(num_hazard):
+
             hazard_type = random.choices(
                 list(HAZARD_TYPES.keys()),
                 weights=[v['weight'] for v in HAZARD_TYPES.values()]
@@ -170,12 +168,14 @@ class DataGenerator:
                 detail=detail
             )
             
+
             hashtags = [f"#{hazard_type}", "#alert", "#coastal"]
             if random.random() > 0.5:
                 hashtags.append(f"#{location_data['name'].split(',')[0].lower()}")
             
             text += " " + " ".join(random.sample(hashtags, k=min(3, len(hashtags))))
             
+
             text_lower = text.lower()
             if any(word in text_lower for word in PANIC_WORDS['critical']):
                 panic_level = 'critical'
@@ -186,12 +186,14 @@ class DataGenerator:
             else:
                 panic_level = 'low'
             
+
             post_time = start_date + timedelta(
                 days=random.randint(0, 30),
                 hours=random.randint(0, 23),
                 minutes=random.randint(0, 59)
             )
             
+
             base_engagement = random.randint(50, 500)
             likes = int(base_engagement * random.uniform(0.8, 1.5))
             shares = int(base_engagement * random.uniform(0.2, 0.6))
@@ -223,6 +225,7 @@ class DataGenerator:
             
             posts.append(post)
         
+
         print(f"Generating {num_non_hazard} non-hazard posts...")
         for i in range(num_non_hazard):
             location_data = random.choice(COASTAL_LOCATIONS)
@@ -231,8 +234,10 @@ class DataGenerator:
             text = template.format(
                 location=location_data['name'],
                 time=random.choice(TIMES),
+                emoji=random.choice(EMOJIS)
             )
             
+
             hashtags = random.sample(['#beach', '#ocean', '#travel', '#vacation', '#india'], 
                                     k=random.randint(1, 3))
             text += " " + " ".join(hashtags)
@@ -243,6 +248,7 @@ class DataGenerator:
                 minutes=random.randint(0, 59)
             )
             
+
             base_engagement = random.randint(10, 200)
             likes = int(base_engagement * random.uniform(0.5, 1.2))
             shares = int(base_engagement * random.uniform(0.1, 0.3))
@@ -276,6 +282,7 @@ class DataGenerator:
         
 
         random.shuffle(posts)
+        
 
         df = pd.DataFrame(posts)
         
@@ -283,18 +290,17 @@ class DataGenerator:
         df.to_csv(csv_path, index=False)
         print(f"\n Saved {len(df)} posts to {csv_path}")
         
-
         json_path = self.output_dir / 'simulated_social_media_posts.json'
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(posts, f, indent=2, ensure_ascii=False)
-        print(f"✓ Saved {len(posts)} posts to {json_path}")
+        print(f" Saved {len(posts)} posts to {json_path}")
         
         self._print_statistics(df, "Social Media Posts")
         
         return df
     
     def generate_citizen_reports(self, num_reports=200):
-
+        """Generate simulated citizen reports"""
         print(f"\n{'='*80}")
         print("GENERATING CITIZEN REPORTS")
         print(f"{'='*80}\n")
@@ -302,7 +308,6 @@ class DataGenerator:
         reports = []
         
         for i in range(num_reports):
-
             hazard_type = random.choices(
                 list(HAZARD_TYPES.keys()),
                 weights=[v['weight'] for v in HAZARD_TYPES.values()]
@@ -311,7 +316,7 @@ class DataGenerator:
             location_data = random.choice(COASTAL_LOCATIONS)
             keyword = random.choice(HAZARD_TYPES[hazard_type]['keywords'])
             detail = random.choice(HAZARD_DETAILS[hazard_type])
-
+            
             descriptions = [
                 f"I am reporting {keyword} at {location_data['name']}. {detail}. Please take immediate action.",
                 f"Observed {keyword} near {location_data['name']} coast. {detail}. Situation appears serious.",
@@ -356,20 +361,19 @@ class DataGenerator:
         
         csv_path = self.output_dir / 'simulated_citizen_reports.csv'
         df.to_csv(csv_path, index=False)
-        print(f"\nSaved {len(df)} reports to {csv_path}")
+        print(f"\n Saved {len(df)} reports to {csv_path}")
         
         json_path = self.output_dir / 'simulated_citizen_reports.json'
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(reports, f, indent=2, ensure_ascii=False)
-        print(f"Saved {len(reports)} reports to {json_path}")
+        print(f" Saved {len(reports)} reports to {json_path}")
         
-        # Print statistics
         self._print_statistics(df, "Citizen Reports")
         
         return df
     
     def _print_statistics(self, df, dataset_name):
-
+        """Print dataset statistics"""
         print(f"\n {dataset_name} Statistics:")
         print(f"{'─'*80}")
         print(f"Total records: {len(df)}")
@@ -412,7 +416,7 @@ def main():
     reports_df = generator.generate_citizen_reports(num_reports=200)
     
     print(f"\n{'='*80}")
-    print("DATA GENERATION COMPLETE!")
+    print(" DATA GENERATION COMPLETE!")
     print(f"{'='*80}")
     print(f"\nGenerated files:")
     print(f"  1. {settings.RAW_DATA_DIR / 'simulated_social_media_posts.csv'}")

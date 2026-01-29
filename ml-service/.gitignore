@@ -1,5 +1,74 @@
-venv/
-ENV/
-.env
+# Create .gitignore
+cat > .gitignore << 'EOF'
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# ML Models
+models/saved_models/*
+!models/saved_models/.gitkeep
+models/checkpoints/*
+!models/checkpoints/.gitkeep
+*.pkl
+*.h5
+*.pt
+*.pth
+
+# Data
+data/raw/*
+data/processed/*
+data/training/*
+data/validation/*
+data/test/*
+!data/*/.gitkeep
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# MLflow
+mlruns/
+mlflow/mlruns/*
+mlflow/artifacts/*
+
+# Environment
+.env
+.env.local
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docker
+*.dockerignore
+EOF
+
+# Create .gitkeep files to preserve empty directories
+touch data/raw/.gitkeep
+touch data/processed/.gitkeep
+touch data/training/.gitkeep
+touch data/validation/.gitkeep
+touch data/test/.gitkeep
+touch models/saved_models/.gitkeep
+touch models/checkpoints/.gitkeep
+touch models/model_registry/.gitkeep
