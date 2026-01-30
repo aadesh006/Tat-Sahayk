@@ -1,14 +1,9 @@
-"""
-Application settings and configuration
-Loads from environment variables or .env file
-"""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
 import os
 from pathlib import Path
 
 class Settings(BaseSettings):
-    """Application settings"""
     
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -16,19 +11,19 @@ class Settings(BaseSettings):
         case_sensitive=True
     )
     
-    # Project
+
     PROJECT_NAME: str = "Tat-Sahayk ML Service"
     VERSION: str = "1.0.0"
     DEBUG: bool = True
     ENVIRONMENT: str = "development"
     
-    # API
+
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
     API_WORKERS: int = 4
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8080"]
     
-    # Paths
+
     BASE_DIR: Path = Path(__file__).parent.parent
     DATA_DIR: Path = BASE_DIR / "data"
     RAW_DATA_DIR: Path = DATA_DIR / "raw"
@@ -36,44 +31,44 @@ class Settings(BaseSettings):
     MODELS_DIR: Path = BASE_DIR / "models"
     LOGS_DIR: Path = BASE_DIR / "logs"
     
-    # Model Configuration
+
     TEXT_MODEL_NAME: str = "distilbert-base-uncased"
     MAX_SEQ_LENGTH: int = 128
     BATCH_SIZE: int = 16
     EPOCHS: int = 3
     LEARNING_RATE: float = 2e-5
     
-    # Data Configuration
+
     TEST_SIZE: float = 0.2
     VALIDATION_SIZE: float = 0.1
     RANDOM_SEED: int = 42
     
-    # Geospatial Configuration
+
     HOTSPOT_RADIUS_KM: int = 5
     HOTSPOT_MIN_REPORTS: int = 3
     DENSITY_RADIUS_KM: int = 20
     
-    # Scoring Thresholds
+
     CREDIBILITY_THRESHOLD: float = 0.6
     CONFIDENCE_THRESHOLD: float = 0.7
     PANIC_THRESHOLD: float = 0.8
     
-    # Social Media (Mock)
+
     TWITTER_API_KEY: Optional[str] = None
     TWITTER_API_SECRET: Optional[str] = None
     FACEBOOK_ACCESS_TOKEN: Optional[str] = None
     YOUTUBE_API_KEY: Optional[str] = None
     
-    # Database
+
     MONGODB_URI: str = "mongodb://localhost:27017/"
     REDIS_URI: str = "redis://localhost:6379/0"
     
-    # Kafka
+
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
     KAFKA_TOPIC_REPORTS: str = "ocean-reports"
     KAFKA_TOPIC_SOCIAL: str = "social-media"
     
-    # Logging
+
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
     
@@ -100,12 +95,12 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         return self.ENVIRONMENT == "development"
 
-# Global settings instance
+
 settings = Settings()
 
-# Print configuration on import (for debugging)
+
 if settings.DEBUG:
-    print(f"✓ Loaded configuration: {settings.PROJECT_NAME} v{settings.VERSION}")
+    print(f" Loaded configuration: {settings.PROJECT_NAME} v{settings.VERSION}")
     print(f"  Environment: {settings.ENVIRONMENT}")
     print(f"  Data directory: {settings.DATA_DIR}")
     print(f"  Models directory: {settings.MODELS_DIR}")
