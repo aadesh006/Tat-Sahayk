@@ -1,4 +1,3 @@
-
 import re
 import string
 from typing import List, Dict, Optional, Tuple
@@ -57,35 +56,16 @@ class TextPreprocessor:
         logger.info("TextPreprocessor initialized")
     
     def clean_text(self, text: str, preserve_case: bool = False) -> str:
-        """
-        Basic text cleaning
-        
-        Args:
-            text: Input text
-            preserve_case: If True, maintains original case
-            
-        Returns:
-            Cleaned text
-        """
         if not isinstance(text, str):
             return ""
         
 
         text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
-        
-
         text = re.sub(r'\S+@\S+', '', text)
-        
-
         text = re.sub(r'@\w+', '', text)
-        
-
         text = re.sub(r'#(\w+)', r'\1', text)
-        
-
         text = ' '.join(text.split())
         
-
         if not preserve_case:
             text = text.lower()
         
@@ -261,14 +241,18 @@ if __name__ == "__main__":
         "The National Weather Service has issued a cyclone warning for the eastern coast on January 15, 2025."
     ]
     
-    print("="*80)
+    print(f"\n")
+    print(f"\n")
     print("TEXT PREPROCESSING EXAMPLES")
-    print("="*80)
+    print(f"\n")
+    print(f"\n")
     
     for i, text in enumerate(test_texts, 1):
-        print(f"\n{'─'*80}")
+        print(f"\n")
+        print(f"\n")
         print(f"Example {i}:")
-        print(f"{'─'*80}")
+        print(f"\n")
+        print(f"\n")
         
         result = preprocessor.preprocess(text, extract_ents=True)
         
