@@ -3,69 +3,197 @@ __pycache__/
 *$py.class
 *.so
 .Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
 venv/
 env/
 ENV/
 .venv
+virtualenv/
+.virtualenvs/
 
+*.manifest
+*.spec
+
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.onnx
+*.pb
+*.tflite
+*.keras
+*.model
+*.weights
 
 models/saved_models/*
 !models/saved_models/.gitkeep
 models/checkpoints/*
 !models/checkpoints/.gitkeep
-*.pkl
-*.h5
-*.pt
-*.pth
-
+models/model_registry/*
+!models/model_registry/.gitkeep
+checkpoint-*/
+checkpoints/
+saved_models/
 
 data/raw/*
 data/processed/*
 data/training/*
 data/validation/*
 data/test/*
+data/temp/*
+data/cache/*
 !data/*/.gitkeep
-
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.arrow
+*.jsonl
+*.npy
+*.npz
+*.tfrecord
 
 .ipynb_checkpoints
 *.ipynb
-
+jupyter_notebook_config.py
 
 mlruns/
 mlflow/mlruns/*
 mlflow/artifacts/*
+.mlflow/
+runs/
+outputs/
+multirun/
 
+wandb/
+
+events.out.tfevents.*
+tensorboard/
 
 .env
 .env.local
+.env.*.local
 *.env
-
+.envrc
 
 .vscode/
 .idea/
 *.swp
 *.swo
-.DS_Store
+*~
+.project
+.pydevproject
+.settings/
+.spyderproject
+.spyproject
+.ropeproject
 
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
 
 *.log
 logs/
-
+*.sql
+*.sqlite
+*.db
 
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
-
+.tox/
+.nox/
+.hypothesis/
+coverage.xml
+*.cover
+.cache
+nosetests.xml
+test-results/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
 
 *.dockerignore
-EOF
+.docker/
+docker-compose.override.yml
+
+.github/workflows/*.log
+.gitlab-ci-local/
+
+*.tmp
+*.temp
+*.bak
+*.swp
+*~.nib
+.tmp/
+temp/
+tmp/
+
+*.com
+*.class
+*.dll
+*.exe
+*.o
 
 
-touch data/raw/.gitkeep
-touch data/processed/.gitkeep
-touch data/training/.gitkeep
-touch data/validation/.gitkeep
-touch data/test/.gitkeep
-touch models/saved_models/.gitkeep
-touch models/checkpoints/.gitkeep
-touch models/model_registry/.gitkeep
+*.tar.gz
+*.tgz
+*.zip
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+docs/_build/
+docs/.doctrees/
+site/
+
+celerybeat-schedule
+celerybeat.pid
+
+*.sage.py
+
+.spyderproject
+.spyproject
+
+/site
+
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+*.prof
+cython_debug/
