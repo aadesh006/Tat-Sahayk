@@ -5,11 +5,15 @@ from app.models import user
 from sqlalchemy import text
 from app.api.api import api_router
 from app.models import report
+from app.models import media
+from fastapi.staticfiles import StaticFiles
 
 # Create Tables automatically
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Tat-Sahayk API")
+
+app.mount("/static", StaticFiles(directory="uploads"), name="static")
 
 app.include_router(api_router, prefix="/api/v1") 
 
