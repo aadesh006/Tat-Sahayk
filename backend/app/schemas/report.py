@@ -1,7 +1,8 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional, Any
+from typing import Optional, List, Any
 from datetime import datetime
 
+# Base Schema
 class ReportBase(BaseModel):
     hazard_type: str
     description: Optional[str] = None
@@ -11,7 +12,13 @@ class ReportBase(BaseModel):
 
 # Schema for Creating a Report (Input)
 class ReportCreate(ReportBase):
-    pass
+    image_filenames: Optional[List[str]] = [] 
+
+# Schema for Media Response
+class MediaResponse(BaseModel):
+    file_path: str
+    file_type: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
 
 # Schema for Reading a Report (Output)
 class ReportResponse(ReportBase):
@@ -21,5 +28,7 @@ class ReportResponse(ReportBase):
     status: str
     created_at: datetime
     
-    # Custom config to handle GeoAlchemy2 objects
+    # Return the full media objects
+    media: List[MediaResponse] = [] 
+
     model_config = ConfigDict(from_attributes=True)

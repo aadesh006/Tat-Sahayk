@@ -1,8 +1,9 @@
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.crud import user as crud_user
-from app.schemas.user import UserCreate, UserResponse, UserLogin, Token
+from app.schemas.user import UserCreate, UserResponse, Token
 from app.db.session import get_db
 from app.core.security import verify_password, create_access_token
 from app.core.config import settings
@@ -18,11 +19,14 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
     return user
 
 @router.post("/login", response_model=Token)
-def login_for_access_token(form_data: UserLogin, db: Session = Depends(get_db)):
-    # 1. Find the user
-    user = crud_user.get_user_by_email(db, email=form_data.email)
+def login_for_access_token(
+    db: Session = Depends(get_db), 
+    form_data: OAuth2PasswordRequestForm = Depends()
+):
+    #Find the user (Swagger sends email in the 'username' field)
+    user = crud_user.get_user_by_email(db, email=form_data.username)
     
-    # 2. Check if user exists and password matches
+    # Check if user exists and password matches
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -30,7 +34,7 @@ def login_for_access_token(form_data: UserLogin, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 3. Create the Token
+    #Create the Token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
