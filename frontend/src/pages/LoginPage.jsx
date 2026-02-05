@@ -4,7 +4,7 @@ import { login } from "../lib/api.js";
 
 const LoginPage = () => {
   const [loginData, setLoginData] = useState({
-    id: "",
+    email : "",
     password: "",
   });
   const queryClient = useQueryClient();
@@ -39,7 +39,7 @@ const LoginPage = () => {
               <div className=" w-full px-6 pb-4 md:px-8">
                 <input
                   type="text"
-                  placeholder="SSO ID"
+                  placeholder="Email"
                   value={loginData.id}
                   onChange={(e) => {
                     setLoginData({ ...loginData, id: e.target.value });
