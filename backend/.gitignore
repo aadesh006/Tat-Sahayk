@@ -10,9 +10,8 @@ __pycache__/
 .DS_Store
 backend/.env
 __pycache__/
+.env.example
 
 #Database Data
 postgres_data/
 redis_data/
-
-uploads/
