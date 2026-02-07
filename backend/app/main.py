@@ -8,6 +8,10 @@ from app.models import report
 from app.models import media
 from fastapi.staticfiles import StaticFiles
 
+#Database Setup
+from app.db.session import engine
+from app.db.base import Base
+
 # Create Tables automatically
 Base.metadata.create_all(bind=engine)
 
