@@ -2,22 +2,42 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from app.db.session import engine, Base, get_db
 from app.models import user
-from sqlalchemy import text
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from app.core.config import settings
 from app.api.api import api_router
-from app.models import report
-from app.models import media
-from fastapi.staticfiles import StaticFiles
-
-#Database Setup
 from app.db.session import engine
 from app.db.base import Base
 
-# Create Tables automatically
-Base.metadata.create_all(bind=engine)
+from apscheduler.schedulers.background import BackgroundScheduler
+from scripts.harvest_social import harvest
 
-app = FastAPI(title="Tat-Sahayk API")
+# Define the Lifespan (Startup/Shutdown logic)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # STARTUP: Create DB tables
+    Base.metadata.create_all(bind=engine)
 
-app.mount("/static", StaticFiles(directory="uploads"), name="static")
+    scheduler = BackgroundScheduler()
+    # Run 'harvest' every 15 minutes
+    scheduler.add_job(harvest, 'interval', minutes=15)
+    scheduler.start()
+    print("Social Harvester Scheduler Started (Every 15 mins)")
+    
+    yield
+    
+    #SHUTDOWN
+    scheduler.shutdown()
+    print("Scheduler Shut Down")
+
+# Attach lifespan to FastAPI
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    lifespan=lifespan
+)
+
+# Include Routers
+app.include_router(api_router, prefix="/api/v1")
 
 app.include_router(api_router, prefix="/api/v1") 
 
@@ -28,7 +48,7 @@ def read_root():
 @app.get("/test-db")
 def test_db_connection(db: Session = Depends(get_db)):
     try:
-        # Try to execute a simple query
+
         result = db.execute(text("SELECT 1"))
         return {"status": "Database Connected!", "result": result.scalar()}
     except Exception as e:
