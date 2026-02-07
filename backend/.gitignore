@@ -8,6 +8,8 @@ __pycache__/
 #Environment Variables
 .env
 .DS_Store
+backend/.env
+__pycache__/
 .env.example
 
 #Database Data

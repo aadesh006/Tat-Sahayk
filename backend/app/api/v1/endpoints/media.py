@@ -1,23 +1,30 @@
-import shutil
-import os
+import cloudinary
+import cloudinary.uploader
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.core.config import settings
 
 router = APIRouter()
 
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True) # Create folder if it doesn't exist
+# Initialize Cloudinary Configuration
+if settings.CLOUDINARY_CLOUD_NAME:
+    cloudinary.config( 
+      cloud_name = settings.CLOUDINARY_CLOUD_NAME, 
+      api_key = settings.CLOUDINARY_API_KEY, 
+      api_secret = settings.CLOUDINARY_API_SECRET,
+      secure = True
+    )
 
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     try:
-        # Create a unique filename (or keep original)
-        file_location = f"{UPLOAD_DIR}/{file.filename}"
+        # 1. Upload the file directly to Cloudinary
+        result = cloudinary.uploader.upload(file.file, folder="tat_sahayk_reports")
         
-        # Save the file to disk
-        with open(file_location, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
-        return {"filename": file.filename, "file_path": file_location}
+        # 2. Get the secure HTTPS URL
+        url = result.get("secure_url")
+        
+        return {"filename": file.filename, "file_path": url}
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error uploading to Cloudinary: {e}")
+        raise HTTPException(status_code=500, detail="Image upload failed")
