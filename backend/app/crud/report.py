@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.models.report import Report
 from app.models.media import Media
 from app.schemas.report import ReportCreate
+from typing import Optional
 
 def create_report(db: Session, report: ReportCreate, user_id: int):
     location_wkt = f"POINT({report.longitude} {report.latitude})"
@@ -36,5 +37,20 @@ def create_report(db: Session, report: ReportCreate, user_id: int):
 
     return db_report
 
-def get_reports(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(Report).offset(skip).limit(limit).all()
+def get_reports(
+    db: Session, 
+    skip: int = 0, 
+    limit: int = 100, 
+    status: Optional[str] = None,
+    severity: Optional[str] = None
+):
+    query = db.query(Report)
+    
+    # Apply Filters if provided
+    if status:
+        query = query.filter(Report.status == status)
+    if severity:
+        query = query.filter(Report.severity == severity)
+        
+    #Order by newest first
+    return query.order_by(Report.created_at.desc()).offset(skip).limit(limit).all()
