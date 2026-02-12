@@ -16,7 +16,7 @@ const NavBar = ({ onMenuClick }) => {
           </button>
           
           <span className="lg:hidden text-xl font-bold font-mono text-blue-600 tracking-wider">
-            Tat-Sahay
+            Tat-Sahayak
           </span>
         </div>
 
