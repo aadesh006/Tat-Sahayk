@@ -33,7 +33,7 @@ const LoginPage = () => {
             <div className="flex flex-col items-center justify-center space-y-4 ">
               <div className="pt-8 pb-4">
                 <h1 className="text-xl font-bold text-blue-500 ">
-                  Login With SSO
+                  Login
                 </h1>
               </div>
               <div className=" w-full px-6 pb-4 md:px-8">

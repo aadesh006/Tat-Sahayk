@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.jsx'
 import { BrowserRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import 'leaflet/dist/leaflet.css';
 
 const queryClient = new QueryClient();
 
