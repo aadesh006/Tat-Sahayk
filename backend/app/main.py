@@ -39,8 +39,6 @@ app = FastAPI(
 # Include Routers
 app.include_router(api_router, prefix="/api/v1")
 
-app.include_router(api_router, prefix="/api/v1") 
-
 @app.get("/")
 def read_root():
     return {"status": "Tat-Sahayk Backend is Running"}
