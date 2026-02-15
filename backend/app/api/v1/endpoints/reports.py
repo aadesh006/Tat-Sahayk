@@ -1,15 +1,46 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+import httpx  # For making HTTP requests to the ML service
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.api import deps
 from app.crud import report as crud_report
 from app.schemas.report import ReportCreate, ReportResponse
 from app.models.report import Report
-from app.db.session import get_db
+from app.db.session import SessionLocal, get_db
 from app.models.user import User
 
 router = APIRouter()
+
+def analyze_report_with_ai(report_id: int, text: str, image_url: str):
+    db = SessionLocal()
+    try:
+        # Call the ML Service (Assuming it runs on port 8000 inside Docker)
+        ml_api_url = "http://ml-service:8000/api/analyze" 
+        
+        with httpx.Client() as client:
+            response = client.post(ml_api_url, json={
+                "text": text,
+                "image_url": image_url
+            }, timeout=30.0)
+            
+            if response.status_code == 200:
+                ai_data = response.json()
+                
+                # Update the report in the database
+                report = db.query(Report).filter(Report.id == report_id).first()
+                if report:
+                    report.ai_authenticity_score = ai_data.get("credibility_score", 0.0)
+                    report.ai_analysis_summary = ai_data.get("hazard_detected", "Analysis complete")
+                    db.commit()
+                    print(f"AI Analysis complete for Report {report_id}")
+            else:
+                print(f"ML Service returned status {response.status_code}")
+                
+    except Exception as e:
+        print(f"Failed to connect to ML Service: {e}")
+    finally:
+        db.close()
 
 # 1. CREATE REPORT (Citizen)
 @router.post("/", response_model=ReportResponse)
@@ -17,10 +48,17 @@ def create_report(
     *,
     db: Session = Depends(get_db),
     report_in: ReportCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(deps.get_current_user)
 ):
-    # Create a new hazard report.
     report = crud_report.create_report(db=db, report=report_in, user_id=current_user.id)
+    
+    background_tasks.add_task(
+        analyze_report_with_ai, 
+        report_id=report.id, 
+        text=report.description, 
+        image_url=report.image_url
+    )
     return report
 
 # 2. GET REPORTS (Admin Dashboard List - Now with Filters)
