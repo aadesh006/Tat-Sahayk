@@ -2,9 +2,12 @@ import React from 'react';
 import { Link } from 'react-router';
 import { MapPin, Calendar, Mail, Edit3, ArrowLeft, MoreHorizontal, FileText } from 'lucide-react';
 import { UserReports } from '../services/storage.js';
+import useAuthUser from '../hooks/useAuthUser.js';
 
-const ProfilePage = ({ user }) => {
-  const userData = user || {
+const ProfilePage = () => {
+  const { authUser, isLoading } = useAuthUser();
+  if (isLoading) return <div className="p-10 text-center">Loading Profile...</div>;
+  const userData = authUser || {
     full_name: "Hardik Gupta",
     email: "hardik@gmail.com",
     created_at: "2024-01-15",

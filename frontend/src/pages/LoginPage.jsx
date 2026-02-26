@@ -1,16 +1,20 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { login } from "../lib/api.js";
+import { Lock, Mail, Loader2 } from "lucide-react";
+import { Link } from "react-router"; 
+import toast, { Toaster } from "react-hot-toast";
+
 
 const LoginPage = () => {
   const [loginData, setLoginData] = useState({
-    email : "",
+    email: "",
     password: "",
   });
   const queryClient = useQueryClient();
 
   const {
-    loginMutation: mutate,
+    mutate: loginMutation,
     error,
     isPending,
   } = useMutation({
@@ -20,53 +24,93 @@ const LoginPage = () => {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    // loginMutation(loginData);
+    loginMutation(loginData);
+    if(error){
+      toast.error(error.message);
+    }
   };
+
   return (
-    <div className="bg-white h-screen flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
-        <div className="w-full flex justify-center pb-10">
-          <img src="../public/logo.jpg" className=" w-28 md:w-36 object-contain " />
-        </div>
-      <div className=" border bg-gray-50 flex flex-col w-full max-w-md mx-auto rounded-xl shadow-lg overflow-hidden">
-        <div className="w-full bg-gray-100">
-          <form onSubmit={handleLogin}>
-            <div className="flex flex-col items-center justify-center space-y-4 ">
-              <div className="pt-8 pb-4">
-                <h1 className="text-xl font-bold text-blue-500 ">
-                  Login
-                </h1>
-              </div>
-              <div className=" w-full px-6 pb-4 md:px-8">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+      <Toaster />
+      <div className="mb-8 transition-transform hover:scale-105 duration-300">
+        <img src="/logo.jpg" alt="Logo" className="w-32 md:w-40 object-contain drop-shadow-sm" />
+      </div>
+
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-blue-100/50 border border-slate-100 overflow-hidden">
+        <div className="h-2 bg-gradient-to-r from-blue-600 to-cyan-400" />
+
+        <div className="p-8 md:p-10">
+          <div className="text-center mb-10">
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Welcome Back</h1>
+            <p className="text-slate-500 text-sm mt-2">Enter your credentials to access the portal</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Email Address</label>
+              <div className="relative group">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
                 <input
-                  type="text"
-                  placeholder="Email"
-                  value={loginData.id}
-                  onChange={(e) => {
-                    setLoginData({ ...loginData, id: e.target.value });
-                  }}
-                  className="input input-bordered w-full  bg-white "
+                  type="email"
+                  required
+                  placeholder="name@agency.gov"
+                  value={loginData.email}
+                  onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900"
                 />
-              </div>
-              <div className="w-full px-6 pb-4 md:px-8">
-                <input
-                  type="password"
-                  placeholder="Password"
-                  className="input input-bordered w-full bg-white"
-                />
-              </div>
-              <button
-                type="submit"
-                className="btn bg-blue-500 text-white text-5 w-4/6 "
-              >
-                Log In
-              </button>
-              <div className="pb-5 cursor-pointer hover:text-blue-500 transition-colors">
-                <p>Login With Otp</p>
               </div>
             </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Security Password</label>
+              <div className="relative group">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={loginData.password}
+                  onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900"
+                />
+              </div>
+            </div>
+
+        
+
+            <button
+              type="submit"
+              disabled={isPending}
+              className="w-full py-4 bg-slate-900 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-slate-200 transition-all active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="animate-spin" size={20} />
+                  Verifying...
+                </>
+              ) : (
+                "Login"
+              )}
+            </button>
           </form>
+
+          <div className="mt-8 text-center">
+            <button className="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors">
+              New to the platform? <span className="text-blue-600 underline">
+                
+                <Link 
+                to="/signup" 
+                className="text-blue-600 font-bold underline transition-colors"
+                >
+                Register here
+              </Link>
+                </span>
+            </button>
+          </div>
         </div>
       </div>
+
     </div>
   );
 };
