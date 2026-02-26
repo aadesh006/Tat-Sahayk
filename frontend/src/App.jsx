@@ -3,8 +3,9 @@ import useAuthUser from './hooks/useAuthUser.js';
 import {Routes,Route,Navigate} from "react-router";
 import HomePage from './pages/HomePage.jsx';
 import Layout from './components/Layout.jsx';
-import ReportPage from './pages/ReportPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
 import MapPage from './pages/MapPage.jsx';
+import CreateReport from './pages/CreateReport.jsx';
 
 const App = () => {
   const { isLoading, authUser } = useAuthUser();
@@ -40,11 +41,11 @@ const App = () => {
           }
         />
         <Route 
-          path='/Reports'
+          path='/profile'
           element={
             isAuthenticated?(
               <Layout>
-                <ReportPage/>
+                <ProfilePage/>
               </Layout>    
             ):
             (
@@ -60,6 +61,20 @@ const App = () => {
             ):
             (
               <Navigate to ="/"/>
+            )
+           }
+        />
+        <Route
+           path='/New'
+           element={
+            isAuthenticated?(
+              <Layout>
+                <CreateReport/>
+              </Layout>
+              
+            ):
+            (
+              <Navigate to ="/login"/>
             )
            }
         />

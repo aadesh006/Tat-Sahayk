@@ -1,4 +1,4 @@
-import { reports,newsFeeds } from "../services/storage";
+import { reports, newsFeeds } from "../services/storage";
 
 
 const HomePage = () => {
@@ -12,6 +12,7 @@ const HomePage = () => {
               key={report.id}
               className="bg-white rounded-xl border border-blue-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
             >
+              {/* Header */}
               <div className="p-4 flex items-center gap-3 border-b border-blue-50">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-white font-semibold shrink-0">
                   {report.username.charAt(0)}
@@ -24,6 +25,15 @@ const HomePage = () => {
                   {report.disasterType}
                 </span>
               </div>
+
+              {/* Added Description Section */}
+              <div className="px-4 py-3">
+                <p className="text-sm text-blue-800 leading-relaxed line-clamp-3">
+                  {report.description || "No description provided for this report."}
+                </p>
+              </div>
+
+              {/* Image Area */}
               <div className="aspect-[16/10] bg-blue-50">
                 <img
                   src={report.image}
@@ -37,7 +47,7 @@ const HomePage = () => {
       </section>
 
       {/* News feeds section */}
-      <aside className="lg:w-80 shrink-0">
+      <aside className="lg:w-80 shrink-0 hidden md:block">
         <h2 className="text-xl font-bold text-blue-900 mb-4">News Feed</h2>
         <div className="space-y-3">
           {newsFeeds.map((news) => (
