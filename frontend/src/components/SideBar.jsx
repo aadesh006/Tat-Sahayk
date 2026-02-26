@@ -1,17 +1,17 @@
 import React from "react";
 import { Link, useLocation } from "react-router"; 
-import { ClipboardList, Map, LayoutDashboard, X } from 'lucide-react';
+import { ClipboardList, Map, LayoutDashboard, X, PlusCircle } from 'lucide-react';
 
 const SideBar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const currentPath = location.pathname;
 
-  const activeLinkClasses = "!bg-cyan-200 hover:!bg-blue-700 hover:!text-white";
+  const activeLinkClasses = "!bg-cyan-200 hover:!bg-blue-700 hover:!text-white text-blue-900";
   const inactiveLinkClasses = "text-blue-900 hover:bg-blue-50";
   
   const navItems = [
     { to: "/", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
-    { to: "/Reports", label: "My Reports", icon: <ClipboardList size={20}/> },
+    { to: "/profile", label: "My Profile", icon: <ClipboardList size={20}/> },
     { to: "/Map", label: "Map", icon: <Map size={20} /> },
   ];
 
@@ -56,12 +56,20 @@ const SideBar = ({ isOpen, onClose }) => {
               <span className="font-medium">{label}</span>
             </Link>
           ))}
-          <div className="w-full flex justify-center pt-4">
-            <button className="btn bg-blue-700 text-white w-full hover:bg-black ">New Report</button>
+
+          {/* Linked New Report Button */}
+          <div className="pt-4 mt-4 border-t border-blue-100">
+            <Link 
+              to="/New" 
+              onClick={() => onClose()}
+              className="flex items-center justify-center gap-2 w-full py-3 bg-blue-700 text-white rounded-xl font-bold hover:bg-blue-800 shadow-lg shadow-blue-200 transition-all active:scale-95"
+            >
+              <PlusCircle size={18} />
+              New Report
+            </Link>
           </div>
           
         </nav>
-        
       </aside>
     </div>
   );

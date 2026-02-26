@@ -3,13 +3,20 @@ import useAuthUser from './hooks/useAuthUser.js';
 import {Routes,Route,Navigate} from "react-router";
 import HomePage from './pages/HomePage.jsx';
 import Layout from './components/Layout.jsx';
-import ReportPage from './pages/ReportPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
 import MapPage from './pages/MapPage.jsx';
+import CreateReport from './pages/CreateReport.jsx';
+import SignupPage from './pages/SignupPage.jsx';
 
 const App = () => {
   const { isLoading, authUser } = useAuthUser();
-  // const isAuthenticated = Boolean(authUser);
-  const isAuthenticated = true;
+  const isAuthenticated = Boolean(authUser);
+  // const isAuthenticated = true;
+
+  if (isLoading) {
+    return <div className="h-screen flex items-center justify-center font-bold text-blue-600">Verifying Connection...</div>;
+  }
+
   return (
     <div className="h-screen">
       <Routes>
@@ -22,7 +29,7 @@ const App = () => {
               </Layout>    
             ):
             (
-              <Navigate to = "login" />
+              <Navigate to = "/login" />
             )
           }
         />
@@ -40,11 +47,11 @@ const App = () => {
           }
         />
         <Route 
-          path='/Reports'
+          path='/profile'
           element={
             isAuthenticated?(
               <Layout>
-                <ReportPage/>
+                <ProfilePage/>
               </Layout>    
             ):
             (
@@ -60,6 +67,31 @@ const App = () => {
             ):
             (
               <Navigate to ="/"/>
+            )
+           }
+        />
+        <Route
+           path='/signup'
+           element={
+            !isAuthenticated?(
+              <SignupPage />
+            ):
+            (
+              <Navigate to ="/"/>
+            )
+           }
+        />
+        <Route
+           path='/New'
+           element={
+            isAuthenticated?(
+              <Layout>
+                <CreateReport/>
+              </Layout>
+              
+            ):
+            (
+              <Navigate to ="/login"/>
             )
            }
         />

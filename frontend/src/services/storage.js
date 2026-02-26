@@ -5,6 +5,7 @@ export const reports = [
     image: "https://picsum.photos/400/250?random=1",
     location: "Mumbai, Maharashtra",
     disasterType: "Flood",
+    description: "Heavy rainfall has led to severe waterlogging in the low-lying suburban areas. Local transport is currently disrupted, and emergency services are on standby.",
   },
   {
     id: 2,
@@ -12,13 +13,15 @@ export const reports = [
     image: "https://picsum.photos/400/250?random=2",
     location: "Chennai, Tamil Nadu",
     disasterType: "Cyclone",
+    description: "Strong winds and high tides reported along the coastline. Residents in coastal huts are being evacuated to nearby shelters as a precautionary measure.",
   },
   {
     id: 3,
     username: "Anita Patel",
     image: "https://picsum.photos/400/250?random=3",
     location: "Delhi NCR",
-    disasterType: "Cyclonw",
+    disasterType: "Cyclone", // Fixed typo here
+    description: "Unexpected high-velocity winds causing dust storms and minor structural damage to temporary hoardings. Citizens are advised to remain indoors.",
   },
   {
     id: 4,
@@ -26,6 +29,7 @@ export const reports = [
     image: "https://picsum.photos/400/250?random=4",
     location: "Hyderabad, Telangana",
     disasterType: "Flood",
+    description: "Sudden cloudburst has caused the local drainage system to overflow. Several basements in the IT corridor are reporting water entry.",
   },
 ];
 
@@ -83,3 +87,24 @@ export const MapData = [
     color: "#3b82f6", 
   },
 ];
+
+export const UserReports = [
+    {
+      id: 1,
+      username: "Hardik Gupta",
+      location: "Malviya Nagar, Jaipur",
+      disasterType: "Flood",
+      image: "https://images.unsplash.com/photo-1547683905-f687c90a19ab?q=80&w=800",
+      description: "Street is completely submerged. Water entering houses on the ground floor.",
+      date: "Feb 24, 2026"
+    },
+    {
+      id: 2,
+      username: "Hardik Gupta",
+      location: "C-Scheme, Jaipur",
+      disasterType: "Storm",
+      image: "https://images.unsplash.com/photo-1527482797697-8795b05a13fe?q=80&w=800",
+      description: "Severe winds. Multiple trees down blocking the main hospital route.",
+      date: "Feb 15, 2026"
+    }
+  ];
