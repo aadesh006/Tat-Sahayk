@@ -6,7 +6,6 @@ OPENWEATHER_API_KEY = os.environ["OPENWEATHER_API_KEY"]
 
 @pytest.mark.asyncio
 async def test_ocean_data():
-    """Test real ocean data retrieval"""
     client = OceanDataClient(
         openweather_api_ktey=OPENWEATHER_API_KEY  
     )
