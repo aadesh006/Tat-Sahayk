@@ -92,3 +92,26 @@ def read_reports(
     #Retrieve reports.
     reports = crud_report.get_reports(db, skip=skip, limit=limit)
     return reports
+
+#GET HOTSPOTS (Map / Admin Clustering)
+@router.get("/hotspots")
+def get_hazard_hotspots(
+    db: Session = Depends(get_db),
+    radius_km: float = Query(2.0, description="Max distance in km to cluster reports together")
+):
+    active_reports = db.query(Report).filter(Report.status != "false").all()
+    
+    if not active_reports:
+        return {"message": "No active hazards", "hotspots": []}
+        
+    # Run the clustering algorithm
+    hotspots = cluster_reports(active_reports, max_distance_km=radius_km)
+    
+    # Sort so the biggest hotspots appear first
+    hotspots.sort(key=lambda x: x["report_count"], reverse=True)
+    
+    return {
+        "total_active_reports": len(active_reports),
+        "total_hotspots": len(hotspots),
+        "hotspots": hotspots
+    }
