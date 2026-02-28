@@ -1,8 +1,8 @@
 export const reports = [
   {
     id: 1,
-    username: "Priya Sharma",
-    image: "https://picsum.photos/400/250?random=1",
+    username: "Karthikey Joshi",
+    image: "https://images.unsplash.com/photo-1547683905-f686c993aae5?q=80&w=800",
     location: "Mumbai, Maharashtra",
     disasterType: "Flood",
     description: "Heavy rainfall has led to severe waterlogging in the low-lying suburban areas. Local transport is currently disrupted, and emergency services are on standby.",
@@ -10,7 +10,7 @@ export const reports = [
   {
     id: 2,
     username: "Rahul Verma",
-    image: "https://picsum.photos/400/250?random=2",
+    image: "https://images.unsplash.com/photo-1521220609214-a8552380c7a4?q=80&w=800",
     location: "Chennai, Tamil Nadu",
     disasterType: "Cyclone",
     description: "Strong winds and high tides reported along the coastline. Residents in coastal huts are being evacuated to nearby shelters as a precautionary measure.",
@@ -26,41 +26,10 @@ export const reports = [
   {
     id: 4,
     username: "Karthik Reddy",
-    image: "https://picsum.photos/400/250?random=4",
+    image: "https://images.unsplash.com/photo-1468476775582-6bede20f356f?q=80&w=800",
     location: "Hyderabad, Telangana",
     disasterType: "Flood",
     description: "Sudden cloudburst has caused the local drainage system to overflow. Several basements in the IT corridor are reporting water entry.",
-  },
-];
-
-export const newsFeeds = [
-  {
-    id: 1,
-    title: "NDMA issues flood alert for coastal regions",
-    summary: "Heavy rainfall expected in the next 48 hours across Karnataka and Kerala.",
-    source: "NDMA",
-    time: "2h ago",
-  },
-  {
-    id: 2,
-    title: "Relief camps set up in affected districts",
-    summary: "State govt opens 12 new relief centers for displaced families.",
-    source: "State Disaster Management",
-    time: "4h ago",
-  },
-  {
-    id: 3,
-    title: "Helpline numbers active 24/7",
-    summary: "Dial 1070 or 1077 for emergency disaster assistance.",
-    source: "National Emergency",
-    time: "6h ago",
-  },
-  {
-    id: 4,
-    title: "Volunteer registration open",
-    summary: "Join Tat-Sahay volunteer network for disaster response.",
-    source: "Tat-Sahay",
-    time: "1d ago",
   },
 ];
 
@@ -94,7 +63,7 @@ export const UserReports = [
       username: "Hardik Gupta",
       location: "Malviya Nagar, Jaipur",
       disasterType: "Flood",
-      image: "https://images.unsplash.com/photo-1547683905-f687c90a19ab?q=80&w=800",
+      image: "https://images.unsplash.com/photo-1527482797697-8795b05a13fe?q=80&w=800",
       description: "Street is completely submerged. Water entering houses on the ground floor.",
       date: "Feb 24, 2026"
     },
