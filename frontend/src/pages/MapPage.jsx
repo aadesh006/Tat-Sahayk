@@ -6,10 +6,25 @@ import {
   Tooltip,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { MapData } from "../services/storage.js";
-import { Activity, Info } from "lucide-react"; 
+import { Activity, Info,Loader2 } from "lucide-react"; 
+import { useQuery } from "@tanstack/react-query";
+import { fetchMap } from "../lib/api.js";
 
 const MapPage = () => {
+  const {data:MapData,isLoading,isError} = useQuery({
+    queryKey:['mapPoints'],
+    queryFn:fetchMap,
+  })
+
+  if (isLoading) {
+    return (
+      <div className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+        <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
+        <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Loading Map...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full min-h-screen bg-slate-50">
       <div className="bg-white border-b border-blue-100 px-6 py-6 mb-6">

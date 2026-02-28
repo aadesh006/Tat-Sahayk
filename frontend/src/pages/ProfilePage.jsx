@@ -1,18 +1,31 @@
 import React from 'react';
 import { Link } from 'react-router';
-import { MapPin, Calendar, Mail, Edit3, ArrowLeft, MoreHorizontal, FileText } from 'lucide-react';
-import { UserReports } from '../services/storage.js';
+import { 
+  MapPin, Calendar, Mail, ArrowLeft, 
+  Clock, ShieldCheck, ChevronRight ,Loader2
+} from 'lucide-react';
 import useAuthUser from '../hooks/useAuthUser.js';
+import { useQuery } from '@tanstack/react-query';
+import { fetchUserReports } from '../lib/api.js';
 
 const ProfilePage = () => {
-  const { authUser, isLoading } = useAuthUser();
-  if (isLoading) return <div className="p-10 text-center">Loading Profile...</div>;
-  const userData = authUser || {
-    full_name: "Hardik Gupta",
-    email: "hardik@gmail.com",
-    created_at: "2024-01-15",
-  };
+  const { authUser } = useAuthUser();
+  const userData = authUser;
 
+  const {data:UserReports,isLoading,Error} = useQuery({
+    queryKey : ['user_reports'],
+    queryFn : fetchUserReports,
+  })
+  
+
+  if (isLoading) {
+    return (
+      <div className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+        <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
+        <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Loading Profile...</p>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-white max-w-2xl mx-auto border-x border-blue-50">
       <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 py-2 flex items-center gap-8 border-b border-blue-50">
@@ -58,41 +71,55 @@ const ProfilePage = () => {
         <h3 className="text-sm font-black text-blue-900 uppercase tracking-widest">My Reports</h3>
       </div>
 
-      <div className="p-4 space-y-6">
+
+    {/*////////////// User Reports ////////////*/}
+      <div className="p-4 space-y-4">
         {UserReports.map((report) => (
           <article
-            key={report.id}
-            className="bg-white rounded-xl border border-blue-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+            key={report.id || report._id}
+            className="bg-white border-l-4 border-l-red-600 shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all group"
           >
-            <div className="p-4 flex items-center gap-3 border-b border-blue-50">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-white font-semibold shrink-0">
-                {report.username?.charAt(0) || 'U'}
+            <div className="p-4">
+              <div className="flex flex-wrap items-start justify-between gap-4 mb-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <Clock size={12} /> {report.date || "Just Now"}
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    {report.disasterType} 
+                    <span className="px-2 py-0.5 rounded bg-red-50 text-red-700 text-[10px] uppercase font-black tracking-tighter border border-red-100">
+                      Critical
+                    </span>
+                  </h3>
+                  <div className="flex items-center gap-1 text-sm text-slate-500 font-medium">
+                    <MapPin size={14} className="text-red-500" /> {report.location}
+                  </div>
+                </div>
+                
+                
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-blue-900 truncate">{report.username}</p>
-                <p className="text-sm text-blue-500 truncate">{report.location}</p>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 shrink-0">
-                  {report.disasterType}
-                </span>
-                <span className="text-[10px] text-blue-300 font-medium">{report.date}</span>
-              </div>
-            </div>
 
-            <div className="px-4 py-3">
-              <p className="text-sm text-blue-900 leading-relaxed">
-                {report.description}
-              </p>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="bg-slate-50 p-3 rounded border border-slate-100 mb-4">
+                    <p className="text-slate-700 text-sm leading-relaxed italic">
+                      "{report.description || "Situation under assessment."}"
+                    </p>
+                  </div>
+                  
+                  
+                </div>
+                
+                <div className="md:w-48 h-32 shrink-0 rounded-lg overflow-hidden border border-slate-200 shadow-inner bg-slate-200">
+                  <img
+                    src={report.image}
+                    alt="Incident Visual"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
+                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1454165833222-d1d7d8599335?q=80&w=400"; }}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="aspect-[16/10] bg-blue-50">
-              <img
-                src={report.image}
-                alt={report.disasterType}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            
           </article>
         ))}
       </div>

@@ -7,14 +7,18 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import MapPage from './pages/MapPage.jsx';
 import CreateReport from './pages/CreateReport.jsx';
 import SignupPage from './pages/SignupPage.jsx';
+import { Loader2 } from 'lucide-react';
 
 const App = () => {
   const { isLoading, authUser } = useAuthUser();
   const isAuthenticated = Boolean(authUser);
-  // const isAuthenticated = true;
 
   if (isLoading) {
-    return <div className="h-screen flex items-center justify-center font-bold text-blue-600">Verifying Connection...</div>;
+     return (
+      <div className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+        <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
+      </div>
+    );
   }
 
   return (
