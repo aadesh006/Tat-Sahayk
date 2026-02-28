@@ -11,6 +11,26 @@ from app.db.base import Base
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from scripts.harvest_social import harvest
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="Tat-Sahayk API")
+
+#CORS CONFIGURATION
+origins = [
+    "http://localhost:5173",  # Default for Vite
+    "http://localhost:3000",  # Default for Create React App
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"], # Allows all methods (GET, POST, PUT, DELETE)
+    allow_headers=["*"], # Allows all headers
+)
+
+# Include routers
+app.include_router(api_router, prefix="/api/v1")
 
 # Define the Lifespan (Startup/Shutdown logic)
 @asynccontextmanager

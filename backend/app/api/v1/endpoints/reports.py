@@ -10,6 +10,7 @@ from app.models.report import Report
 from app.db.session import SessionLocal, get_db
 from app.models.user import User
 import math
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 
 #HELPER: Calculate Distance in KM
 def calculate_distance(lat1, lon1, lat2, lon2):
