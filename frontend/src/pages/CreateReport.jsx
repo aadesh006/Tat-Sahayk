@@ -1,18 +1,20 @@
 import React, { useState, useRef } from "react";
-import { Link } from "react-router";
 import {
   Camera,
   MapPin,
   AlertTriangle,
-  ArrowLeft,
   X,
   Loader2,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createReport } from "../lib/api.js";
+import { useNavigate } from "react-router";
 
 const CreateReport = () => {
   const fileInputRef = useRef(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [previewUrl, setPreviewUrl] = useState(null);
 
   const initialState = {
@@ -23,6 +25,23 @@ const CreateReport = () => {
   };
 
   const [formData, setFormData] = useState(initialState);
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: createReport,
+    onSuccess: () => {
+      toast.success("Report submitted successfully!");
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
+      queryClient.invalidateQueries({ queryKey: ["mapPoints"] });
+      
+      setFormData(initialState);
+      setPreviewUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to submit report");
+    },
+  });
 
   const handleBoxClick = () => {
     fileInputRef.current.click();
@@ -47,37 +66,21 @@ const CreateReport = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!formData.image) {
       return toast.error("Please upload a photo of the incident");
     }
 
-    setIsSubmitting(true);
-    try {
-      const data = new FormData();
-      data.append("location", formData.location);
-      data.append("disasterType", formData.disasterType);
-      data.append("description", formData.description);
-      data.append("image", formData.image);
+    // Use FormData for multipart/form-data (required for images)
+    const data = new FormData();
+    data.append("location", formData.location);
+    data.append("disasterType", formData.disasterType);
+    data.append("description", formData.description);
+    data.append("image", formData.image);
 
-      await new Promise((resolve) => setTimeout(resolve, 2000)); //simulating actual sending of data
-
-      toast.success("Report submitted successfully!", {
-        duration: 4000,
-        position: "top-center",
-      });
-
-      setFormData(initialState);
-      setPreviewUrl(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (error) {
-      toast.error("Failed to submit report. Please try again.");
-      console.error("Submission error:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
+    mutate(data);
   };
 
   return (
@@ -196,18 +199,17 @@ const CreateReport = () => {
 
             <button
               type="submit"
-              disabled={isSubmitting}
-              className={`w-full py-4 text-white font-bold rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2
-                ${
-                  isSubmitting
-                    ? "bg-blue-400 cursor-not-allowed"
-                    : "bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 shadow-blue-200"
+              disabled={isPending}
+              className={`w-full py-4 text-white font-black uppercase tracking-[0.2em] text-xs rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 
+                ${isPending 
+                  ? "bg-slate-400 cursor-not-allowed opacity-70" 
+                  : "bg-blue-600 hover:from-blue-700  shadow-blue-200"
                 }`}
             >
-              {isSubmitting ? (
+              {isPending ? (
                 <>
                   <Loader2 className="animate-spin" size={20} />
-                  Sending Report...
+                  <span>Transmitting Data...</span>
                 </>
               ) : (
                 "Submit Report"

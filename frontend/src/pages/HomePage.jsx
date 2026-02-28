@@ -1,5 +1,5 @@
 import React from 'react';
-import { reports } from "../services/storage";
+import { fetchReports } from '../lib/api.js';
 import { 
   Phone, 
   ShieldAlert, 
@@ -11,8 +11,16 @@ import {
   ChevronRight,
   ShieldCheck
 } from "lucide-react";
+import {  useQuery } from '@tanstack/react-query';
+
 
 const HomePage = () => {
+  const{data:reports,isLoading,isError} = useQuery({
+    queryKey:['reports'],
+    queryFn:fetchReports,
+
+  })
+
   const helplines = [
     { id: 1, name: "Police Control", number: "100", icon: <ShieldAlert size={18} />, color: "bg-blue-600 text-white" },
     { id: 2, name: "Medical Emergency", number: "102", icon: <HeartPulse size={18} />, color: "bg-red-600 text-white" },
@@ -20,10 +28,19 @@ const HomePage = () => {
     { id: 4, name: "Disaster Mgmt. Service", number: "108", icon: <Phone size={18} />, color: "bg-blue-700 text-white" },
   ];
 
+   if (isLoading) {
+    return (
+      <div className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+        <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
+        <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Loading...</p>
+      </div>
+    );
+  }
+
+
   return (
     <div className="flex flex-col lg:flex-row gap-8 p-4 md:p-6 bg-slate-50 min-h-screen">
-      
-      
+  
       <aside className="lg:w-80 shrink-0 order-1 lg:order-2">
         <div className="sticky top-6 space-y-4">
           <div className="bg-white rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-blue-100">

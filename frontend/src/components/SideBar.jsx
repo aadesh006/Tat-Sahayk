@@ -1,13 +1,37 @@
 import React from "react";
-import { Link, useLocation } from "react-router"; 
-import { ClipboardList, Map, LayoutDashboard, X, PlusCircle } from 'lucide-react';
+import { Link, useLocation, useNavigate } from "react-router"; 
+import { 
+  ClipboardList, 
+  Map, 
+  LayoutDashboard, 
+  X, 
+  PlusCircle, 
+  LogOut 
+} from 'lucide-react';
+import { useQueryClient,useMutation} from "@tanstack/react-query";
+import {toast,Toaster} from "react-hot-toast";
+import { logout } from "../lib/api.js";
 
 const SideBar = ({ isOpen, onClose }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const currentPath = location.pathname;
 
   const activeLinkClasses = "!bg-cyan-200 hover:!bg-blue-700 hover:!text-white text-blue-900";
   const inactiveLinkClasses = "text-blue-900 hover:bg-blue-50";
+
+  const { mutate: logoutMuatation, isPending } = useMutation({
+    mutationFn: logout,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["authUser"] }),
+    onError: (error) => {
+      toast.error(error.message || "Failed to terminate session");
+    }
+  });
+
+  const handleLogout = () => {
+    logoutMuatation();
+  };
   
   const navItems = [
     { to: "/", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
@@ -28,13 +52,13 @@ const SideBar = ({ isOpen, onClose }) => {
         className={`
           flex flex-col h-screen bg-white shrink-0 w-64
           fixed top-0 left-0 z-[1000] transition-transform duration-300 ease-in-out
-          lg:translate-x-0 lg:relative lg:top-0
+          lg:translate-x-0 lg:relative lg:top-0 border-r border-blue-200
           ${isOpen ? "translate-x-0 z-[1000]" : "-translate-x-full"}
         `}
       >
         <div className="flex items-center justify-between h-16 px-6 border-b border-blue-200 shrink-0">
-           <span className="text-xl font-semibold font-sans bg-clip-text text-blue-600 tracking-wider truncate px-2 ">
-             Tat-Sahayak
+           <span className="text-xl font-bold font-sans bg-clip-text text-blue-600 tracking-wider truncate px-2 ">
+             तट-Sahayk
            </span>
            
            <button onClick={onClose} className="lg:hidden text-blue-500">
@@ -42,7 +66,7 @@ const SideBar = ({ isOpen, onClose }) => {
            </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2 pt-5 overflow-y-auto border-r border-blue-200">
+        <nav className="flex-1 p-4 space-y-2 pt-5 overflow-y-auto">
           {navItems.map(({ to, label, icon }) => (
             <Link
               key={to}
@@ -57,19 +81,27 @@ const SideBar = ({ isOpen, onClose }) => {
             </Link>
           ))}
 
-          {/* Linked New Report Button */}
           <div className="pt-4 mt-4 border-t border-blue-100">
             <Link 
               to="/New" 
               onClick={() => onClose()}
-              className="flex items-center justify-center gap-2 w-full py-3 bg-blue-700 text-white rounded-xl font-bold hover:bg-blue-800 shadow-lg shadow-blue-200 transition-all active:scale-95"
+              className="flex items-center justify-center gap-2 w-full py-3 bg-blue-700 text-white rounded-xl font-bold hover:bg-blue-800 shadow-lg shadow-blue-200 transition-all active:scale-95 text-sm uppercase tracking-tight"
             >
               <PlusCircle size={18} />
               New Report
             </Link>
           </div>
-          
         </nav>
+
+        <div className="p-4 border-t border-blue-100 shrink-0">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-4 py-3 text-red-600 font-bold text-sm hover:bg-red-50 rounded-lg transition-all group"
+          >
+            <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+            <span className="uppercase tracking-widest text-[11px]">Logout</span>
+          </button>
+        </div>
       </aside>
     </div>
   );
