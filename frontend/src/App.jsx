@@ -42,7 +42,7 @@ const App = () => {
               </Layout>    
             ):
             (
-              <Navigate to = "login" />
+              <Navigate to = "/login" />
             )
           }
         />
@@ -55,7 +55,7 @@ const App = () => {
               </Layout>    
             ):
             (
-              <Navigate to = "login" />
+              <Navigate to = "/login" />
             )
           }
         />
