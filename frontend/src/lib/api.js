@@ -163,3 +163,46 @@ export const postComment = async ({ reportId, content }) => {
 export const deleteComment = async ({ reportId, commentId }) => {
   await axiosInstance.delete(`/reports/${reportId}/comments/${commentId}`);
 };
+
+// ─── ALERTS ──────────────────────────────────────────────────────────────────
+
+export const fetchAlerts = async ({ district, state } = {}) => {
+  const params = new URLSearchParams();
+  if (district) params.append("district", district);
+  if (state)    params.append("state",    state);
+  const res = await axiosInstance.get(`/alerts/?${params.toString()}`);
+  return res.data;
+};
+
+export const createAlert = async (alertData) => {
+  const res = await axiosInstance.post("/alerts/", alertData);
+  return res.data;
+};
+
+export const deactivateAlert = async (alertId) => {
+  const res = await axiosInstance.patch(`/alerts/${alertId}/deactivate`);
+  return res.data;
+};
+
+// ─── ADMIN REPORT SUMMARY (AI) ───────────────────────────────────────────────
+
+export const fetchAdminReports = async ({ status, severity } = {}) => {
+  const params = new URLSearchParams();
+  if (status)   params.append("status",   status);
+  if (severity) params.append("severity", severity);
+  const res = await axiosInstance.get(`/reports/?${params.toString()}`);
+  return res.data.map((r) => ({
+    ...r,
+    disasterType: r.hazard_type,
+    date: r.created_at
+      ? new Date(r.created_at).toLocaleString("en-IN")
+      : "Just Now",
+    image: r.media?.[0]?.file_path || null,
+    location:
+      r.latitude && r.longitude
+        ? `${Number(r.latitude).toFixed(4)}°N, ${Number(r.longitude).toFixed(4)}°E`
+        : "Location unavailable",
+    aiScore: r.ai_authenticity_score,
+    aiSummary: r.ai_analysis_summary,
+  }));
+};

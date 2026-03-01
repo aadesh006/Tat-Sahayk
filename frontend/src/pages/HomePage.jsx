@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { fetchReports, fetchSocialFeed } from '../lib/api.js';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from "react-i18next";
 import ReportCard from '../components/ReportCard.jsx';
+import { fetchReports, fetchSocialFeed, fetchAlerts } from '../lib/api.js';
+import { AlertOctagon } from 'lucide-react';
 import { Phone, ShieldAlert, HeartPulse, Flame, AlertTriangle,
   ChevronRight, Loader2, PhoneCall, Filter } from "lucide-react";
 
@@ -27,6 +28,12 @@ const HomePage = () => {
     queryKey: ['socialFeed'],
     queryFn: fetchSocialFeed,
   });
+
+const { data: alerts } = useQuery({
+  queryKey: ["alerts"],
+  queryFn:  () => fetchAlerts(),
+  refetchInterval: 60000,
+});
 
   const helplines = [
     { id: 1, name: "Police Control",    number: "100",  icon: <ShieldAlert size={18} />, color: "bg-blue-600 text-white" },
@@ -60,6 +67,47 @@ const HomePage = () => {
           ))}
         </div>
       </div>
+
+      {/* Government Advisories */}
+{alerts?.filter(a => a.is_active).map((alert) => {
+  const borderColor = {
+    critical: "border-red-500 bg-red-50 dark:bg-red-900/20",
+    high:     "border-orange-500 bg-orange-50 dark:bg-orange-900/20",
+    medium:   "border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20",
+    low:      "border-blue-500 bg-blue-50 dark:bg-blue-900/20",
+  }[alert.severity] || "border-blue-500 bg-blue-50 dark:bg-blue-900/20";
+
+  const textColor = {
+    critical: "text-red-700 dark:text-red-300",
+    high:     "text-orange-700 dark:text-orange-300",
+    medium:   "text-yellow-700 dark:text-yellow-300",
+    low:      "text-blue-700 dark:text-blue-300",
+  }[alert.severity] || "text-blue-700 dark:text-blue-300";
+
+  return (
+    <div key={alert.id}
+      className={`border-l-4 rounded-r-xl p-4 mb-3 ${borderColor}`}>
+      <div className="flex items-start gap-3">
+        <AlertOctagon size={18} className={`${textColor} shrink-0 mt-0.5`} />
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-xs font-black uppercase tracking-widest ${textColor}`}>
+              🏛 Government Advisory
+            </span>
+            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${textColor} border-current`}>
+              {alert.severity}
+            </span>
+          </div>
+          <p className={`font-bold text-sm ${textColor}`}>{alert.title}</p>
+          <p className={`text-xs mt-0.5 ${textColor} opacity-80`}>{alert.message}</p>
+          <p className="text-[10px] text-slate-400 mt-1">
+            Issued by {alert.admin_name} · {alert.district || "National"} · {new Date(alert.created_at).toLocaleString("en-IN")}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+})}
 
       {/* Social Feed */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-blue-100 dark:border-slate-700">

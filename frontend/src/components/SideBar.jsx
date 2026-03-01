@@ -31,6 +31,7 @@ const SideBar = ({ isOpen, onClose }) => {
     { to: "/",        label: t("dashboard"), icon: <LayoutDashboard size={20} /> },
     { to: "/profile", label: t("myProfile"), icon: <ClipboardList size={20} /> },
     { to: "/map",     label: t("map"),        icon: <Map size={20} /> },
+    // Admin Panel link only appears for admins
     ...(isAdmin ? [{ to: "/admin", label: t("adminPanel"), icon: <ShieldAlert size={20} /> }] : []),
   ];
 
@@ -40,6 +41,8 @@ const SideBar = ({ isOpen, onClose }) => {
   return (
     <div>
       <Toaster />
+
+      {/* Dark overlay on mobile when sidebar is open */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 lg:hidden backdrop-blur-sm z-[1000]"
@@ -83,19 +86,25 @@ const SideBar = ({ isOpen, onClose }) => {
             </Link>
           ))}
 
-          {/* New Report */}
-          <div className="pt-4 mt-2 border-t border-slate-100 dark:border-slate-700">
-            <Link
-              to="/new"
-              onClick={onClose}
-              className="flex items-center justify-center gap-2 w-full py-3 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all active:scale-95 text-sm uppercase tracking-tight"
-            >
-              <PlusCircle size={18} /> {t("newReport")}
-            </Link>
-          </div>
+          {/*
+            NEW REPORT button — hidden for admins.
+            Admins don't submit citizen reports, they only review and issue alerts.
+            Citizens (role === "citizen") see this button normally.
+          */}
+          {!isAdmin && (
+            <div className="pt-4 mt-2 border-t border-slate-100 dark:border-slate-700">
+              <Link
+                to="/new"
+                onClick={onClose}
+                className="flex items-center justify-center gap-2 w-full py-3 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all active:scale-95 text-sm uppercase tracking-tight"
+              >
+                <PlusCircle size={18} /> {t("newReport")}
+              </Link>
+            </div>
+          )}
         </nav>
 
-        {/* User info + sign out */}
+        {/* Bottom — user info + sign out */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-700 shrink-0">
           {authUser && (
             <div className="mb-3 px-2">
@@ -103,6 +112,12 @@ const SideBar = ({ isOpen, onClose }) => {
                 {authUser.full_name}
               </p>
               <p className="text-[10px] text-slate-400 truncate">{authUser.email}</p>
+              {/* District shown for admins */}
+              {isAdmin && authUser.district && (
+                <p className="text-[10px] text-blue-400 truncate mt-0.5">
+                  📍 {authUser.district}, {authUser.state}
+                </p>
+              )}
               {isAdmin && (
                 <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-full mt-1 inline-block border border-purple-200 dark:border-purple-800">
                   Admin
@@ -110,6 +125,7 @@ const SideBar = ({ isOpen, onClose }) => {
               )}
             </div>
           )}
+
           <button
             onClick={() => logoutMutation()}
             disabled={isPending}
@@ -117,10 +133,11 @@ const SideBar = ({ isOpen, onClose }) => {
           >
             <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
             <span className="uppercase tracking-widest text-[11px]">
-              {isPending ? "..." : t("signOut")}
+              {isPending ? "Signing out..." : t("signOut")}
             </span>
           </button>
         </div>
+
       </aside>
     </div>
   );

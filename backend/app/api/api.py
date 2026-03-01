@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, reports, media, social, comments
+from app.api.v1.endpoints import auth, reports, media, social, comments, alerts
 
 api_router = APIRouter()
 
@@ -17,3 +17,6 @@ api_router.include_router(social.router, prefix="/social", tags=["social"])
 
 #Comments
 api_router.include_router(comments.router, prefix="/reports",  tags=["comments"])
+
+#Alerts
+api_router.include_router(alerts.router,   prefix="/alerts",   tags=["alerts"])
