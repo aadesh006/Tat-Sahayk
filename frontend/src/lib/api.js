@@ -79,15 +79,18 @@ export const fetchUserReports = async ({ status } = {}) => {
 };
 
 export const createReport = async (formData) => {
-  const imageFile = formData.get("image");
+  const imageFiles = formData.getAll("images");
   let imageFilenames = [];
-  if (imageFile) {
-    const mediaForm = new FormData();
-    mediaForm.append("file", imageFile);
-    const uploadRes = await axiosInstance.post("/media/upload", mediaForm);
-    imageFilenames = [uploadRes.data.file_path];
+
+  if (imageFiles.length > 0) {
+    const multiForm = new FormData();
+    imageFiles.forEach((f) => multiForm.append("files", f));
+    const uploadRes = await axiosInstance.post("/media/upload-many", multiForm);
+    imageFilenames = uploadRes.data.file_paths;
   }
+
   const coords = await getCurrentPosition();
+
   const res = await axiosInstance.post("/reports/", {
     hazard_type: formData.get("disasterType"),
     description: formData.get("description"),
@@ -143,4 +146,20 @@ export const fetchMap = async () => {
 export const fetchSocialFeed = async () => {
   const res = await axiosInstance.get("/social/");
   return res.data;
+};
+
+// ─── COMMENTS ────────────────────────────────────────────────────────────────
+
+export const fetchComments = async (reportId) => {
+  const res = await axiosInstance.get(`/reports/${reportId}/comments`);
+  return res.data;
+};
+
+export const postComment = async ({ reportId, content }) => {
+  const res = await axiosInstance.post(`/reports/${reportId}/comments`, { content });
+  return res.data;
+};
+
+export const deleteComment = async ({ reportId, commentId }) => {
+  await axiosInstance.delete(`/reports/${reportId}/comments/${commentId}`);
 };

@@ -70,16 +70,17 @@ const ProfilePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white max-w-2xl mx-auto border-x border-blue-50">
+    <div className="min-h-screen bg-white dark:bg-slate-900 max-w-2xl mx-auto border-x border-blue-50 dark:border-slate-700">
+
       <Toaster />
 
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 py-2 flex items-center gap-8 border-b border-blue-50">
+      <div className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 py-2 flex items-center gap-8 border-b border-blue-50 dark:border-slate-700">
         <Link to="/" className="p-2 hover:bg-blue-50 rounded-full transition-colors">
           <ArrowLeft size={20} className="text-blue-900" />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-blue-900 leading-tight">{authUser.full_name}</h1>
+          <h1 className="text-xl font-bold text-blue-900 dark:text-white leading-tight">{authUser.full_name}</h1>
           <p className="text-xs text-blue-500 font-medium">{userReports?.length ?? 0} Reports</p>
         </div>
       </div>
@@ -105,7 +106,7 @@ const ProfilePage = () => {
 
       {/* User Info */}
       <div className="px-4 mb-6">
-        <h2 className="text-xl font-black text-blue-900 tracking-tight">{authUser.full_name}</h2>
+        <h2 className="text-xl font-black text-blue-900 dark:text-white tracking-tight">{authUser.full_name}</h2>
         <p className="text-blue-500 text-sm">@{authUser.email?.split('@')[0]}</p>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-blue-500 mt-2">
           <span className="flex items-center gap-1"><Mail size={16} /> {authUser.email}</span>
@@ -124,7 +125,7 @@ const ProfilePage = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="px-4 py-3 border-y border-blue-50 flex items-center gap-2 overflow-x-auto">
+      <div className="px-4 py-3 border-y border-blue-50 dark:border-slate-700 flex items-center gap-2 overflow-x-auto bg-white dark:bg-slate-900">
         <Filter size={14} className="text-slate-400 shrink-0" />
         {STATUS_FILTERS.map((f) => (
           <button
@@ -192,7 +193,7 @@ const ProfilePage = () => {
       {/* Edit Profile Modal */}
       {editOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-black text-slate-900">Edit Profile</h2>
               <button onClick={() => setEditOpen(false)} className="p-1 hover:bg-slate-100 rounded-full">
