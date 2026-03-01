@@ -216,3 +216,18 @@ def get_my_reports(
 ):
     return db.query(Report).filter(Report.user_id == current_user.id)\
              .order_by(Report.created_at.desc()).all()
+
+# DELETE REPORT (owner or admin only)
+@router.delete("/{report_id}", status_code=204)
+def delete_report(
+    report_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    report = db.query(Report).filter(Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    if report.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    db.delete(report)
+    db.commit()

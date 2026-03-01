@@ -26,22 +26,24 @@ export const login = async ({ email, password }) => {
   return { user: userRes.data };
 };
 
-export const signup = async (signupData) => {
-  const res = await axiosInstance.post("/auth/signup", signupData);
+export const signup = async (data) => {
+  const res = await axiosInstance.post("/auth/signup", data);
   return res.data;
 };
 
-export const logout = () => {
-  localStorage.removeItem("token");
+export const logout = () => localStorage.removeItem("token");
+
+export const updateProfile = async (data) => {
+  const res = await axiosInstance.patch("/auth/me", data);
+  return res.data;
 };
 
-// ─── GPS HELPER ──────────────────────────────────────────────────────────────
+// ─── GPS ─────────────────────────────────────────────────────────────────────
 
 export const getCurrentPosition = () =>
   new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      return resolve({ lat: 20.5937, lng: 78.9629 }); // center of India fallback
-    }
+    if (!navigator.geolocation)
+      return resolve({ lat: 20.5937, lng: 78.9629 });
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       () => resolve({ lat: 20.5937, lng: 78.9629 })
@@ -55,39 +57,37 @@ const normalizeReport = (r) => ({
   disasterType: r.hazard_type,
   date: r.created_at ? new Date(r.created_at).toLocaleString("en-IN") : "Just Now",
   image: r.media?.[0]?.file_path || null,
-  location: r.latitude && r.longitude
-    ? `${r.latitude.toFixed(4)}°N, ${r.longitude.toFixed(4)}°E`
-    : "Location unavailable",
+  location:
+    r.latitude && r.longitude
+      ? `${r.latitude.toFixed(4)}°N, ${r.longitude.toFixed(4)}°E`
+      : "Location unavailable",
 });
 
-export const fetchReports = async () => {
-  const res = await axiosInstance.get("/reports/");
+export const fetchReports = async ({ status, severity } = {}) => {
+  const params = new URLSearchParams();
+  if (status) params.append("status", status);
+  if (severity) params.append("severity", severity);
+  const res = await axiosInstance.get(`/reports/?${params.toString()}`);
   return res.data.map(normalizeReport);
 };
 
-export const fetchUserReports = async () => {
-  const res = await axiosInstance.get("/reports/my");
+export const fetchUserReports = async ({ status } = {}) => {
+  const params = new URLSearchParams();
+  if (status) params.append("status", status);
+  const res = await axiosInstance.get(`/reports/my?${params.toString()}`);
   return res.data.map(normalizeReport);
 };
 
 export const createReport = async (formData) => {
-  // Step 1: Upload image to Cloudinary via /media/upload
   const imageFile = formData.get("image");
   let imageFilenames = [];
-
   if (imageFile) {
     const mediaForm = new FormData();
     mediaForm.append("file", imageFile);
-    const uploadRes = await axiosInstance.post("/media/upload", mediaForm, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    imageFilenames = [uploadRes.data.file_path]; // Cloudinary URL
+    const uploadRes = await axiosInstance.post("/media/upload", mediaForm);
+    imageFilenames = [uploadRes.data.file_path];
   }
-
-  // Step 2: Get GPS coordinates
   const coords = await getCurrentPosition();
-
-  // Step 3: Submit JSON report to backend
   const res = await axiosInstance.post("/reports/", {
     hazard_type: formData.get("disasterType"),
     description: formData.get("description"),
@@ -96,7 +96,22 @@ export const createReport = async (formData) => {
     longitude: coords.lng,
     image_filenames: imageFilenames,
   });
+  return res.data;
+};
 
+export const deleteReport = async (reportId) => {
+  await axiosInstance.delete(`/reports/${reportId}`);
+};
+
+export const verifyReport = async (reportId, status) => {
+  const res = await axiosInstance.patch(
+    `/reports/${reportId}/verify?status=${status}`
+  );
+  return res.data;
+};
+
+export const fetchReportStats = async () => {
+  const res = await axiosInstance.get("/reports/stats");
   return res.data;
 };
 
@@ -123,7 +138,7 @@ export const fetchMap = async () => {
   }));
 };
 
-// ─── SOCIAL FEED ─────────────────────────────────────────────────────────────
+// ─── SOCIAL ──────────────────────────────────────────────────────────────────
 
 export const fetchSocialFeed = async () => {
   const res = await axiosInstance.get("/social/");

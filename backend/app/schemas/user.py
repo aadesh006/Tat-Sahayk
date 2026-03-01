@@ -9,19 +9,15 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
 
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+
 class UserResponse(UserBase):
     id: int
     is_active: bool
-
     class Config:
         from_attributes = True
-        
-# New Schema for Login Request
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
 
-# New Schema for Token Response
 class Token(BaseModel):
     access_token: str
     token_type: str
