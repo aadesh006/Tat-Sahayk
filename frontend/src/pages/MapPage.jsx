@@ -29,7 +29,7 @@ const MapPage = () => {
           <div className="flex gap-4">
             <div className="bg-blue-50 border border-blue-100 px-6 py-2 rounded-xl">
               <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Active Zones</p>
-              <p className="text-xl font-black text-blue-900">{MapData.length}</p>
+              <p className="text-xl font-black text-blue-900">{MapData?.length ?? 0}</p>
             </div>
           </div>
         </div>
@@ -48,7 +48,7 @@ const MapPage = () => {
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             style={{ brightnes: 2.8 }}
           />
-          {MapData.map((prop) => (
+          {(MapData || []).map((prop) => (
             <Circle
               key={prop.id} 
               center={prop.position}

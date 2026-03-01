@@ -80,7 +80,7 @@ def analyze_report_with_ai(report_id: int, text: str, image_url: str):
     db = SessionLocal()
     try:
         # Call the ML Service (Assuming it runs on port 8000 inside Docker)
-        ml_api_url = "http://ml-service:8000/api/analyze" 
+        ml_api_url = "http://ml-service:8000/api/v1/analyze/report" 
         
         with httpx.Client() as client:
             response = client.post(ml_api_url, json={
@@ -208,3 +208,11 @@ def get_hazard_hotspots(
         "total_hotspots": len(hotspots),
         "hotspots": hotspots
     }
+
+@router.get("/my", response_model=List[ReportResponse])
+def get_my_reports(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    return db.query(Report).filter(Report.user_id == current_user.id)\
+             .order_by(Report.created_at.desc()).all()
