@@ -29,6 +29,7 @@ class Report(Base):
     # Relationships
     owner = relationship("User", back_populates="reports")
     media = relationship("Media", back_populates="report")
+    comments = relationship("Comment", back_populates="report", cascade="all, delete")
 
     #Virtual Properties
     @property
