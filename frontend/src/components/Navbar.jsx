@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { Link } from "react-router";
 import { Menu, AlertCircle, ChevronDown, Languages, Check, FileText,Book } from 'lucide-react';
 
 
@@ -45,11 +46,15 @@ const NavBar = ({ onMenuClick }) => {
               SOS
             </span>
           </button>
-
-          <button className="flex items-center gap-2 px-3 py-2 text-slate-700 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-all font-bold uppercase tracking-tighter text-sm border border-transparent hover:border-blue-100">
-            <Book size={18} />
-            <span className="hidden sm:inline">Protocols</span>
-          </button>
+          <Link to="/protocols">
+            <button className="flex items-center gap-2 px-3 py-2 text-slate-700 hover:text-blue-700 hover:bg-blue-50
+            rounded-md transition-all font-bold uppercase tracking-tighter text-sm border border-transparent">
+              
+                <Book size={18} />
+                <span className="hidden sm:inline">Protocols</span>
+            
+            </button>
+           </Link>
 
           <div className="relative" ref={dropdownRef}>
             <button 

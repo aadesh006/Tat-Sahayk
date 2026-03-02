@@ -1,5 +1,6 @@
 import React from 'react';
 import { fetchReports } from '../lib/api.js';
+import { Link } from 'react-router';
 import { 
   Phone, 
   ShieldAlert, 
@@ -9,7 +10,8 @@ import {
   Clock, 
   MapPin, 
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from "lucide-react";
 import {  useQuery } from '@tanstack/react-query';
 
@@ -113,9 +115,11 @@ const HomePage = () => {
                       </div>
                     </div>
                     
-                    <button className="hidden md:flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 uppercase tracking-tighter">
-                      View Protocol <ChevronRight size={14} />
-                    </button>
+                    <Link to="/protocols">
+                      <button className="hidden md:flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 uppercase tracking-tighter">
+                        View Protocol <ChevronRight size={14} />
+                      </button>
+                    </Link>
                   </div>
 
                   <div className="flex flex-col md:flex-row gap-4">

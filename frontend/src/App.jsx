@@ -7,6 +7,7 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import MapPage from './pages/MapPage.jsx';
 import CreateReport from './pages/CreateReport.jsx';
 import SignupPage from './pages/SignupPage.jsx';
+import ProtocolPage from './pages/ProtocolPage.jsx';
 import { Loader2 } from 'lucide-react';
 
 const App = () => {
@@ -56,6 +57,20 @@ const App = () => {
             isAuthenticated?(
               <Layout>
                 <ProfilePage/>
+              </Layout>    
+            ):
+            (
+              <Navigate to = "/login" />
+            )
+          }
+        />
+
+        <Route 
+          path='/protocols'
+          element={
+            isAuthenticated?(
+              <Layout>
+                <ProtocolPage/>
               </Layout>    
             ):
             (
