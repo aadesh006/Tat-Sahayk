@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, CircleMarker, Circle,
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import axiosInstance from '../lib/axios.js';
+import { axiosInstance } from '../lib/axios.js';
 import useAuthUser from '../hooks/useAuthUser.js';
 import { Shield, Users, MapPin, Plus, X, Loader2,
   AlertTriangle, Crosshair, Trash2, Activity } from 'lucide-react';
