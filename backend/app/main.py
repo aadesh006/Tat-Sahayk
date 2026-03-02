@@ -9,6 +9,18 @@ from app.api.api import api_router
 from app.db.session import engine
 from app.db.base import Base
 from scripts.harvest_social import harvest
+from apscheduler.schedulers.background import BackgroundScheduler
+from app.services.cluster_analyzer import run_cluster_analysis
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(
+    run_cluster_analysis,
+    trigger="interval",
+    minutes=15,
+    id="bedrock_cluster_analysis",
+    replace_existing=True
+)
+scheduler.start()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
