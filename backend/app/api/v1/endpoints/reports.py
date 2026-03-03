@@ -10,6 +10,7 @@ from app.models.report import Report
 from app.models.user import User
 from app.db.session import SessionLocal, get_db
 import math
+from app.services.bedrock_ai import analyze_single_report
 
 router = APIRouter()
 
@@ -142,20 +143,38 @@ def read_reports(
 # 5. CREATE REPORT
 @router.post("/", response_model=ReportResponse)
 def create_report(
-    *,
-    db: Session = Depends(get_db),
     report_in: ReportCreate,
     background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
     report = crud_report.create_report(db=db, report=report_in, user_id=current_user.id)
+
     background_tasks.add_task(
-        analyze_report_with_ai,
+        score_single_report_bg,
         report_id=report.id,
-        text=report.description,
-        image_url=report.image_url if hasattr(report, 'image_url') else ""
+        description=report_in.description or "",
+        hazard_type=report_in.hazard_type or "",
+        has_image=len(report_in.image_filenames or []) > 0
     )
+
     return report
+
+def score_single_report_bg(report_id: int, description: str, hazard_type: str, has_image: bool):
+    from app.db.session import SessionLocal
+    from app.services.bedrock_ai import analyze_single_report
+    db = SessionLocal()
+    try:
+        result = analyze_single_report(description, hazard_type, has_image)
+        report = db.query(Report).filter(Report.id == report_id).first()
+        if report:
+            report.ai_authenticity_score = result["authenticity_score"]
+            report.ai_analysis_summary   = result["preliminary_summary"]
+            db.commit()
+    except Exception as e:
+        print(f"Background AI scoring failed: {e}")
+    finally:
+        db.close()
 
 # DYNAMIC ROUTES
 

@@ -14,6 +14,7 @@ import {
 import toast, { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import ImageLightbox from '../components/ImageLightbox.jsx';
+import { fetchAIClusters } from '../lib/api.js';
 
 const SEVERITY_COLORS = {
   critical: { bg: "bg-red-500",    text: "text-red-500",    light: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800" },
@@ -286,6 +287,12 @@ const AdminDashboard = () => {
     refetchInterval: 30000,
   });
 
+  const { data: aiClusters } = useQuery({
+  queryKey: ["aiClusters"],
+  queryFn:  fetchAIClusters,
+  refetchInterval: 60000,
+});
+
   const { data: reports, isLoading } = useQuery({
     queryKey: ["adminReports", filter],
     queryFn:  () => fetchAdminReports({ status: filter || undefined }),
@@ -378,6 +385,7 @@ const AdminDashboard = () => {
         {[
           { key: "reports", label: "Verification Queue",   icon: <Filter size={15} /> },
           { key: "alerts",  label: "Issued Alerts",        icon: <Bell size={15} /> },
+          { key: "ai", label: "AI Intelligence", icon: <Brain size={15} /> },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -391,6 +399,90 @@ const AdminDashboard = () => {
           </button>
         ))}
       </div>
+
+      {activeTab === "ai" && (
+  <div className="space-y-4">
+    <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl">
+      <Brain size={14} className="text-blue-500 shrink-0" />
+      <p className="text-xs text-blue-700 dark:text-blue-300">
+        AI clusters reports by location every 15 minutes. Each card = multiple reports from the same area analysed by Amazon Nova.
+      </p>
+    </div>
+
+    {!aiClusters?.length ? (
+      <div className="text-center py-20 bg-white dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 rounded-2xl">
+        <Brain className="mx-auto text-slate-300 mb-2" size={40} />
+        <p className="text-xs text-slate-400 uppercase tracking-widest">No clusters yet — waiting for 2+ reports near each other</p>
+      </div>
+    ) : (
+      aiClusters.map((cluster) => (
+        <div key={cluster.cluster_id}
+          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+
+          {/* Header row */}
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h3 className="font-black text-slate-900 dark:text-white text-lg">
+                {cluster.hazard_type}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {cluster.report_count} reports · {cluster.center_lat.toFixed(3)}°N, {cluster.center_lon.toFixed(3)}°E · {cluster.max_severity?.toUpperCase()}
+              </p>
+            </div>
+            {/* AI Score */}
+            <div className="text-right shrink-0">
+              <div className={`text-3xl font-black ${
+                cluster.authenticity_score >= 0.8 ? "text-emerald-500" :
+                cluster.authenticity_score >= 0.5 ? "text-yellow-500" : "text-red-500"
+              }`}>
+                {Math.round(cluster.authenticity_score * 100)}%
+              </div>
+              <div className="text-[10px] text-slate-400 flex items-center gap-1 justify-end">
+                <Brain size={10} /> AI Authenticity
+              </div>
+            </div>
+          </div>
+
+          {/* AI Summary */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-3 mb-3">
+            <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+              <Brain size={10} /> Amazon Nova Analysis
+            </p>
+            <p className="text-sm text-blue-800 dark:text-blue-200">{cluster.ai_summary}</p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setAlertModal(true)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 transition-colors"
+            >
+              <Bell size={13} /> Issue Alert for This Area
+            </button>
+            <button
+              onClick={() => {
+                cluster.report_ids.forEach(id => doVerify({ id, status: "verified" }));
+                toast.success(`Verified ${cluster.report_count} reports`);
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors"
+            >
+              <CheckCircle size={13} /> Verify All ({cluster.report_count})
+            </button>
+            <button
+              onClick={() => {
+                cluster.report_ids.forEach(id => doVerify({ id, status: "false" }));
+                toast.success("Marked as fake");
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+            >
+              <XCircle size={13} /> Mark All Fake
+            </button>
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+)}
 
       <div className="p-4 md:p-6">
 

@@ -1,35 +1,33 @@
-from fastapi import FastAPI, Depends
-from sqlalchemy.orm import Session
+from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
+import threading
 
 from app.core.config import settings
 from app.api.api import api_router
 from app.db.session import engine
 from app.db.base import Base
 from scripts.harvest_social import harvest
-from apscheduler.schedulers.background import BackgroundScheduler
 from app.services.cluster_analyzer import run_cluster_analysis
-
-scheduler = BackgroundScheduler()
-scheduler.add_job(
-    run_cluster_analysis,
-    trigger="interval",
-    minutes=15,
-    id="bedrock_cluster_analysis",
-    replace_existing=True
-)
-scheduler.start()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+
+    # Start scheduler with both jobs
     scheduler = BackgroundScheduler()
-    scheduler.add_job(harvest, 'interval', minutes=15)
+    scheduler.add_job(harvest, "interval", minutes=15, id="social_harvester")
+    scheduler.add_job(run_cluster_analysis, "interval", minutes=15, id="bedrock_cluster_analysis")
     scheduler.start()
     print("Social Harvester Scheduler Started")
+    print("Bedrock Cluster Analyzer Started")
+
+    # Run cluster analysis once immediately on startup
+    threading.Thread(target=run_cluster_analysis, daemon=True).start()
+
     yield
+
     scheduler.shutdown()
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)

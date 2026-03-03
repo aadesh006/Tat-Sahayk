@@ -206,3 +206,8 @@ export const fetchAdminReports = async ({ status, severity } = {}) => {
     aiSummary: r.ai_analysis_summary,
   }));
 };
+
+export const fetchAIClusters = async () => {
+  const res = await axiosInstance.get("/ai/clusters");
+  return res.data;
+};
