@@ -14,7 +14,7 @@ class Report(Base):
     description  = Column(Text)
     severity     = Column(String)
     location     = Column(Geometry("POINT", srid=4326))
-    #is_verified  = Column(Boolean, default=False)
+    is_verified  = Column(Boolean, default=False)
     status       = Column(String,  default="pending")
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 

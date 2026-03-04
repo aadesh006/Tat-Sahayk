@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
+from typing import Optional
 
 class ReportBase(BaseModel):
     hazard_type:  str
@@ -20,7 +21,7 @@ class MediaResponse(BaseModel):
 class ReportResponse(ReportBase):
     id:                    int
     user_id:               int
-    is_verified:           bool
+    is_verified:           Optional[bool] = False
     status:                str
     created_at:            datetime
     media:                 List[MediaResponse] = []

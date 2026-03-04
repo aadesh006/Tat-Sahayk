@@ -13,6 +13,7 @@ def create_report(db: Session, report: ReportCreate, user_id: int):
         description=report.description,
         severity=report.severity,
         location=location_wkt,
+        is_verified=False,
         status="pending"
     )
     db.add(db_report)
