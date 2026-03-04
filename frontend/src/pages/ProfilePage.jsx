@@ -9,10 +9,10 @@ import toast, { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 
 const STATUS_FILTERS = [
-  { label: "All",              value: "" },
-  { label: "Pending",          value: "pending" },
-  { label: "Verified",         value: "verified" },
-  { label: "Fake/Irrelevant",  value: "false" },
+  { label: "All",             value: "" },
+  { label: "Pending",         value: "pending" },
+  { label: "Verified",        value: "verified" },
+  { label: "Fake/Irrelevant", value: "false" },
 ];
 
 const ProfilePage = () => {
@@ -70,25 +70,11 @@ const ProfilePage = () => {
     );
   };
 
-  const {data:UserReports,isLoading,Error} = useQuery({
-    queryKey : ['user_reports'],
-    queryFn : fetchUserReports,
-  })
-  
-
-  if (isLoading) {
-    return (
-      <div className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center">
-        <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
-        <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Loading Profile...</p>
-      </div>
-    );
-  }
   return (
     <div className="min-h-screen bg-white dark:bg-slate-900 max-w-2xl mx-auto border-x border-blue-50 dark:border-slate-700">
       <Toaster />
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 py-2 flex items-center gap-6 border-b border-blue-50 dark:border-slate-700">
         <Link to="/" className="p-2 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-full transition-colors">
           <ArrowLeft size={20} className="text-blue-900 dark:text-white" />
@@ -103,7 +89,7 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      {/* ── Cover + Avatar ── */}
+      {/* Cover + Avatar */}
       <div className="h-32 md:h-44 bg-gradient-to-r from-blue-600 to-cyan-400 relative">
         <div className="absolute -bottom-14 left-4 p-1 bg-white dark:bg-slate-900 rounded-full">
           <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 border-4 border-white dark:border-slate-900 flex items-center justify-center text-3xl font-bold text-white shadow-sm">
@@ -112,9 +98,8 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      {/* ── Edit Button row ── */}
+      {/* Edit Button row */}
       <div className="flex justify-end p-4 h-16 md:h-20">
-        {/* Admins cannot edit their name — it's government issued */}
         {!isAdmin && (
           <button
             onClick={() => { setEditName(authUser.full_name || ""); setEditOpen(true); }}
@@ -125,7 +110,7 @@ const ProfilePage = () => {
         )}
       </div>
 
-      {/* ── User Info ── */}
+      {/* User Info */}
       <div className="px-4 mb-4">
         <h2 className="text-xl font-black text-blue-900 dark:text-white tracking-tight">
           {authUser.full_name}
@@ -145,7 +130,6 @@ const ProfilePage = () => {
           </span>
         </div>
 
-        {/* Admin badge + district */}
         {isAdmin && (
           <div className="mt-2 flex items-center gap-2 flex-wrap">
             <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-black uppercase rounded-full border border-purple-200 dark:border-purple-800">
@@ -163,7 +147,7 @@ const ProfilePage = () => {
         )}
       </div>
 
-      {/* ── Filter Bar — citizens only ── */}
+      {/* Filter Bar — citizens only */}
       {!isAdmin && (
         <div className="px-4 py-3 border-y border-blue-50 dark:border-slate-700 flex items-center gap-2 overflow-x-auto bg-white dark:bg-slate-900">
           <Filter size={14} className="text-slate-400 shrink-0" />
@@ -182,10 +166,9 @@ const ProfilePage = () => {
         </div>
       )}
 
-      {/* ── Reports List ── */}
+      {/* Reports List */}
       <div className="p-4 space-y-4">
         {isAdmin ? (
-          // Admins don't have citizen reports
           <div className="text-center py-16 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
             <p className="text-sm font-bold text-slate-500 dark:text-slate-400">
               Admin accounts do not submit citizen reports.
@@ -220,7 +203,6 @@ const ProfilePage = () => {
                   <button
                     onClick={() => handleDelete(report.id)}
                     className="p-2 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    title={t("deleteReport")}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -248,7 +230,7 @@ const ProfilePage = () => {
         )}
       </div>
 
-      {/* ── Edit Profile Modal (citizens only) ── */}
+      {/* Edit Profile Modal — citizens only */}
       {editOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl">
@@ -265,7 +247,6 @@ const ProfilePage = () => {
             </div>
 
             <div className="space-y-4">
-              {/* Full name */}
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   {t("fullName")}
@@ -278,7 +259,6 @@ const ProfilePage = () => {
                 />
               </div>
 
-              {/* Email — read only */}
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   {t("email")}
