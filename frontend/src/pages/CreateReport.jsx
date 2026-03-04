@@ -148,7 +148,7 @@ const CreateReport = () => {
                   required
                 >
                   <option>Flood</option>
-                  <option>Storm</option>
+                  <option>Tsunami</option>
                   <option>Cyclone</option>
                   <option>Tsunami</option>
                   <option>Oil Spill</option>

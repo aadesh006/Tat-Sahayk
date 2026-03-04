@@ -49,7 +49,6 @@ const SignupPage = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
        <Toaster />
-      {/* Brand Logo */}
       <div className="mb-6 transition-opacity hover:opacity-80">
         <Link to="/">
           <img src="/logo.jpg" alt="Tat-Sahayak Logo" className="w-24 md:w-28 object-contain" />

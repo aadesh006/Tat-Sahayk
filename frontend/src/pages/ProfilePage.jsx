@@ -70,6 +70,20 @@ const ProfilePage = () => {
     );
   };
 
+  const {data:UserReports,isLoading,Error} = useQuery({
+    queryKey : ['user_reports'],
+    queryFn : fetchUserReports,
+  })
+  
+
+  if (isLoading) {
+    return (
+      <div className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+        <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
+        <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Loading Profile...</p>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-white dark:bg-slate-900 max-w-2xl mx-auto border-x border-blue-50 dark:border-slate-700">
       <Toaster />

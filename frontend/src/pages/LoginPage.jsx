@@ -6,6 +6,7 @@ import { Link } from "react-router";
 import toast, { Toaster } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 
+
 const LoginPage = () => {
   const { t } = useTranslation();
   const [isAdmin, setIsAdmin] = useState(false);
