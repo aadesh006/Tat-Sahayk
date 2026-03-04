@@ -77,3 +77,73 @@ export const UserReports = [
       date: "Feb 15, 2026"
     }
   ];
+  
+ export const protocols = {
+  cyclone: {
+    title: "Cyclone SOP",
+    sections: [
+      {
+        label: "Before Cyclone",
+        items: [
+          "Check your roof carefully. Make sure metal sheets, tiles, and loose parts are tightly secured so strong winds cannot blow them away.",
+          "Cut or trim tree branches that are close to power lines, windows, or your roof. Strong winds can break branches and cause serious damage.",
+          "Store enough emergency supplies for at least 3 days. Keep non-perishable food (like rice, biscuits, canned food) and at least 4 liters of drinking water per person per day.",
+          "Cover large glass windows with wooden boards or strong panels. This helps prevent glass from shattering and causing injuries during high winds."
+        ]
+      },
+      {
+        label: "During Cyclone",
+        items: [
+          "Switch off and unplug all electrical appliances. This prevents damage from sudden power surges and reduces fire risk.",
+          "Stay inside a safe room, preferably a small room in the center of the house without windows (like a hallway or bathroom).",
+          "If parts of the building start breaking or collapsing, lie down and protect your head with a mattress, pillow, or heavy blanket.",
+          "Be careful if the wind suddenly becomes calm. This may be the 'eye' of the storm. Strong winds will return quickly from the opposite direction."
+        ]
+      }
+    ]
+  },
+  tsunami: {
+    title: "Tsunami SOP",
+    sections: [
+      {
+        label: "Before Tsunami",
+        items: [
+          "If you feel strong ground shaking for more than 20 seconds, immediately move to higher ground. Do not wait for official warnings.",
+          "If the sea water suddenly pulls back and the shoreline looks unusually empty, run inland right away. This is a natural warning sign of a tsunami.",
+          "Try to reach a place at least 30 meters (100 feet) above sea level or as far inland as possible.",
+          "If you cannot move far inland, go to the upper floors (3rd floor or higher) of a strong reinforced concrete building for safety."
+        ]
+      },
+      {
+        label: "During Tsunami",
+        items: [
+          "Remember that a tsunami comes in multiple waves. The first wave may not be the biggest, so do not return after it passes.",
+          "Stay away from beaches and coastal areas for at least 24 hours or until authorities officially say it is safe.",
+          "Before entering any building again, check for gas leaks, broken walls, cracks, or other structural damage."
+        ]
+      }
+    ]
+  },
+  floods: {
+    title: "Flood SOP",
+    sections: [
+      {
+        label: "Before Flood",
+        items: [
+          "Block doorways, drains, and low air vents using sandbags or thick plastic sheets to reduce water entering your home.",
+          "Move important items such as electronics, medicines, and important documents to higher shelves or upper floors.",
+          "Fill bathtubs and clean containers with fresh water before flooding begins, as water supply may become dirty or unsafe."
+        ]
+      },
+      {
+        label: "During Flood",
+        items: [
+          "Do not walk through floodwater, even if it looks shallow. There may be open drains, strong currents, or sharp objects under the water.",
+          "Turn off the main electricity supply if water starts reaching electrical sockets or appliances to avoid electric shock.",
+          "Avoid touching floodwater as it may contain sewage, chemicals, or harmful bacteria that can cause infections.",
+          "Use a long stick to check the depth and stability of the ground before stepping into water."
+        ]
+      }
+    ]
+  }
+};

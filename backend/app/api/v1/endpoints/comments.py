@@ -1,0 +1,74 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.db.session import get_db
+from app.api import deps
+from app.models.user import User
+from app.models.comment import Comment
+from app.schemas.comment import CommentCreate, CommentResponse
+from typing import List
+
+router = APIRouter()
+
+@router.get("/{report_id}/comments", response_model=List[CommentResponse])
+def get_comments(report_id: int, db: Session = Depends(get_db)):
+    comments = db.query(Comment).filter(
+        Comment.report_id == report_id
+    ).order_by(Comment.created_at.asc()).all()
+    
+    result = []
+    for c in comments:
+        result.append(CommentResponse(
+            id=c.id,
+            report_id=c.report_id,
+            user_id=c.user_id,
+            content=c.content,
+            created_at=c.created_at,
+            author_name=c.author.full_name if c.author else "Unknown"
+        ))
+    return result
+
+@router.post("/{report_id}/comments", response_model=CommentResponse)
+def create_comment(
+    report_id: int,
+    comment_in: CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    if not comment_in.content.strip():
+        raise HTTPException(status_code=400, detail="Comment cannot be empty")
+    
+    comment = Comment(
+        report_id=report_id,
+        user_id=current_user.id,
+        content=comment_in.content.strip()
+    )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    
+    return CommentResponse(
+        id=comment.id,
+        report_id=comment.report_id,
+        user_id=comment.user_id,
+        content=comment.content,
+        created_at=comment.created_at,
+        author_name=current_user.full_name
+    )
+
+@router.delete("/{report_id}/comments/{comment_id}", status_code=204)
+def delete_comment(
+    report_id: int,
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    comment = db.query(Comment).filter(
+        Comment.id == comment_id,
+        Comment.report_id == report_id
+    ).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    db.delete(comment)
+    db.commit()
