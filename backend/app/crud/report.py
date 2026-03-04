@@ -19,21 +19,22 @@ def create_report(db: Session, report: ReportCreate, user_id: int):
     db.commit()
     db.refresh(db_report)
 
-    #Link the Images (If any)
     if report.image_filenames:
-        for filename in report.image_filenames:
-            # Construct the path (assuming they are in 'uploads/')
-            file_path = f"uploads/{filename}"
+        for file_url in report.image_filenames:
+            if file_url.startswith("http"):
+                file_path = file_url
+            else:
+                file_path = f"uploads/{file_url}" 
             
             db_media = Media(
                 report_id=db_report.id,
                 file_path=file_path,
-                file_type="image/jpeg" # Defaulting for now
+                file_type="image/jpeg"
             )
             db.add(db_media)
         
         db.commit()
-        db.refresh(db_report) # Refresh to get the media relationship loaded
+        db.refresh(db_report)
 
     return db_report
 
