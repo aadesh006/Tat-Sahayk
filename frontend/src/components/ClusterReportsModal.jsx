@@ -38,10 +38,10 @@ const ClusterReportsModal = ({ cluster, reports, onClose, onVerify }) => {
 
           {/* AI Summary Section */}
           <div className="px-6 py-4 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 shrink-0">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex-1">
                 <p className="text-xs font-black text-blue-500 uppercase tracking-widest mb-2 flex items-center gap-1">
-                  <Brain size={12} /> Amazon Nova Analysis
+                  <Brain size={12} /> Multi-Model AI Analysis
                 </p>
                 <p className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">{cluster.ai_summary}</p>
               </div>
@@ -52,9 +52,40 @@ const ClusterReportsModal = ({ cluster, reports, onClose, onVerify }) => {
                 }`}>
                   {Math.round(cluster.authenticity_score * 100)}%
                 </div>
-                <div className="text-[10px] text-gray-500 dark:text-gray-400">AI Score</div>
+                <div className="text-[10px] text-gray-500 dark:text-gray-400">Overall Score</div>
               </div>
             </div>
+
+            {/* Analysis Breakdown */}
+            {cluster.analysis_breakdown && (
+              <div className="grid grid-cols-5 gap-2">
+                <AnalysisMetric 
+                  label="Image" 
+                  score={cluster.analysis_breakdown.image_authenticity} 
+                  icon="📸"
+                />
+                <AnalysisMetric 
+                  label="Location" 
+                  score={cluster.analysis_breakdown.location_verification} 
+                  icon="📍"
+                />
+                <AnalysisMetric 
+                  label="Timing" 
+                  score={cluster.analysis_breakdown.temporal_consistency} 
+                  icon="⏰"
+                />
+                <AnalysisMetric 
+                  label="News" 
+                  score={cluster.analysis_breakdown.news_correlation} 
+                  icon="📰"
+                />
+                <AnalysisMetric 
+                  label="Text" 
+                  score={cluster.analysis_breakdown.text_coherence} 
+                  icon="📝"
+                />
+              </div>
+            )}
           </div>
 
           {/* Scrollable Reports List */}
@@ -74,6 +105,25 @@ const ClusterReportsModal = ({ cluster, reports, onClose, onVerify }) => {
         </div>
       </div>
     </>
+  );
+};
+
+// Analysis Metric Component
+const AnalysisMetric = ({ label, score, icon }) => {
+  const getColor = (score) => {
+    if (score >= 0.8) return "text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-500/20";
+    if (score >= 0.6) return "text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-500/20";
+    return "text-red-500 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-500/20";
+  };
+
+  return (
+    <div className={`p-2 rounded-lg border ${getColor(score)} text-center`}>
+      <div className="text-lg mb-0.5">{icon}</div>
+      <div className={`text-xs font-black ${getColor(score).split(' ')[0]}`}>
+        {Math.round(score * 100)}%
+      </div>
+      <div className="text-[9px] text-gray-600 dark:text-gray-400 font-medium">{label}</div>
+    </div>
   );
 };
 

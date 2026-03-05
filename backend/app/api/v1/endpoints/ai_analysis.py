@@ -53,6 +53,15 @@ def get_ai_cluster_summaries(
         # Use the highest-confidence score in the cluster
         best = max(cluster, key=lambda r: r.ai_authenticity_score or 0)
         avg_score = sum(r.ai_authenticity_score or 0 for r in cluster) / len(cluster)
+        
+        # Parse analysis breakdown from the best report
+        analysis_breakdown = None
+        if best.ai_analysis_breakdown:
+            try:
+                import json
+                analysis_breakdown = json.loads(best.ai_analysis_breakdown)
+            except:
+                pass
 
         clusters.append({
             "cluster_id": f"cluster_{i}",
@@ -63,6 +72,7 @@ def get_ai_cluster_summaries(
             "center_lon": lon1,
             "ai_summary": best.ai_analysis_summary,
             "authenticity_score": round(avg_score, 2),
+            "analysis_breakdown": analysis_breakdown,
             "max_severity": max(cluster, key=lambda r: ["low","medium","high","critical"].index(r.severity or "low")).severity,
             "latest_report": max(cluster, key=lambda r: r.created_at).created_at.isoformat(),
         })
