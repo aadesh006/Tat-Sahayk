@@ -34,11 +34,16 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, isAd
   };
 
   const handleShare = () => {
+    const reportUrl = `${window.location.origin}/?report=${report.id}`;
     if (navigator.share) {
-      navigator.share({ title: `Hazard Report: ${report.disasterType}`, text: report.description, url: window.location.href });
+      navigator.share({ 
+        title: `Hazard Report: ${report.disasterType}`, 
+        text: report.description, 
+        url: reportUrl 
+      });
     } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert("Link copied to clipboard");
+      navigator.clipboard.writeText(reportUrl);
+      toast.success("Report link copied to clipboard!");
     }
   };
 

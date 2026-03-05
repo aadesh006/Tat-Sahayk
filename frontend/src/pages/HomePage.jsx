@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router";
 import ReportCard from '../components/ReportCard.jsx';
 import { fetchReports, fetchSocialFeed, fetchAlerts } from '../lib/api.js';
 import { AlertOctagon } from 'lucide-react';
@@ -16,8 +17,10 @@ const STATUS_FILTERS = [
 
 const HomePage = () => {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const [mobileTab, setMobileTab] = useState("incidents");
   const [statusFilter, setStatusFilter] = useState("verified"); // Default to verified
+  const reportRefs = useRef({});
 
   const { data: reports, isLoading: reportsLoading } = useQuery({
     queryKey: ['reports', statusFilter],
@@ -34,6 +37,31 @@ const { data: alerts } = useQuery({
   queryFn:  () => fetchAlerts(),
   refetchInterval: 60000,
 });
+
+  // Handle shared report link - scroll to and highlight specific report
+  useEffect(() => {
+    const reportId = searchParams.get('report');
+    if (reportId && reports) {
+      // Switch to "All" filter if the shared report isn't in current filter
+      const reportExists = reports.some(r => r.id === parseInt(reportId));
+      if (!reportExists && statusFilter !== "") {
+        setStatusFilter(""); // Switch to "All" to show the report
+      }
+      
+      // Scroll to the report after a short delay to ensure rendering
+      setTimeout(() => {
+        const element = reportRefs.current[reportId];
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add highlight effect
+          element.classList.add('ring-4', 'ring-blue-500', 'ring-opacity-50');
+          setTimeout(() => {
+            element.classList.remove('ring-4', 'ring-blue-500', 'ring-opacity-50');
+          }, 3000);
+        }
+      }, 500);
+    }
+  }, [searchParams, reports, statusFilter]);
 
   const helplines = [
     { id: 1, name: "Police Control",    number: "100",  icon: <ShieldAlert size={18} />, color: "bg-blue-600 text-white" },
@@ -167,7 +195,9 @@ const { data: alerts } = useQuery({
       ) : reports?.length > 0 ? (
         <div className="grid grid-cols-1 gap-4">
           {reports.map((report) => (
-            <ReportCard key={report.id} report={report} />
+            <div key={report.id} ref={(el) => (reportRefs.current[report.id] = el)}>
+              <ReportCard report={report} />
+            </div>
           ))}
         </div>
       ) : (
