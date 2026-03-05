@@ -167,17 +167,17 @@ const { data: alerts } = useQuery({
 
   const IncidentsList = () => (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-          <span className="w-2 h-8 bg-red-600 rounded-full" /> {t("activeIncidents")}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h2 className="text-xl lg:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+          <span className="w-1.5 lg:w-2 h-6 lg:h-8 bg-red-600 rounded-full" /> {t("activeIncidents")}
         </h2>
 
         {/* Filter pills */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Filter size={14} className="text-slate-400" />
+        <div className="flex items-center gap-1.5 lg:gap-2 flex-wrap">
+          <Filter size={14} className="text-slate-400 hidden sm:block" />
           {STATUS_FILTERS.map((f) => (
             <button key={f.value} onClick={() => setStatusFilter(f.value)}
-              className={`px-3 py-1 rounded-full text-xs font-bold uppercase transition-colors border
+              className={`px-2.5 lg:px-3 py-1 lg:py-1.5 rounded-full text-[10px] lg:text-xs font-bold uppercase transition-colors border
                 ${statusFilter === f.value
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-blue-300"}`}>
@@ -193,7 +193,7 @@ const { data: alerts } = useQuery({
           <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">{t("loading")}</p>
         </div>
       ) : reports?.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-3 lg:gap-4">
           {reports.map((report) => (
             <div key={report.id} ref={(el) => (reportRefs.current[report.id] = el)}>
               <ReportCard report={report} />
@@ -214,18 +214,18 @@ const { data: alerts } = useQuery({
       {/* Mobile tabs */}
       <div className="lg:hidden flex border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 sticky top-0 z-10">
         <button onClick={() => setMobileTab("incidents")}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest transition-colors
+          className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-widest transition-colors
             ${mobileTab === "incidents" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400"}`}>
           <AlertTriangle size={15} /> {t("incidents")}
         </button>
         <button onClick={() => setMobileTab("sidebar")}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest transition-colors
+          className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-widest transition-colors
             ${mobileTab === "sidebar" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400"}`}>
           <PhoneCall size={15} /> {t("infoFeed")}
         </button>
       </div>
 
-      <div className="lg:hidden p-4">
+      <div className="lg:hidden p-3">
         {mobileTab === "incidents" && <IncidentsList />}
         {mobileTab === "sidebar"   && <SidebarContent />}
       </div>

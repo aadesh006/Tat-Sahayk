@@ -62,11 +62,11 @@ const SideBar = ({ isOpen, onClose }) => {
       `}>
 
         {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-blue-100 dark:border-slate-700 shrink-0">
+        <div className="flex items-center justify-between h-16 px-6 shrink-0">
           <Link to="/" className="text-xl font-bold text-blue-600 dark:text-blue-400 tracking-wider hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
             तट-Sahayk
           </Link>
-          <button onClick={onClose} className="lg:hidden text-slate-500 dark:text-slate-400">
+          <button onClick={onClose} className="lg:hidden text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-2 transition-colors">
             <X size={24} />
           </button>
         </div>

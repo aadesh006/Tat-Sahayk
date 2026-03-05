@@ -54,10 +54,10 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, isAd
   return (
     <>
       <article className="bg-white dark:bg-slate-800 border-l-4 border-l-red-600 shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition-all group rounded-r-xl">
-        <div className="p-4">
+        <div className="p-3 lg:p-4">
 
           {/* Header */}
-          <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+          <div className="flex flex-wrap items-start justify-between gap-2 mb-2 lg:mb-3">
             <div className="space-y-1">
               {/* Reporter name + time */}
               <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
@@ -70,7 +70,7 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, isAd
                 <span>{report.date || "Just Now"}</span>
               </div>
 
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
+              <h3 className="text-base lg:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
                 {report.disasterType}
                 <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border ${severityStyle[report.severity] || severityStyle.medium}`}>
                   {report.severity || "medium"}
@@ -82,7 +82,7 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, isAd
                   {report.status === "false" ? t("rejected") : t(report.status || "pending")}
                 </span>
               </h3>
-              <div className="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1 text-xs lg:text-sm text-slate-500 dark:text-slate-400">
                 <MapPin size={14} className="text-red-500" /> {report.location}
               </div>
             </div>
@@ -112,16 +112,16 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, isAd
           </div>
 
           {/* Body */}
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col md:flex-row gap-3 lg:gap-4">
             <div className="flex-1">
-              <div className="bg-slate-50 dark:bg-slate-700 p-3 rounded border border-slate-100 dark:border-slate-600 mb-3">
-                <p className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed italic">
+              <div className="bg-slate-50 dark:bg-slate-700 p-2.5 lg:p-3 rounded border border-slate-100 dark:border-slate-600 mb-2 lg:mb-3">
+                <p className="text-slate-700 dark:text-slate-200 text-xs lg:text-sm leading-relaxed italic">
                   "{report.description || "Situation under assessment."}"
                 </p>
               </div>
 
               {/* Action bar */}
-              <div className="flex items-center gap-4 pt-1">
+              <div className="flex items-center gap-3 lg:gap-4 pt-1">
                 <button 
                   onClick={() => toggleConfirm()}
                   disabled={confirmPending}
@@ -133,21 +133,21 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, isAd
                 >
                   <ThumbsUp size={15} className={confirmed ? "fill-current" : ""} />
                   {confirmCount > 0 && <span>{confirmCount}</span>}
-                  Confirm
+                  <span className="hidden sm:inline">Confirm</span>
                 </button>
                 <button onClick={() => setCommentsOpen((o) => !o)}
                   className="flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors">
                   <MessageCircle size={15} />
-                  {t("comments")}
+                  <span className="hidden sm:inline">{t("comments")}</span>
                   {commentsOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </button>
                 <button onClick={handleShare}
                   className="flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors">
-                  <Share2 size={15} /> Share
+                  <Share2 size={15} /> <span className="hidden sm:inline">Share</span>
                 </button>
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 ml-auto">
                   <ShieldCheck size={15} className={report.is_verified ? "text-emerald-500" : "text-slate-300"} />
-                  {report.is_verified ? t("verified") : t("pending")}
+                  <span className="hidden sm:inline">{report.is_verified ? t("verified") : t("pending")}</span>
                 </div>
               </div>
             </div>
