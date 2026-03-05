@@ -47,67 +47,66 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-black flex flex-col items-center justify-center p-6">
        <Toaster />
-      <div className="mb-6 transition-opacity hover:opacity-80">
+      <div className="mb-8">
         <Link to="/">
-          <img src="/logo.jpg" alt="Tat-Sahayak Logo" className="w-24 md:w-28 object-contain" />
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent hover:from-sky-600 hover:to-blue-700 transition-all">
+            तट-Sahayk
+          </h1>
         </Link>
       </div>
 
-      <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
-
-        <div className="h-2 bg-gradient-to-r from-blue-600 to-cyan-400" />
-
-        <div className="p-8 md:p-10">
-          <div className="mb-8 text-center md:text-left">
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Create Account</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Join the community response network</p>
+      <div className="w-full max-w-md bg-white dark:bg-[rgb(22,22,22)] rounded-2xl border border-gray-200 dark:border-[rgb(47,51,54)] overflow-hidden">
+        <div className="p-8">
+          <div className="mb-8 text-center">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Create Account</h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Join the community response network</p>
           </div>
 
           <form onSubmit={handleSignup} className="space-y-5">
 
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Full Name</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
               <div className="relative group">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-sky-500 transition-colors" size={18} />
                 <input
                   type="text"
                   required
                   placeholder="Enter full name"
                   value={signupData.full_name}
                   onChange={(e) => setSignupData({ ...signupData, full_name: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-700 dark:text-white border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-[rgb(38,38,38)] dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Email Address</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
               <div className="relative group">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-sky-500 transition-colors" size={18} />
                 <input
                   type="email"
                   required
                   placeholder="name@email.com"
                   value={signupData.email}
                   onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-700 dark:text-white border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-[rgb(38,38,38)] dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Password</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
               <div className="relative group">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-sky-500 transition-colors" size={18} />
                 <input
                   type="password"
                   required
                   placeholder="Min. 6 characters"
                   value={signupData.password}
                   onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-700 dark:text-white border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-[rgb(38,38,38)] dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 />
               </div>
             </div>
@@ -115,8 +114,7 @@ const SignupPage = () => {
             <button
               type="submit"
               disabled={isPending}
-              className={`w-full py-4 font-bold rounded-xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2 mt-4 
-                ${isPending ? 'bg-slate-700 text-white cursor-not-allowed' : 'bg-slate-900 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700 text-white'}`}
+              className="w-full py-3.5 font-semibold rounded-full shadow-sm hover:shadow-md transition-all active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2 mt-6 bg-sky-500 hover:bg-sky-600 text-white"
             >
               {isPending ? (
                 <>
@@ -133,12 +131,12 @@ const SignupPage = () => {
           </form>
 
           {/* Footer Navigation */}
-          <div className="mt-8 text-center pt-6 border-t border-slate-100 dark:border-slate-700">
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Already have an account?{" "}
               <Link 
                 to="/login" 
-                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-bold underline transition-colors"
+                className="text-sky-500 hover:text-sky-600 font-semibold transition-colors"
               >
                 Log in
               </Link>

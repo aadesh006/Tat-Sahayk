@@ -4,13 +4,13 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.report import Report
-from app.services.bedrock_ai import analyze_report_cluster
+from app.services.multi_model_ai import analyze_report_cluster_multi_model
 from geoalchemy2.shape import to_shape
 import math
 
 logger = logging.getLogger(__name__)
 
-CLUSTER_RADIUS_KM = 2.0
+CLUSTER_RADIUS_KM = 80.0  # 80km radius for clustering
 MIN_REPORTS_FOR_AI = 2        # AI kicks in with 2+ reports in same area
 ANALYSIS_LOOKBACK_HOURS = 6   # Only analyze recent reports
 
@@ -94,20 +94,28 @@ def run_cluster_analysis():
                 "hazard_type": cluster[0].hazard_type,
                 "location": f"{center_shape.y:.4f}°N, {center_shape.x:.4f}°E",
                 "district": getattr(cluster[0].owner, 'district', 'Unknown') if cluster[0].owner else 'Unknown',
+                "state": getattr(cluster[0].owner, 'state', 'Unknown') if cluster[0].owner else 'Unknown',
                 "report_count": len(cluster),
                 "reports": [
                     {
                         "description": r.description or "",
                         "severity": r.severity or "medium",
                         "has_image": len(r.media) > 0 if r.media else False,
+                        "image_url": r.media[0].file_path if (r.media and len(r.media) > 0) else None,
                         "time": r.created_at.isoformat() if r.created_at else "",
                     }
                     for r in cluster
                 ]
             }
 
-            logger.info(f"Sending cluster of {len(cluster)} {cluster[0].hazard_type} reports to Bedrock")
-            ai_result = analyze_report_cluster(cluster_data)
+            logger.info(f"Sending cluster of {len(cluster)} {cluster[0].hazard_type} reports to Multi-Model AI")
+            
+            # Run async analysis
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            ai_result = loop.run_until_complete(analyze_report_cluster_multi_model(cluster_data))
+            loop.close()
+            
             _update_reports(db, cluster, ai_result)
 
         db.commit()
@@ -125,6 +133,12 @@ def _update_reports(db, reports, ai_result):
     for report in reports:
         report.ai_authenticity_score = ai_result.get("authenticity_score", 0.5)
         report.ai_analysis_summary = ai_result.get("summary", "")
+        
+        # Store analysis breakdown as JSON string if available
+        if ai_result.get("analysis_breakdown"):
+            import json
+            report.ai_analysis_breakdown = json.dumps(ai_result["analysis_breakdown"])
+        
         # Optionally escalate severity if AI recommends critical
         if ai_result.get("severity_recommendation") == "critical" and report.severity != "critical":
             report.severity = "critical"

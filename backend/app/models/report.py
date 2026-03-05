@@ -24,6 +24,7 @@ class Report(Base):
     # AI fields
     ai_authenticity_score = Column(Float,  nullable=True)
     ai_analysis_summary   = Column(String, nullable=True)
+    ai_analysis_breakdown = Column(Text,   nullable=True)  # JSON string with detailed scores
 
     owner    = relationship("User",    back_populates="reports")
     media    = relationship("Media",   back_populates="report")

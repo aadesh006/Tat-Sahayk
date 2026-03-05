@@ -43,14 +43,14 @@ const Navbar = ({ onMenuClick }) => {
   ];
 
   return (
-    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 lg:px-6 shrink-0 z-20">
+    <header className="h-16 bg-white dark:bg-black border-b border-gray-200 dark:border-[rgb(47,51,54)] flex items-center justify-between px-4 lg:px-6 shrink-0 z-20 backdrop-blur-sm bg-white/80 dark:bg-black/80">
 
       {/* Left — hamburger */}
       <button
         onClick={onMenuClick}
-        className="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+        className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-[rgb(22,22,22)] rounded-full transition-colors"
       >
-        <Menu size={22} className="text-slate-700 dark:text-slate-200" />
+        <Menu size={20} className="text-gray-700 dark:text-gray-200" />
       </button>
 
       <div className="hidden lg:block" />
@@ -61,27 +61,27 @@ const Navbar = ({ onMenuClick }) => {
         {/* SOS Button - Direct emergency call */}
         <a
           href="tel:112"
-          className="flex items-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-colors shadow-lg shadow-red-900/20"
+          className="flex items-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-full transition-all shadow-sm hover:shadow-md"
         >
-          <Phone size={14} className="animate-pulse" />
-          SOS 112
+          <Phone size={14} />
+          <span className="hidden sm:inline">SOS 112</span>
         </a>
 
         {/* Language dropdown */}
         <div ref={langRef} className="relative">
           <button
             onClick={() => setLangOpen((o) => !o)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-[rgb(22,22,22)] hover:bg-gray-200 dark:hover:bg-[rgb(38,38,38)] rounded-full text-sm font-medium text-gray-700 dark:text-gray-200 transition-colors"
           >
             <span className="text-xs">{currentLang.native}</span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">{currentLang.label}</span>
-            <ChevronDown size={13} className={`text-slate-400 transition-transform ${langOpen ? "rotate-180" : ""}`} />
+            <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">{currentLang.label}</span>
+            <ChevronDown size={13} className={`text-gray-400 transition-transform ${langOpen ? "rotate-180" : ""}`} />
           </button>
 
           {langOpen && (
-            <div className="absolute right-0 top-full mt-2 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-50">
-              <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-700">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Language</p>
+            <div className="absolute right-0 top-full mt-2 w-44 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl shadow-xl overflow-hidden z-50">
+              <div className="px-4 py-2 border-b border-gray-100 dark:border-[rgb(47,51,54)]">
+                <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Select Language</p>
               </div>
               {LANGUAGES.map((lang) => (
                 <button
@@ -89,12 +89,12 @@ const Navbar = ({ onMenuClick }) => {
                   onClick={() => { i18n.changeLanguage(lang.code); setLangOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors
                     ${i18n.language === lang.code
-                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold"
-                      : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+                      ? "bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 font-semibold"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)]"}`}
                 >
                   <span className="text-base w-8 text-center">{lang.native}</span>
                   <span>{lang.label}</span>
-                  {i18n.language === lang.code && <span className="ml-auto text-blue-500">✓</span>}
+                  {i18n.language === lang.code && <span className="ml-auto text-sky-500">✓</span>}
                 </button>
               ))}
             </div>
@@ -104,7 +104,7 @@ const Navbar = ({ onMenuClick }) => {
         {/* Dark mode toggle */}
         <button
           onClick={toggle}
-          className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-yellow-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+          className="p-2.5 rounded-full bg-gray-100 dark:bg-[rgb(22,22,22)] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(38,38,38)] transition-colors"
           title={dark ? "Switch to light mode" : "Switch to dark mode"}
         >
           {dark ? <Sun size={18} /> : <Moon size={18} />}

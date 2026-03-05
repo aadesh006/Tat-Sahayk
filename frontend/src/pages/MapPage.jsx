@@ -168,16 +168,16 @@ const MapPage = () => {
   }, {});
 
   return (
-    <div className="flex flex-col h-screen bg-slate-900 overflow-hidden">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-black overflow-hidden">
       <Toaster />
 
       {/* ── Top Bar ── */}
-      <div className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center gap-3 flex-wrap shrink-0">
+      <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-4 py-3 flex items-center gap-3 flex-wrap shrink-0 relative z-10">
         <div>
-          <h1 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-            <Activity size={14} className="text-blue-400" /> Live Incident Map
+          <h1 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+            <Activity size={14} className="text-sky-500" /> Live Incident Map
           </h1>
-          <p className="text-[10px] text-slate-400">
+          <p className="text-[10px] text-gray-400">
             {clusters.length} active zones · {mapData?.verified_reports?.length ?? 0} verified reports
           </p>
         </div>
@@ -185,7 +185,7 @@ const MapPage = () => {
         {/* Layer toggles */}
         <div className="flex gap-2 ml-auto flex-wrap">
           {[
-            { key:"reports",     label:"Reports",    color:"bg-blue-500" },
+            { key:"reports",     label:"Reports",    color:"bg-sky-500" },
             { key:"annotations", label:"Markers",    color:"bg-green-500" },
             { key:"forces",      label:"Forces",     color:"bg-purple-500" },
           ].map((l) => (
@@ -194,8 +194,8 @@ const MapPage = () => {
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all
                 ${layers[l.key]
                   ? `${l.color} text-white border-transparent`
-                  : "bg-slate-700 text-slate-400 border-slate-600"}`}>
-              <span className={`w-2 h-2 rounded-full ${layers[l.key] ? "bg-white" : "bg-slate-500"}`} />
+                  : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-400 border-gray-200 dark:border-[rgb(47,51,54)]"}`}>
+              <span className={`w-2 h-2 rounded-full ${layers[l.key] ? "bg-white" : "bg-gray-400"}`} />
               {l.label}
             </button>
           ))}
@@ -207,18 +207,18 @@ const MapPage = () => {
             <button
               onClick={() => { setAddMode(addMode === "annotation" ? null : "annotation"); setPending(null); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all
-                ${addMode === "annotation" ? "bg-green-500 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}>
+                ${addMode === "annotation" ? "bg-green-500 text-white" : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)]"}`}>
               <MapPin size={13} /> {addMode === "annotation" ? "Click map to place" : "Add Marker"}
             </button>
             <button
               onClick={() => { setAddMode(addMode === "force" ? null : "force"); setPending(null); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all
-                ${addMode === "force" ? "bg-purple-500 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}>
+                ${addMode === "force" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)]"}`}>
               <Shield size={13} /> {addMode === "force" ? "Click map to place" : "Deploy Force"}
             </button>
             <button
               onClick={() => setForcePanel(!showForcePanel)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-700 text-slate-300 hover:bg-slate-600 transition-all">
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)] transition-all">
               <Users size={13} /> Forces ({forcesAdmin?.length ?? 0})
             </button>
           </div>
@@ -247,7 +247,7 @@ const MapPage = () => {
               [35.0, 97.0]   // Northeast corner (northern India)
             ]}
             maxBoundsViscosity={1.0}
-            style={{ height: "100%", width: "100%", background: "#0f172a", zIndex: 0 }}
+            style={{ height: "100%", width: "100%", background: "#0f172a", zIndex: 1 }}
           >
             <TileLayer
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
@@ -285,17 +285,36 @@ const MapPage = () => {
                     </span>
                   </Tooltip>
                   <Popup>
-                    <div className="min-w-[180px]">
-                      <p className="font-black text-slate-900">{center.hazard_type}</p>
-                      <p className="text-xs text-slate-500">{count} verified report{count > 1 ? "s" : ""}</p>
-                      <p className="text-xs mt-1 font-semibold" style={{ color }}>
-                        Severity: {maxSev.toUpperCase()}
-                      </p>
-                      <hr className="my-1" />
-                      {cluster.slice(0, 3).map((r, i) => (
-                        <p key={i} className="text-[11px] text-slate-600 truncate">• {r.description}</p>
-                      ))}
-                      {count > 3 && <p className="text-[10px] text-slate-400">+{count-3} more</p>}
+                    <div className="min-w-[200px] p-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }}></div>
+                        <p className="font-black text-gray-900 dark:text-white text-base">{center.hazard_type}</p>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                          {count} verified report{count > 1 ? "s" : ""}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ 
+                          backgroundColor: `${color}20`, 
+                          color: color,
+                          border: `1px solid ${color}40`
+                        }}>
+                          {maxSev.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2 space-y-1">
+                        {cluster.slice(0, 3).map((r, i) => (
+                          <div key={i} className="flex items-start gap-1.5">
+                            <div className="w-1 h-1 rounded-full bg-gray-400 mt-1.5 shrink-0"></div>
+                            <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-tight">{r.description}</p>
+                          </div>
+                        ))}
+                        {count > 3 && (
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 italic pl-2.5">
+                            +{count-3} more reports
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </Popup>
                 </CircleMarker>
@@ -312,16 +331,28 @@ const MapPage = () => {
                     icon={makeIcon(cfg.emoji, cfg.color)}
                   >
                     <Popup>
-                      <div className="min-w-[160px]">
-                        <p className="font-black text-slate-900">{cfg.emoji} {ann.title}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">{cfg.label}</p>
-                        {ann.description && <p className="text-xs text-slate-600 mt-1">{ann.description}</p>}
+                      <div className="min-w-[180px] p-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">{cfg.emoji}</span>
+                          <p className="font-black text-gray-900 dark:text-white">{ann.title}</p>
+                        </div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mb-2" style={{
+                          backgroundColor: `${cfg.color}20`,
+                          color: cfg.color
+                        }}>
+                          {cfg.label}
+                        </p>
+                        {ann.description && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 leading-relaxed">
+                            {ann.description}
+                          </p>
+                        )}
                         {isAdmin && (
                           <button
                             onClick={() => removeAnnotation(ann.id)}
-                            className="mt-2 flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
+                            className="mt-3 flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
                           >
-                            <Trash2 size={11} /> Remove
+                            <Trash2 size={12} /> Remove Marker
                           </button>
                         )}
                       </div>
@@ -347,16 +378,31 @@ const MapPage = () => {
                 icon={makeIcon("🛡️", FORCE_COLOR[force.force_type] || "#1d4ed8")}
               >
                 <Popup>
-                  <div className="min-w-[160px]">
-                    <p className="font-black text-slate-900">🛡️ {force.unit_name}</p>
-                    <p className="text-[10px] font-bold uppercase" style={{ color: FORCE_COLOR[force.force_type] }}>
-                      {force.force_type}
+                  <div className="min-w-[180px] p-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">🛡️</span>
+                      <p className="font-black text-gray-900 dark:text-white">{force.unit_name}</p>
+                    </div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mb-2" style={{ 
+                      backgroundColor: `${FORCE_COLOR[force.force_type]}20`,
+                      color: FORCE_COLOR[force.force_type] 
+                    }}>
+                      {force.force_type.replace("_", " ")}
                     </p>
-                    <p className="text-xs text-slate-600 mt-1">
-                      👥 {force.personnel_count} personnel
-                    </p>
-                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold
-                      ${force.status === "active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                    <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 mt-2">
+                      <span className="text-base">👥</span>
+                      <span className="font-semibold">{force.personnel_count}</span>
+                      <span>personnel</span>
+                    </div>
+                    {force.equipment && (
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+                        📦 {force.equipment}
+                      </p>
+                    )}
+                    <span className={`inline-block mt-2 px-2.5 py-1 rounded-full text-[10px] font-bold
+                      ${force.status === "active" 
+                        ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" 
+                        : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"}`}>
                       {force.status.toUpperCase()}
                     </span>
                   </div>
@@ -376,34 +422,34 @@ const MapPage = () => {
 
         {/* ── Admin Right Panel ── */}
         {isAdmin && (addMode || showForcePanel) && (
-          <div className="w-80 bg-slate-800 border-l border-slate-700 overflow-y-auto flex flex-col">
+          <div className="w-80 bg-white dark:bg-[rgb(22,22,22)] border-l border-gray-200 dark:border-[rgb(47,51,54)] overflow-y-auto flex flex-col">
 
             {/* Annotation form */}
             {addMode === "annotation" && (
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black text-white flex items-center gap-2">
+                  <h3 className="text-sm font-black text-gray-900 dark:text-white flex items-center gap-2">
                     <MapPin size={14} className="text-green-400" /> Add Map Marker
                   </h3>
                   <button onClick={() => { setAddMode(null); setPending(null); }}
-                    className="text-slate-400 hover:text-white"><X size={16} /></button>
+                    className="text-gray-400 hover:text-gray-900 dark:hover:text-white"><X size={16} /></button>
                 </div>
 
                 {pendingLatLng ? (
-                  <div className="px-3 py-2 bg-green-900/30 border border-green-700 rounded-xl">
-                    <p className="text-[10px] text-green-400 font-bold">✓ Location pinned</p>
-                    <p className="text-xs text-green-300">{pendingLatLng.lat.toFixed(4)}°N, {pendingLatLng.lng.toFixed(4)}°E</p>
+                  <div className="px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl">
+                    <p className="text-[10px] text-green-600 dark:text-green-400 font-bold">✓ Location pinned</p>
+                    <p className="text-xs text-green-700 dark:text-green-300">{pendingLatLng.lat.toFixed(4)}°N, {pendingLatLng.lng.toFixed(4)}°E</p>
                   </div>
                 ) : (
-                  <div className="px-3 py-2 bg-yellow-900/30 border border-yellow-700 rounded-xl">
-                    <p className="text-[10px] text-yellow-400 font-bold animate-pulse">← Click the map to pin location</p>
+                  <div className="px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl">
+                    <p className="text-[10px] text-yellow-600 dark:text-yellow-400 font-bold animate-pulse">← Click the map to pin location</p>
                   </div>
                 )}
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Type</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Type</label>
                   <select value={annForm.type} onChange={e => setAnnForm({...annForm, type: e.target.value})}
-                    className="mt-1 w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-xl text-sm outline-none">
+                    className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none">
                     {Object.entries(ANNOTATION_CONFIG).map(([k, v]) => (
                       <option key={k} value={k}>{v.emoji} {v.label}</option>
                     ))}
@@ -411,27 +457,27 @@ const MapPage = () => {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Title</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Title</label>
                   <input type="text" placeholder="e.g. Marina Beach Rescue Centre"
                     value={annForm.title} onChange={e => setAnnForm({...annForm, title: e.target.value})}
-                    className="mt-1 w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-xl text-sm outline-none" />
+                    className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none" />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Description</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Description</label>
                   <textarea rows={2} placeholder="Capacity, contact, instructions..."
                     value={annForm.description} onChange={e => setAnnForm({...annForm, description: e.target.value})}
-                    className="mt-1 w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-xl text-sm outline-none resize-none" />
+                    className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none resize-none" />
                 </div>
 
                 {annForm.type === "affected_zone" && (
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
                       Affected Radius (km)
                     </label>
                     <input type="number" placeholder="e.g. 5"
                       value={annForm.radius_km} onChange={e => setAnnForm({...annForm, radius_km: e.target.value})}
-                      className="mt-1 w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-xl text-sm outline-none" />
+                      className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none" />
                   </div>
                 )}
 
@@ -447,45 +493,45 @@ const MapPage = () => {
             {addMode === "force" && (
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black text-white flex items-center gap-2">
+                  <h3 className="text-sm font-black text-gray-900 dark:text-white flex items-center gap-2">
                     <Shield size={14} className="text-purple-400" /> Deploy Force
                   </h3>
                   <button onClick={() => { setAddMode(null); setPending(null); }}
-                    className="text-slate-400 hover:text-white"><X size={16} /></button>
+                    className="text-gray-400 hover:text-gray-900 dark:hover:text-white"><X size={16} /></button>
                 </div>
 
                 {pendingLatLng ? (
-                  <div className="px-3 py-2 bg-purple-900/30 border border-purple-700 rounded-xl">
-                    <p className="text-[10px] text-purple-400 font-bold">✓ Deployment location set</p>
-                    <p className="text-xs text-purple-300">{pendingLatLng.lat.toFixed(4)}°N, {pendingLatLng.lng.toFixed(4)}°E</p>
+                  <div className="px-3 py-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-xl">
+                    <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">✓ Deployment location set</p>
+                    <p className="text-xs text-purple-700 dark:text-purple-300">{pendingLatLng.lat.toFixed(4)}°N, {pendingLatLng.lng.toFixed(4)}°E</p>
                   </div>
                 ) : (
-                  <div className="px-3 py-2 bg-yellow-900/30 border border-yellow-700 rounded-xl">
-                    <p className="text-[10px] text-yellow-400 font-bold animate-pulse">← Click the map to set position</p>
+                  <div className="px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl">
+                    <p className="text-[10px] text-yellow-600 dark:text-yellow-400 font-bold animate-pulse">← Click the map to set position</p>
                   </div>
                 )}
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Unit Name</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Unit Name</label>
                   <input type="text" placeholder="e.g. NDRF Team 11"
                     value={forceForm.unit_name} onChange={e => setForceForm({...forceForm, unit_name: e.target.value})}
-                    className="mt-1 w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-xl text-sm outline-none" />
+                    className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Type</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Type</label>
                     <select value={forceForm.force_type} onChange={e => setForceForm({...forceForm, force_type: e.target.value})}
-                      className="mt-1 w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-xl text-sm outline-none">
+                      className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none">
                       {["NDRF","Coast_Guard","Police","Medical","Army"].map(t => (
                         <option key={t} value={t}>{t.replace("_"," ")}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Status</label>
                     <select value={forceForm.status} onChange={e => setForceForm({...forceForm, status: e.target.value})}
-                      className="mt-1 w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-xl text-sm outline-none">
+                      className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none">
                       <option value="active">Active</option>
                       <option value="standby">Standby</option>
                     </select>
@@ -493,17 +539,17 @@ const MapPage = () => {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Personnel Count</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Personnel Count</label>
                   <input type="number" min="0"
                     value={forceForm.personnel_count} onChange={e => setForceForm({...forceForm, personnel_count: parseInt(e.target.value)||0})}
-                    className="mt-1 w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-xl text-sm outline-none" />
+                    className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none" />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Equipment</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Equipment</label>
                   <input type="text" placeholder="e.g. 2 boats, life jackets, medical kits"
                     value={forceForm.equipment} onChange={e => setForceForm({...forceForm, equipment: e.target.value})}
-                    className="mt-1 w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-xl text-sm outline-none" />
+                    className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none" />
                 </div>
 
                 <button onClick={handleForceSubmit} disabled={deploying || !pendingLatLng}
@@ -518,10 +564,10 @@ const MapPage = () => {
             {showForcePanel && (
               <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-black text-white flex items-center gap-2">
-                    <Users size={14} className="text-blue-400" /> Deployed Forces
+                  <h3 className="text-sm font-black text-gray-900 dark:text-white flex items-center gap-2">
+                    <Users size={14} className="text-sky-500" /> Deployed Forces
                   </h3>
-                  <button onClick={() => setForcePanel(false)} className="text-slate-400 hover:text-white">
+                  <button onClick={() => setForcePanel(false)} className="text-gray-400 hover:text-gray-900 dark:hover:text-white">
                     <X size={16} />
                   </button>
                 </div>
@@ -529,43 +575,43 @@ const MapPage = () => {
                 {/* Summary by type */}
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {Object.entries(forceSummary).map(([type, data]) => (
-                    <div key={type} className="bg-slate-700 rounded-xl p-3 border border-slate-600">
-                      <p className="text-[10px] font-black uppercase text-slate-400">{type.replace("_"," ")}</p>
-                      <p className="text-xl font-black text-white">{data.personnel}</p>
-                      <p className="text-[10px] text-slate-400">{data.count} unit{data.count > 1 ? "s" : ""}</p>
+                    <div key={type} className="bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-xl p-3 border border-gray-200 dark:border-[rgb(47,51,54)]">
+                      <p className="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400">{type.replace("_"," ")}</p>
+                      <p className="text-xl font-black text-gray-900 dark:text-white">{data.personnel}</p>
+                      <p className="text-[10px] text-gray-400">{data.count} unit{data.count > 1 ? "s" : ""}</p>
                     </div>
                   ))}
                 </div>
 
                 {/* Total */}
-                <div className="bg-blue-900/30 border border-blue-700 rounded-xl p-3 mb-4">
-                  <p className="text-[10px] text-blue-400 font-black uppercase">Total Deployed</p>
-                  <p className="text-2xl font-black text-white">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-3 mb-4">
+                  <p className="text-[10px] text-blue-600 dark:text-blue-400 font-black uppercase">Total Deployed</p>
+                  <p className="text-2xl font-black text-gray-900 dark:text-white">
                     {(forcesAdmin || []).reduce((s, f) => s + f.personnel_count, 0)} personnel
                   </p>
-                  <p className="text-xs text-blue-300">{forcesAdmin?.length ?? 0} active units</p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300">{forcesAdmin?.length ?? 0} active units</p>
                 </div>
 
                 {/* Individual units */}
                 <div className="space-y-2">
                   {(forcesAdmin || []).map((force) => (
-                    <div key={force.id} className="bg-slate-700 border border-slate-600 rounded-xl p-3">
+                    <div key={force.id} className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-3">
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="text-xs font-bold text-white">{force.unit_name}</p>
+                          <p className="text-xs font-bold text-gray-900 dark:text-white">{force.unit_name}</p>
                           <p className="text-[10px]" style={{ color: FORCE_COLOR[force.force_type] }}>
                             {force.force_type.replace("_"," ")} · {force.personnel_count} personnel
                           </p>
                           {force.equipment && (
-                            <p className="text-[10px] text-slate-400 mt-0.5">{force.equipment}</p>
+                            <p className="text-[10px] text-gray-400 mt-0.5">{force.equipment}</p>
                           )}
                           <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold
-                            ${force.status === "active" ? "bg-green-900/50 text-green-400" : "bg-yellow-900/50 text-yellow-400"}`}>
+                            ${force.status === "active" ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400" : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400"}`}>
                             {force.status.toUpperCase()}
                           </span>
                         </div>
                         <button onClick={() => withdrawForce(force.id)}
-                          className="text-red-400 hover:text-red-300 p-1">
+                          className="text-red-400 hover:text-red-500 p-1">
                           <Trash2 size={13} />
                         </button>
                       </div>
@@ -578,10 +624,64 @@ const MapPage = () => {
         )}
       </div>
 
-      {/* Cluster label style fix */}
+      {/* Cluster label style fix + Custom popup styling */}
       <style>{`
-        .cluster-label { background: transparent !important; border: none !important; box-shadow: none !important; }
-        .cluster-label::before { display: none !important; }
+        .cluster-label { 
+          background: transparent !important; 
+          border: none !important; 
+          box-shadow: none !important; 
+        }
+        .cluster-label::before { 
+          display: none !important; 
+        }
+        
+        /* Modern popup styling */
+        .leaflet-popup-content-wrapper {
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+          padding: 8px;
+          border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .dark .leaflet-popup-content-wrapper {
+          background: rgb(22, 22, 22);
+          border-color: rgb(47, 51, 54);
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        .leaflet-popup-content {
+          margin: 0;
+          font-family: inherit;
+        }
+        
+        .leaflet-popup-tip {
+          background: white;
+          border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .dark .leaflet-popup-tip {
+          background: rgb(22, 22, 22);
+          border-color: rgb(47, 51, 54);
+        }
+        
+        .leaflet-popup-close-button {
+          color: #9ca3af !important;
+          font-size: 20px !important;
+          padding: 4px 8px !important;
+          border-radius: 6px;
+          transition: all 0.2s;
+        }
+        
+        .leaflet-popup-close-button:hover {
+          background: rgba(0, 0, 0, 0.05) !important;
+          color: #374151 !important;
+        }
+        
+        .dark .leaflet-popup-close-button:hover {
+          background: rgba(255, 255, 255, 0.05) !important;
+          color: #d1d5db !important;
+        }
       `}</style>
     </div>
   );
