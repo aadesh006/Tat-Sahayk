@@ -1,115 +1,119 @@
 import boto3
 import json
 import logging
-from typing import Optional
+import requests
+import base64
 
 logger = logging.getLogger(__name__)
 
-bedrock = boto3.client(
-    service_name="bedrock-runtime",
-    region_name="us-east-1"
-)
+bedrock = boto3.client(service_name="bedrock-runtime", region_name="us-east-1")
 
-MODEL_ID = "us.amazon.nova-micro-v1:0"
+NOVA_PRO_ID = "us.amazon.nova-pro-v1:0"
+NOVA_MICRO_ID = "us.amazon.nova-micro-v1:0"
 
-def _invoke(prompt: str, max_tokens: int = 500) -> str:
-    response = bedrock.invoke_model(
-        modelId=MODEL_ID,
-        contentType="application/json",
-        accept="application/json",
-        body=json.dumps({
-            "messages": [{"role": "user", "content": [{"text": prompt}]}],
-            "inferenceConfig": {"maxTokens": max_tokens}  # ← was maxNewTokens
-        })
-    )
-    result = json.loads(response["body"].read())
-    return result["output"]["message"]["content"][0]["text"]
-
-
-def analyze_report_cluster(cluster_data: dict) -> dict:
-    reports_text = "\n".join([
-        f"- Report {i+1}: \"{r['description']}\" "
-        f"[Severity: {r['severity']}, "
-        f"Has photo: {'Yes' if r.get('has_image') else 'No'}, "
-        f"Time: {r.get('time', 'Unknown')}]"
-        for i, r in enumerate(cluster_data.get("reports", []))
-    ])
-
-    prompt = f"""You are an AI for Indian coastal disaster management (Tat-Sahayk platform).
-Analyze these {cluster_data['report_count']} citizen reports from {cluster_data.get('district','Unknown')} 
-about a possible {cluster_data['hazard_type']} near {cluster_data['location']}.
-
-REPORTS:
-{reports_text}
-
-Respond ONLY with a JSON object, no extra text:
-{{
-  "authenticity_score": <float 0.0-1.0>,
-  "severity_recommendation": "<low|medium|high|critical>",
-  "summary": "<2-3 sentence summary of what is likely happening>",
-  "admin_action": "<one sentence recommended action for the district admin>"
-}}
-
-Scoring guide:
-- 0.8-1.0: Multiple consistent reports, photos present, specific details
-- 0.5-0.8: Consistent but vague or few photos
-- 0.3-0.5: Mixed signals or very few reports
-- 0.0-0.3: Likely fake, spam, or nonsensical"""
-
+def fetch_media_base64(url: str):
+    """Fetches media from S3 and returns base64 + media type."""
+    if not url: return None, None
     try:
-        text = _invoke(prompt, max_tokens=300)
-        # Strip markdown code fences if model adds them
-        text = text.strip().strip("```json").strip("```").strip()
-        result = json.loads(text)
-        return {
-            "authenticity_score":    float(result.get("authenticity_score", 0.5)),
-            "severity_recommendation": result.get("severity_recommendation", "medium"),
-            "summary":               result.get("summary", "AI analysis unavailable"),
-            "admin_action":          result.get("admin_action", "Review manually"),
-            "model_used":            MODEL_ID,
-        }
-    except json.JSONDecodeError:
-        logger.error(f"Nova returned non-JSON: {text}")
-        return _fallback_analysis(cluster_data)
+        ext = url.split('.')[-1].lower()
+        resp = requests.get(url, stream=True, timeout=10)
+        if resp.status_code == 200:
+            media_bytes = resp.raw.read(15 * 1024 * 1024)
+            b64_data = base64.b64encode(media_bytes).decode('utf-8')
+            if ext in ['mp4', 'mov', 'webm']:
+                return b64_data, 'video'
+            else:
+                return b64_data, 'image'
     except Exception as e:
-        logger.error(f"Bedrock error: {e}")
-        return _fallback_analysis(cluster_data)
+        logger.error(f"Media fetch failed: {e}")
+    return None, None
 
+def ask_forensic_vision_expert(hazard_type: str, lat: float, lon: float, b64_data: str, media_type: str) -> dict:
+    """Nova Pro analyzes the media for deepfakes, old footage, and location mismatches."""
+    if not b64_data:
+        return {"score": 0.5, "reasoning": "No media provided."}
 
-def analyze_single_report(description: str, hazard_type: str, has_image: bool) -> dict:
-    prompt = f"""You are an AI for Indian coastal disaster management.
-A citizen submitted a {hazard_type} report: "{description}"
-{"A photo was included." if has_image else "No photo provided."}
+    if media_type == 'video':
+        media_block = {"video": {"format": "mp4", "source": {"bytes": b64_data}}}
+    else:
+        media_block = {"image": {"format": "jpeg", "source": {"bytes": b64_data}}}
 
-Respond ONLY with JSON, no extra text:
+    prompt = f"""You are a Digital Forensic Analyst for a disaster management system.
+A user reported a '{hazard_type}' at coordinates {lat}°N, {lon}°E.
+
+Analyze the attached media and check for:
+1. AI Generation: Deepfake artifacts, weird physics, inconsistent lighting.
+2. Dated Footage: Does this look like recycled/old viral footage?
+3. Location Mismatch: Does the terrain/weather contradict the coordinates ({lat}°N, {lon}°E)?
+
+Respond ONLY with a JSON object:
 {{
-  "authenticity_score": <float 0.0-1.0>,
-  "preliminary_summary": "<one sentence assessment>"
+  "is_fake": <boolean true or false>,
+  "score": <float 0.0-1.0>,
+  "reasoning": "<1-2 sentence forensic justification>"
 }}"""
 
     try:
-        text = _invoke(prompt, max_tokens=100)
-        text = text.strip().strip("```json").strip("```").strip()
-        result = json.loads(text)
-        return {
-            "authenticity_score":   float(result.get("authenticity_score", 0.5)),
-            "preliminary_summary":  result.get("preliminary_summary", "Awaiting analysis"),
-        }
+        response = bedrock.invoke_model(
+            modelId=NOVA_PRO_ID,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({
+                "messages": [{"role": "user", "content": [media_block, {"text": prompt}]}],
+                "inferenceConfig": {"maxTokens": 200, "temperature": 0.1}
+            })
+        )
+        res_text = json.loads(response["body"].read())["output"]["message"]["content"][0]["text"]
+        return json.loads(res_text.strip("```json").strip("```").strip())
     except Exception as e:
-        logger.error(f"Single report analysis failed: {e}")
-        return {"authenticity_score": 0.5, "preliminary_summary": "Awaiting cluster analysis"}
+        logger.error(f"Forensic expert failed: {e}")
+        return {"is_fake": False, "score": 0.5, "reasoning": "Forensic analysis failed."}
 
-
-def _fallback_analysis(cluster_data: dict) -> dict:
-    """Rule-based fallback when Bedrock is unavailable."""
-    reports   = cluster_data.get("reports", [])
-    count     = len(reports)
-    has_images = sum(1 for r in reports if r.get("has_image"))
-    score     = min(0.4 + (count * 0.05) + (has_images * 0.1), 0.85)
+def analyze_single_report(description: str, hazard_type: str, media_url: str, lat: float, lon: float) -> dict:
+    """Runs media forensics and text plausibility."""
+    b64_data, media_type = fetch_media_base64(media_url)
+    
+    forensic_data = ask_forensic_vision_expert(hazard_type, lat, lon, b64_data, media_type)
+    
+    final_score = forensic_data.get("score", 0.5)
+    is_fake = forensic_data.get("is_fake", False)
+    
+    if is_fake or final_score < 0.3:
+        status = "false"
+        summary = f"AUTO-REJECTED (Fake/Mismatch): {forensic_data.get('reasoning')}"
+    else:
+        status = "pending"
+        summary = f"PASSED FORENSICS [{final_score*100:.0f}%]: {forensic_data.get('reasoning')}"
+        
     return {
-        "authenticity_score":     round(score, 2),
-        "severity_recommendation": "medium",
-        "summary":                f"{count} reports received about {cluster_data.get('hazard_type')}. Manual review recommended.",
-        "admin_action":           "Review individual reports and verify with ground teams.",
-        "model_used":             "fallback",
+        "authenticity_score": round(final_score, 2),
+        "preliminary_summary": summary,
+        "recommended_status": status
     }
+
+def analyze_report_cluster(reports_data: list) -> dict:
+    """Analyzes a cluster of verified reports to generate a unified situation summary."""
+    if not reports_data:
+        return {"cluster_summary": "No data.", "severity": "LOW", "confidence": 0.0}
+
+    prompt = f"Analyze these {len(reports_data)} verified disaster reports from the same geographic cluster:\n"
+    for r in reports_data:
+        prompt += f"- Type: {r.get('hazard_type', 'Unknown')}, Desc: {r.get('description', '')}\n"
+
+    prompt += "\nOutput ONLY JSON: {\"cluster_summary\": \"<1 paragraph synthesis>\", \"severity\": \"<LOW|MEDIUM|HIGH|CRITICAL>\", \"confidence\": <float 0.0-1.0>}"
+
+    try:
+        response = bedrock.invoke_model(
+            modelId=NOVA_MICRO_ID,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({
+                "messages": [{"role": "user", "content": [{"text": prompt}]}],
+                "inferenceConfig": {"maxTokens": 200, "temperature": 0.2}
+            })
+        )
+        res_text = json.loads(response["body"].read())["output"]["message"]["content"][0]["text"]
+        return json.loads(res_text.strip("```json").strip("```").strip())
+    except Exception as e:
+        logger.error(f"Cluster analysis failed: {e}")
+        return {"cluster_summary": "Analysis failed.", "severity": "MEDIUM", "confidence": 0.5}

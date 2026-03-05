@@ -30,7 +30,7 @@ const App = () => {
   return (
     <div className="h-screen">
       <Routes>
-        <Route path="/"      element={<Protected><HomePage /></Protected>} />
+        <Route path="/"      element={<Layout><HomePage /></Layout>} />
         <Route path="/map"   element={<Protected><MapPage /></Protected>} />
         <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
         <Route path="/new"   element={<Protected><CreateReport /></Protected>} />

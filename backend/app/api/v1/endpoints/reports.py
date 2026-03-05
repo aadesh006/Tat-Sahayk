@@ -160,16 +160,23 @@ def create_report(
 
     return report
 
-def score_single_report_bg(report_id: int, description: str, hazard_type: str, has_image: bool):
+def score_single_report_bg(report_id: int, description: str, hazard_type: str, image_url: str, lat: float, lon: float):
     from app.db.session import SessionLocal
     from app.services.bedrock_ai import analyze_single_report
     db = SessionLocal()
     try:
-        result = analyze_single_report(description, hazard_type, has_image)
+        # Run the deep forensic analysis
+        result = analyze_single_report(description, hazard_type, image_url, lat, lon)
+        
         report = db.query(Report).filter(Report.id == report_id).first()
         if report:
-            report.ai_authenticity_score = result["authenticity_score"]
-            report.ai_analysis_summary   = result["preliminary_summary"]
+            report.ai_authenticity_score = result.get("authenticity_score", 0.5)
+            report.ai_analysis_summary = result.get("preliminary_summary", "Analysis failed.")
+            
+            if result.get("recommended_status") == "false":
+                report.status = "false"
+                report.is_verified = False
+                
             db.commit()
     except Exception as e:
         print(f"Background AI scoring failed: {e}")

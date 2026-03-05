@@ -86,7 +86,7 @@ const CreateReport = () => {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                accept="image/*"
+                accept="image/*,video/mp4,video/quicktime"
                 multiple
                 className="hidden"
               />
@@ -129,8 +129,8 @@ const CreateReport = () => {
                   <div className="p-4 bg-white dark:bg-slate-600 rounded-full shadow-sm group-hover:scale-110 transition-transform">
                     <Camera className="text-blue-500" size={32} />
                   </div>
-                  <p className="mt-3 text-sm text-blue-600 dark:text-blue-400 font-medium">{t("uploadPhoto")}</p>
-                  <p className="text-xs text-blue-400">JPEG or PNG, up to 5 images</p>
+                  <p className="mt-3 text-sm text-blue-600 dark:text-blue-400 font-medium">Click to upload photo or video</p>
+                  <p className="text-xs text-blue-400">JPEG, PNG, or MP4, up to 5 files</p>
                 </div>
               )}
             </div>
