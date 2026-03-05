@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Camera, MapPin, AlertTriangle, X, Loader2, Plus } from "lucide-react";
+import { Camera, MapPin, AlertTriangle, X, Loader2, Plus, Navigation } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createReport } from "../lib/api.js";
@@ -11,19 +11,23 @@ const CreateReport = () => {
   const queryClient = useQueryClient();
   const [previews, setPreviews] = useState([]);
   const [gpsStatus, setGpsStatus] = useState("idle");
+  const [useManualLocation, setUseManualLocation] = useState(false);
+  const [manualLocation, setManualLocation] = useState({ district: "", state: "" });
   const [formData, setFormData] = useState({
     disasterType: "Flood",
     description: "",
   });
 
   useEffect(() => {
-    setGpsStatus("detecting");
-    if (!navigator.geolocation) { setGpsStatus("denied"); return; }
-    navigator.geolocation.getCurrentPosition(
-      () => setGpsStatus("found"),
-      () => setGpsStatus("denied")
-    );
-  }, []);
+    if (!useManualLocation) {
+      setGpsStatus("detecting");
+      if (!navigator.geolocation) { setGpsStatus("denied"); return; }
+      navigator.geolocation.getCurrentPosition(
+        () => setGpsStatus("found"),
+        () => setGpsStatus("denied")
+      );
+    }
+  }, [useManualLocation]);
 
   const { mutate, isPending } = useMutation({
     mutationFn: createReport,
@@ -33,6 +37,7 @@ const CreateReport = () => {
       queryClient.invalidateQueries({ queryKey: ["mapPoints"] });
       setPreviews([]);
       setFormData({ disasterType: "Flood", description: "" });
+      setManualLocation({ district: "", state: "" });
       if (fileInputRef.current) fileInputRef.current.value = "";
     },
     onError: (err) => toast.error(err?.response?.data?.detail || "Failed to submit"),
@@ -57,29 +62,35 @@ const CreateReport = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (previews.length === 0) return toast.error("Please upload at least one photo");
+    if (useManualLocation && (!manualLocation.district || !manualLocation.state)) {
+      return toast.error("Please enter district and state");
+    }
     const data = new FormData();
     data.append("disasterType", formData.disasterType);
     data.append("description", formData.description);
+    if (useManualLocation) {
+      data.append("manual_location", JSON.stringify(manualLocation));
+    }
     previews.forEach((p) => data.append("images", p.file));
     mutate(data);
   };
 
   return (
-    <div className="min-h-screen bg-blue-50 dark:bg-slate-900 p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-black p-4 md:p-6">
       <Toaster />
       <div className="max-w-2xl mx-auto">
-        <main className="bg-white dark:bg-slate-800 rounded-2xl border border-blue-100 dark:border-slate-700 shadow-xl overflow-hidden">
-          <div className="p-6 border-b border-blue-50 dark:border-slate-700 bg-gradient-to-r from-blue-900 to-blue-800">
+        <main className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl border border-gray-200 dark:border-[rgb(47,51,54)] shadow-xl overflow-hidden">
+          <div className="p-6 border-b border-gray-200 dark:border-[rgb(47,51,54)] bg-gradient-to-r from-sky-500 to-blue-500">
             <h1 className="text-2xl font-bold text-white">{t("submitReport")}</h1>
-            <p className="text-blue-100 text-sm opacity-90">Provide details to help emergency services respond.</p>
+            <p className="text-white/90 text-sm mt-1">Provide details to help emergency services respond.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
 
             {/* Multi-image upload */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-blue-900 dark:text-blue-300">
-                {t("reportPhoto")} <span className="text-slate-400 font-normal text-xs">(up to 5)</span>
+              <label className="block text-sm font-semibold text-gray-900 dark:text-white">
+                {t("reportPhoto")} <span className="text-gray-400 font-normal text-xs">(up to 5)</span>
               </label>
 
               <input
@@ -95,7 +106,7 @@ const CreateReport = () => {
               {previews.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mb-2">
                   {previews.map((p, i) => (
-                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-blue-100 dark:border-slate-600">
+                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-[rgb(47,51,54)]">
                       <img src={p.url} alt="" className="w-full h-full object-cover" />
                       <button
                         type="button"
@@ -111,10 +122,10 @@ const CreateReport = () => {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current.click()}
-                      className="aspect-square rounded-xl border-2 border-dashed border-blue-200 dark:border-slate-600 flex flex-col items-center justify-center hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors"
+                      className="aspect-square rounded-xl border-2 border-dashed border-gray-200 dark:border-[rgb(47,51,54)] flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors"
                     >
-                      <Plus size={24} className="text-blue-400" />
-                      <span className="text-xs text-blue-400 mt-1">Add</span>
+                      <Plus size={24} className="text-sky-500" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Add</span>
                     </button>
                   )}
                 </div>
@@ -124,13 +135,13 @@ const CreateReport = () => {
               {previews.length === 0 && (
                 <div
                   onClick={() => fileInputRef.current.click()}
-                  className="aspect-[16/9] w-full border-2 border-dashed border-blue-200 dark:border-slate-600 rounded-xl bg-blue-50 dark:bg-slate-700 flex flex-col items-center justify-center hover:bg-blue-100 dark:hover:bg-slate-600 transition-colors cursor-pointer group"
+                  className="aspect-[16/9] w-full border-2 border-dashed border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl bg-gray-50 dark:bg-[rgb(38,38,38)] flex flex-col items-center justify-center hover:bg-gray-100 dark:hover:bg-[rgb(47,51,54)] transition-colors cursor-pointer group"
                 >
-                  <div className="p-4 bg-white dark:bg-slate-600 rounded-full shadow-sm group-hover:scale-110 transition-transform">
-                    <Camera className="text-blue-500" size={32} />
+                  <div className="p-4 bg-white dark:bg-[rgb(22,22,22)] rounded-full shadow-sm group-hover:scale-110 transition-transform border border-gray-200 dark:border-[rgb(47,51,54)]">
+                    <Camera className="text-sky-500" size={32} />
                   </div>
-                  <p className="mt-3 text-sm text-blue-600 dark:text-blue-400 font-medium">Click to upload photo or video</p>
-                  <p className="text-xs text-blue-400">JPEG, PNG, or MP4, up to 5 files</p>
+                  <p className="mt-3 text-sm text-gray-900 dark:text-white font-medium">Click to upload photo or video</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">JPEG, PNG, or MP4, up to 5 files</p>
                 </div>
               )}
             </div>
@@ -138,41 +149,80 @@ const CreateReport = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Disaster type */}
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-blue-900 dark:text-blue-300">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
                   <AlertTriangle size={16} className="text-amber-500" /> {t("disasterType")}
                 </label>
                 <select
-                  className="w-full px-4 py-2.5 rounded-lg border border-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none bg-white transition-all"
                   value={formData.disasterType}
                   onChange={(e) => setFormData({ ...formData, disasterType: e.target.value })}
                   required
                 >
                   <option>Flood</option>
-                  <option>Tsunami</option>
                   <option>Cyclone</option>
+                  <option>Storm</option>
                   <option>Tsunami</option>
                   <option>Oil Spill</option>
+                  <option>Earthquake</option>
                 </select>
               </div>
 
-              {/* GPS */}
+              {/* GPS / Manual Location */}
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-blue-900 dark:text-blue-300">
-                  <MapPin size={16} className="text-blue-500" /> {t("locationGps")}
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+                  <MapPin size={16} className="text-sky-500" /> Location
                 </label>
-                {gpsStatus === "detecting" && (
-                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-blue-100 bg-blue-50 dark:bg-slate-700 dark:border-slate-600 text-blue-600 dark:text-blue-400 text-sm">
-                    <Loader2 size={16} className="animate-spin" /> {t("detectingLocation")}
-                  </div>
-                )}
-                {gpsStatus === "found" && (
-                  <div className="px-4 py-2.5 rounded-lg border border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-400 text-sm font-medium">
-                    ✓ {t("locationFound")}
-                  </div>
-                )}
-                {gpsStatus === "denied" && (
-                  <div className="px-4 py-2.5 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm">
-                    ⚠ {t("locationDenied")}
+                
+                {!useManualLocation ? (
+                  <>
+                    {gpsStatus === "detecting" && (
+                      <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)] text-gray-700 dark:text-gray-300 text-sm">
+                        <Loader2 size={16} className="animate-spin" /> {t("detectingLocation")}
+                      </div>
+                    )}
+                    {gpsStatus === "found" && (
+                      <div className="px-4 py-2.5 rounded-xl border border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-400 text-sm font-medium">
+                        ✓ {t("locationFound")}
+                      </div>
+                    )}
+                    {gpsStatus === "denied" && (
+                      <div className="px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm">
+                        ⚠ {t("locationDenied")}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setUseManualLocation(true)}
+                      className="text-xs text-sky-500 hover:text-sky-600 font-medium"
+                    >
+                      Enter location manually
+                    </button>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="District"
+                      value={manualLocation.district}
+                      onChange={(e) => setManualLocation({ ...manualLocation, district: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="State"
+                      value={manualLocation.state}
+                      onChange={(e) => setManualLocation({ ...manualLocation, state: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setUseManualLocation(false); setManualLocation({ district: "", state: "" }); }}
+                      className="text-xs text-sky-500 hover:text-sky-600 font-medium flex items-center gap-1"
+                    >
+                      <Navigation size={12} /> Use GPS instead
+                    </button>
                   </div>
                 )}
               </div>
@@ -180,13 +230,13 @@ const CreateReport = () => {
 
             {/* Description */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-blue-900 dark:text-blue-300">
+              <label className="block text-sm font-semibold text-gray-900 dark:text-white">
                 {t("description")}
               </label>
               <textarea
                 rows="4"
                 placeholder="Describe the situation clearly..."
-                className="w-full px-4 py-2.5 rounded-lg border border-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 required
@@ -198,7 +248,7 @@ const CreateReport = () => {
               type="submit"
               disabled={isPending}
               className={`w-full py-4 text-white font-black uppercase tracking-[0.2em] text-xs rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2
-                ${isPending ? "bg-slate-400 cursor-not-allowed opacity-70" : "bg-blue-600 hover:bg-blue-700"}`}
+                ${isPending ? "bg-gray-400 cursor-not-allowed opacity-70" : "bg-sky-500 hover:bg-sky-600"}`}
             >
               {isPending
                 ? <><Loader2 className="animate-spin" size={20} /> {t("transmitting")}</>

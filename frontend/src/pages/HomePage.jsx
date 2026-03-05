@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 import ReportCard from '../components/ReportCard.jsx';
+import ReportModal from '../components/ReportModal.jsx';
 import { fetchReports, fetchSocialFeed, fetchAlerts } from '../lib/api.js';
 import { AlertOctagon } from 'lucide-react';
 import { Phone, ShieldAlert, HeartPulse, Flame, AlertTriangle,
-  ChevronRight, Loader2, PhoneCall, Filter } from "lucide-react";
+  ChevronRight, Loader2, PhoneCall } from "lucide-react";
 
 const STATUS_FILTERS = [
   { labelKey: "all",      value: "" },
@@ -17,9 +18,10 @@ const STATUS_FILTERS = [
 
 const HomePage = () => {
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [mobileTab, setMobileTab] = useState("incidents");
   const [statusFilter, setStatusFilter] = useState("verified"); // Default to verified
+  const [selectedReport, setSelectedReport] = useState(null);
   const reportRefs = useRef({});
 
   const { data: reports, isLoading: reportsLoading } = useQuery({
@@ -38,59 +40,50 @@ const { data: alerts } = useQuery({
   refetchInterval: 60000,
 });
 
-  // Handle shared report link - scroll to and highlight specific report
+  // Handle shared report link - open modal for specific report
   useEffect(() => {
     const reportId = searchParams.get('report');
     if (reportId && reports) {
-      // Switch to "All" filter if the shared report isn't in current filter
-      const reportExists = reports.some(r => r.id === parseInt(reportId));
-      if (!reportExists && statusFilter !== "") {
-        setStatusFilter(""); // Switch to "All" to show the report
+      const report = reports.find(r => r.id === parseInt(reportId));
+      if (report) {
+        setSelectedReport(report);
+        // Clear the URL parameter
+        setSearchParams({});
+      } else if (statusFilter !== "") {
+        // Switch to "All" filter to find the report
+        setStatusFilter("");
       }
-      
-      // Scroll to the report after a short delay to ensure rendering
-      setTimeout(() => {
-        const element = reportRefs.current[reportId];
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          // Add highlight effect
-          element.classList.add('ring-4', 'ring-blue-500', 'ring-opacity-50');
-          setTimeout(() => {
-            element.classList.remove('ring-4', 'ring-blue-500', 'ring-opacity-50');
-          }, 3000);
-        }
-      }, 500);
     }
-  }, [searchParams, reports, statusFilter]);
+  }, [searchParams, reports, statusFilter, setSearchParams]);
 
   const helplines = [
-    { id: 1, name: "Police Control",    number: "100",  icon: <ShieldAlert size={18} />, color: "bg-blue-600 text-white" },
-    { id: 2, name: "Medical Emergency", number: "102",  icon: <HeartPulse size={18} />,  color: "bg-red-600 text-white" },
-    { id: 3, name: "Disaster Helpline", number: "1077", icon: <Flame size={18} />,        color: "bg-orange-600 text-white" },
-    { id: 4, name: "Disaster Mgmt.",    number: "108",  icon: <Phone size={18} />,        color: "bg-blue-700 text-white" },
+    { id: 1, name: "Police Control",    number: "100",  icon: <ShieldAlert size={18} />, color: "from-blue-500 to-blue-600" },
+    { id: 2, name: "Medical Emergency", number: "102",  icon: <HeartPulse size={18} />,  color: "from-red-500 to-red-600" },
+    { id: 3, name: "Disaster Helpline", number: "1077", icon: <Flame size={18} />,        color: "from-orange-500 to-orange-600" },
+    { id: 4, name: "Disaster Mgmt.",    number: "108",  icon: <Phone size={18} />,        color: "from-sky-500 to-sky-600" },
   ];
 
   const SidebarContent = () => (
     <div className="space-y-4">
       {/* Emergency Contacts */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-blue-100 dark:border-slate-700">
-        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-600 mb-4 flex items-center gap-2">
-          <ShieldAlert size={16} /> {t("emergencyDirectory")}
+      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl p-4 border border-gray-200 dark:border-[rgb(47,51,54)]">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+          <ShieldAlert size={16} className="text-red-500" /> {t("emergencyDirectory")}
         </h3>
         <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
           {helplines.map((help) => (
             <a key={help.id} href={`tel:${help.number}`}
-              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-700 hover:bg-white dark:hover:bg-slate-600 hover:shadow-md border border-slate-100 dark:border-slate-600 hover:border-blue-200 transition-all group">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${help.color} shadow-sm group-hover:scale-110 transition-transform`}>
+              className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[rgb(38,38,38)] hover:bg-gray-100 dark:hover:bg-[rgb(47,51,54)] border border-gray-100 dark:border-[rgb(47,51,54)] transition-all group">
+              <div className="flex items-center gap-2.5">
+                <div className={`p-2 rounded-lg bg-gradient-to-br ${help.color} text-white shadow-sm group-hover:scale-110 transition-transform`}>
                   {help.icon}
                 </div>
                 <div>
-                  <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase leading-none mb-0.5">{help.name}</p>
-                  <p className="text-xl font-black text-slate-900 dark:text-white tracking-tighter group-hover:text-blue-600 transition-colors">{help.number}</p>
+                  <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 leading-none mb-0.5">{help.name}</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{help.number}</p>
                 </div>
               </div>
-              <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-all" />
+              <ChevronRight size={14} className="text-gray-300 dark:text-gray-600 group-hover:text-sky-500 transition-all" />
             </a>
           ))}
         </div>
@@ -98,38 +91,53 @@ const { data: alerts } = useQuery({
 
       {/* Government Advisories */}
 {alerts?.filter(a => a.is_active).map((alert) => {
-  const borderColor = {
-    critical: "border-red-500 bg-red-50 dark:bg-red-900/20",
-    high:     "border-orange-500 bg-orange-50 dark:bg-orange-900/20",
-    medium:   "border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20",
-    low:      "border-blue-500 bg-blue-50 dark:bg-blue-900/20",
-  }[alert.severity] || "border-blue-500 bg-blue-50 dark:bg-blue-900/20";
-
-  const textColor = {
-    critical: "text-red-700 dark:text-red-300",
-    high:     "text-orange-700 dark:text-orange-300",
-    medium:   "text-yellow-700 dark:text-yellow-300",
-    low:      "text-blue-700 dark:text-blue-300",
-  }[alert.severity] || "text-blue-700 dark:text-blue-300";
+  const severityConfig = {
+    critical: { 
+      bg: "bg-red-50 dark:bg-red-500/10", 
+      border: "border-red-200 dark:border-red-500/20",
+      text: "text-red-600 dark:text-red-400",
+      icon: "text-red-500"
+    },
+    high: { 
+      bg: "bg-orange-50 dark:bg-orange-500/10", 
+      border: "border-orange-200 dark:border-orange-500/20",
+      text: "text-orange-600 dark:text-orange-400",
+      icon: "text-orange-500"
+    },
+    medium: { 
+      bg: "bg-yellow-50 dark:bg-yellow-500/10", 
+      border: "border-yellow-200 dark:border-yellow-500/20",
+      text: "text-yellow-600 dark:text-yellow-400",
+      icon: "text-yellow-500"
+    },
+    low: { 
+      bg: "bg-sky-50 dark:bg-sky-500/10", 
+      border: "border-sky-200 dark:border-sky-500/20",
+      text: "text-sky-600 dark:text-sky-400",
+      icon: "text-sky-500"
+    },
+  };
+  
+  const config = severityConfig[alert.severity] || severityConfig.low;
 
   return (
     <div key={alert.id}
-      className={`border-l-4 rounded-r-xl p-4 mb-3 ${borderColor}`}>
+      className={`${config.bg} border ${config.border} rounded-2xl p-4`}>
       <div className="flex items-start gap-3">
-        <AlertOctagon size={18} className={`${textColor} shrink-0 mt-0.5`} />
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-xs font-black uppercase tracking-widest ${textColor}`}>
+        <AlertOctagon size={18} className={`${config.icon} shrink-0 mt-0.5`} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <span className={`text-xs font-semibold ${config.text}`}>
               🏛 Government Advisory
             </span>
-            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${textColor} border-current`}>
+            <span className={`text-[10px] font-medium uppercase px-2 py-0.5 rounded-full ${config.bg} ${config.text} border ${config.border}`}>
               {alert.severity}
             </span>
           </div>
-          <p className={`font-bold text-sm ${textColor}`}>{alert.title}</p>
-          <p className={`text-xs mt-0.5 ${textColor} opacity-80`}>{alert.message}</p>
-          <p className="text-[10px] text-slate-400 mt-1">
-            Issued by {alert.admin_name} · {alert.district || "National"} · {new Date(alert.created_at).toLocaleString("en-IN")}
+          <p className={`font-semibold text-sm ${config.text} mb-1`}>{alert.title}</p>
+          <p className={`text-xs ${config.text} opacity-90 leading-relaxed`}>{alert.message}</p>
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2">
+            {alert.admin_name} · {alert.district || "National"} · {new Date(alert.created_at).toLocaleString("en-IN", { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
       </div>
@@ -138,25 +146,25 @@ const { data: alerts } = useQuery({
 })}
 
       {/* Social Feed */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-blue-100 dark:border-slate-700">
-        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-600 mb-4 flex items-center gap-2">
-          <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl p-4 border border-gray-200 dark:border-[rgb(47,51,54)]">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
           {t("socialUpdates")}
         </h3>
         {!socialFeed?.length ? (
-          <p className="text-xs text-slate-400 text-center py-4">{t("noUpdates")} — feed runs every 15 min</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">{t("noUpdates")} — feed runs every 15 min</p>
         ) : (
           <div className="space-y-2">
             {socialFeed.slice(0, 4).map((post) => (
               <a key={post.id} href={post.url || "#"} target="_blank" rel="noopener noreferrer"
-                className="block p-3 rounded-xl bg-slate-50 dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 border border-slate-100 dark:border-slate-600 hover:border-blue-200 transition-all">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">{post.source}</span>
-                  <span className="text-[9px] text-slate-400">
+                className="block p-3 rounded-xl bg-gray-50 dark:bg-[rgb(38,38,38)] hover:bg-gray-100 dark:hover:bg-[rgb(47,51,54)] border border-gray-100 dark:border-[rgb(47,51,54)] transition-all group">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-semibold text-sky-500 dark:text-sky-400 uppercase tracking-wide">{post.source}</span>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">
                     {post.published_at ? new Date(post.published_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : ""}
                   </span>
                 </div>
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-2">{post.content}</p>
+                <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed line-clamp-2 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{post.content}</p>
               </a>
             ))}
           </div>
@@ -168,19 +176,18 @@ const { data: alerts } = useQuery({
   const IncidentsList = () => (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h2 className="text-xl lg:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-          <span className="w-1.5 lg:w-2 h-6 lg:h-8 bg-red-600 rounded-full" /> {t("activeIncidents")}
+        <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          {t("activeIncidents")}
         </h2>
 
         {/* Filter pills */}
         <div className="flex items-center gap-1.5 lg:gap-2 flex-wrap">
-          <Filter size={14} className="text-slate-400 hidden sm:block" />
           {STATUS_FILTERS.map((f) => (
             <button key={f.value} onClick={() => setStatusFilter(f.value)}
-              className={`px-2.5 lg:px-3 py-1 lg:py-1.5 rounded-full text-[10px] lg:text-xs font-bold uppercase transition-colors border
+              className={`px-3 lg:px-4 py-1.5 lg:py-2 rounded-full text-xs lg:text-sm font-medium transition-all
                 ${statusFilter === f.value
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-blue-300"}`}>
+                  ? "bg-sky-500 text-white shadow-sm"
+                  : "bg-gray-100 dark:bg-[rgb(22,22,22)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(38,38,38)]"}`}>
               {t(f.labelKey)}
             </button>
           ))}
@@ -189,38 +196,38 @@ const { data: alerts } = useQuery({
 
       {reportsLoading ? (
         <div className="flex flex-col items-center py-20">
-          <Loader2 className="animate-spin text-blue-600 mb-3" size={36} />
-          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">{t("loading")}</p>
+          <Loader2 className="animate-spin text-sky-500 mb-3" size={36} />
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t("loading")}</p>
         </div>
       ) : reports?.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 lg:gap-4">
           {reports.map((report) => (
             <div key={report.id} ref={(el) => (reportRefs.current[report.id] = el)}>
-              <ReportCard report={report} />
+              <ReportCard report={report} onCardClick={setSelectedReport} />
             </div>
           ))}
         </div>
       ) : (
-        <div className="text-center py-20 bg-white dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl">
-          <AlertTriangle className="mx-auto text-slate-300 mb-2" size={48} />
-          <p className="text-slate-500 text-xs uppercase tracking-widest">{t("noIncidents")}</p>
+        <div className="text-center py-20 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl">
+          <AlertTriangle className="mx-auto text-gray-300 dark:text-gray-600 mb-2" size={48} />
+          <p className="text-gray-500 dark:text-gray-400 text-sm">{t("noIncidents")}</p>
         </div>
       )}
     </>
   );
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-900 min-h-screen">
+    <div className="bg-gray-50 dark:bg-black min-h-screen">
       {/* Mobile tabs */}
-      <div className="lg:hidden flex border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 sticky top-0 z-10">
+      <div className="lg:hidden flex border-b border-gray-200 dark:border-[rgb(47,51,54)] bg-white dark:bg-black sticky top-0 z-10 backdrop-blur-sm bg-white/80 dark:bg-black/80">
         <button onClick={() => setMobileTab("incidents")}
-          className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-widest transition-colors
-            ${mobileTab === "incidents" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400"}`}>
+          className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-semibold uppercase tracking-wide transition-colors
+            ${mobileTab === "incidents" ? "text-sky-500 border-b-2 border-sky-500" : "text-gray-500 dark:text-gray-400"}`}>
           <AlertTriangle size={15} /> {t("incidents")}
         </button>
         <button onClick={() => setMobileTab("sidebar")}
-          className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-widest transition-colors
-            ${mobileTab === "sidebar" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400"}`}>
+          className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-semibold uppercase tracking-wide transition-colors
+            ${mobileTab === "sidebar" ? "text-sky-500 border-b-2 border-sky-500" : "text-gray-500 dark:text-gray-400"}`}>
           <PhoneCall size={15} /> {t("infoFeed")}
         </button>
       </div>
@@ -230,10 +237,15 @@ const { data: alerts } = useQuery({
         {mobileTab === "sidebar"   && <SidebarContent />}
       </div>
 
-      <div className="hidden lg:flex gap-8 p-6">
+      <div className="hidden lg:flex gap-6 p-6 max-w-7xl mx-auto">
         <section className="flex-1 min-w-0"><IncidentsList /></section>
         <aside className="w-80 shrink-0"><div className="sticky top-6"><SidebarContent /></div></aside>
       </div>
+
+      {/* Report Modal */}
+      {selectedReport && (
+        <ReportModal report={selectedReport} onClose={() => setSelectedReport(null)} />
+      )}
     </div>
   );
 };
