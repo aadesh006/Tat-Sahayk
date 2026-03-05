@@ -15,9 +15,10 @@ const App = () => {
   const isAuthenticated = Boolean(authUser);
   const isAdmin = authUser?.role === "admin";
 
+  // Show loading screen while checking authentication
   if (isLoading) return (
-    <div className="w-full min-h-screen bg-slate-50 flex items-center justify-center">
-      <Loader2 className="animate-spin text-blue-600" size={40} />
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-black flex items-center justify-center">
+      <Loader2 className="animate-spin text-sky-500" size={40} />
     </div>
   );
 
@@ -30,7 +31,7 @@ const App = () => {
   return (
     <div className="h-screen">
       <Routes>
-        <Route path="/"      element={<Layout><HomePage /></Layout>} />
+        <Route path="/"      element={<Protected><HomePage /></Protected>} />
         <Route path="/map"   element={<Protected><MapPage /></Protected>} />
         <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
         <Route path="/new"   element={<Protected><CreateReport /></Protected>} />
