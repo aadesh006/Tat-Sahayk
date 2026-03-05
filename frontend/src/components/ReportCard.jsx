@@ -1,14 +1,30 @@
 import { useState } from "react";
-import { Clock, MapPin, ShieldCheck, MessageCircle, Share2, ChevronDown, ChevronUp, Trash2, CheckCircle, XCircle, User } from "lucide-react";
+import { Clock, MapPin, ShieldCheck, MessageCircle, Share2, ChevronDown, ChevronUp, Trash2, CheckCircle, XCircle, User, ThumbsUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { axiosInstance } from "../lib/axios";
+import toast from "react-hot-toast";
 import ImageLightbox from "./ImageLightbox.jsx";
 import CommentSection from "./CommentSection.jsx";
 
 const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, isAdmin = false }) => {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [confirmCount, setConfirmCount] = useState(report.confirmation_count || 0);
+
+  const { mutate: toggleConfirm, isPending: confirmPending } = useMutation({
+    mutationFn: () => axiosInstance.post(`/reports/${report.id}/confirm`),
+    onSuccess: (data) => {
+      setConfirmed(data.data.confirmed);
+      setConfirmCount(data.data.confirmation_count);
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+    },
+    onError: () => toast.error("Failed to confirm report"),
+  });
 
   const severityStyle = {
     critical: "bg-red-50 text-red-700 border-red-100 dark:bg-red-900/30 dark:text-red-300",
@@ -101,6 +117,19 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, isAd
 
               {/* Action bar */}
               <div className="flex items-center gap-4 pt-1">
+                <button 
+                  onClick={() => toggleConfirm()}
+                  disabled={confirmPending}
+                  className={`flex items-center gap-1.5 text-xs font-bold transition-colors ${
+                    confirmed 
+                      ? "text-blue-600 dark:text-blue-400" 
+                      : "text-slate-500 dark:text-slate-400 hover:text-blue-600"
+                  }`}
+                >
+                  <ThumbsUp size={15} className={confirmed ? "fill-current" : ""} />
+                  {confirmCount > 0 && <span>{confirmCount}</span>}
+                  Confirm
+                </button>
                 <button onClick={() => setCommentsOpen((o) => !o)}
                   className="flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors">
                   <MessageCircle size={15} />

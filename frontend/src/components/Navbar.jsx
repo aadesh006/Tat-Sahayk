@@ -58,35 +58,14 @@ const Navbar = ({ onMenuClick }) => {
       {/* Right controls */}
       <div className="flex items-center gap-2">
 
-        {/* SOS Button */}
-        <div ref={sosRef} className="relative">
-          <button
-            onClick={() => setSosOpen((o) => !o)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-colors shadow-lg shadow-red-900/20"
-          >
-            <Phone size={14} className="animate-pulse" />
-            SOS
-            <ChevronDown size={12} className={`transition-transform ${sosOpen ? "rotate-180" : ""}`} />
-          </button>
-
-          {sosOpen && (
-            <div className="absolute right-0 top-full mt-2 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-50">
-              <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900">
-                <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">Emergency Helplines</p>
-              </div>
-              {helplines.map((h) => (
-                <a
-                  key={h.number}
-                  href={`tel:${h.number}`}
-                  className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors group"
-                >
-                  <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{h.name}</span>
-                  <span className="text-lg font-black text-red-600 dark:text-red-400 group-hover:text-red-700">{h.number}</span>
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* SOS Button - Direct emergency call */}
+        <a
+          href="tel:112"
+          className="flex items-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-colors shadow-lg shadow-red-900/20"
+        >
+          <Phone size={14} className="animate-pulse" />
+          SOS 112
+        </a>
 
         {/* Language dropdown */}
         <div ref={langRef} className="relative">

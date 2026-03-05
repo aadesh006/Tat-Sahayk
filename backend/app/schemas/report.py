@@ -28,5 +28,6 @@ class ReportResponse(ReportBase):
     ai_authenticity_score: Optional[float] = None
     ai_analysis_summary:   Optional[str]  = None
     reporter_name:         Optional[str]  = None
+    confirmation_count:    int = 0
 
     model_config = ConfigDict(from_attributes=True)

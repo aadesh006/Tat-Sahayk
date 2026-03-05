@@ -17,7 +17,7 @@ const STATUS_FILTERS = [
 const HomePage = () => {
   const { t } = useTranslation();
   const [mobileTab, setMobileTab] = useState("incidents");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("verified"); // Default to verified
 
   const { data: reports, isLoading: reportsLoading } = useQuery({
     queryKey: ['reports', statusFilter],
