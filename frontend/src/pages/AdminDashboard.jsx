@@ -12,6 +12,7 @@ import { ClipboardList, CheckCircle, XCircle, Clock, MapPin,
 import toast, { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import ImageLightbox from '../components/ImageLightbox.jsx';
+import ClusterReportsModal from '../components/ClusterReportsModal.jsx';
 import { fetchAIClusters } from '../lib/api.js';
 
 const SEVERITY_COLORS = {
@@ -278,7 +279,7 @@ const AdminDashboard = () => {
   const [filter,    setFilter]    = useState("pending");
   const [alertModal, setAlertModal] = useState(false);
   const [activeTab, setActiveTab]  = useState("sos"); // sos | alerts | ai | reports
-  const [expandedClusters, setExpandedClusters] = useState({}); // Track which clusters are expanded
+  const [selectedCluster, setSelectedCluster] = useState(null); // For cluster reports modal
 
   const { data: stats } = useQuery({
     queryKey: ["reportStats"],
@@ -416,8 +417,6 @@ const AdminDashboard = () => {
       </div>
     ) : (
       aiClusters.map((cluster) => {
-        const isExpanded = expandedClusters[cluster.cluster_id] || false;
-        
         return (
           <div key={cluster.cluster_id}
             className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-5 shadow-sm">
@@ -455,7 +454,7 @@ const AdminDashboard = () => {
             </div>
 
             {/* Action buttons */}
-            <div className="flex gap-2 flex-wrap mb-3">
+            <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => setAlertModal(true)}
                 className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 transition-colors"
@@ -481,29 +480,12 @@ const AdminDashboard = () => {
                 <XCircle size={13} /> Mark All Fake
               </button>
               <button
-                onClick={() => setExpandedClusters(prev => ({ ...prev, [cluster.cluster_id]: !isExpanded }))}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold rounded-xl hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors ml-auto"
+                onClick={() => setSelectedCluster(cluster)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-sky-500 text-white text-xs font-bold rounded-xl hover:bg-sky-600 transition-colors ml-auto"
               >
-                <ClipboardList size={13} /> {isExpanded ? "Hide" : "View"} Individual Reports ({cluster.report_count})
-                <ChevronDown size={13} className={`transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                <ClipboardList size={13} /> View Individual Reports ({cluster.report_count})
               </button>
             </div>
-
-            {/* Individual Reports Section */}
-            {isExpanded && (
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-[rgb(47,51,54)] space-y-2">
-                <p className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
-                  Individual Reports in This Cluster
-                </p>
-                {reports?.filter(r => cluster.report_ids.includes(r.id)).map((report) => (
-                  <AdminReportCard
-                    key={report.id}
-                    report={report}
-                    onVerify={(id, status) => doVerify({ id, status })}
-                  />
-                ))}
-              </div>
-            )}
           </div>
         );
       })
@@ -694,6 +676,16 @@ const AdminDashboard = () => {
           adminState={authUser?.state}
           onClose={() => setAlertModal(false)}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ["myAlerts"] })}
+        />
+      )}
+
+      {/* Cluster Reports Modal */}
+      {selectedCluster && (
+        <ClusterReportsModal
+          cluster={selectedCluster}
+          reports={reports}
+          onClose={() => setSelectedCluster(null)}
+          onVerify={(id, status) => doVerify({ id, status })}
         />
       )}
     </div>
