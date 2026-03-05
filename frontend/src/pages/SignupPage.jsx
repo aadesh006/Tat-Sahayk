@@ -47,7 +47,7 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-6">
        <Toaster />
       <div className="mb-6 transition-opacity hover:opacity-80">
         <Link to="/">
@@ -55,14 +55,14 @@ const SignupPage = () => {
         </Link>
       </div>
 
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-blue-100/50 border border-slate-100 overflow-hidden">
+      <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
 
         <div className="h-2 bg-gradient-to-r from-blue-600 to-cyan-400" />
 
         <div className="p-8 md:p-10">
           <div className="mb-8 text-center md:text-left">
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Create Account</h1>
-            <p className="text-slate-500 text-sm mt-1">Join the community response network</p>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Create Account</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Join the community response network</p>
           </div>
 
           <form onSubmit={handleSignup} className="space-y-5">
@@ -77,7 +77,7 @@ const SignupPage = () => {
                   placeholder="Enter full name"
                   value={signupData.full_name}
                   onChange={(e) => setSignupData({ ...signupData, full_name: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-700 dark:text-white border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                 />
               </div>
             </div>
@@ -92,7 +92,7 @@ const SignupPage = () => {
                   placeholder="name@email.com"
                   value={signupData.email}
                   onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-700 dark:text-white border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                 />
               </div>
             </div>
@@ -107,7 +107,7 @@ const SignupPage = () => {
                   placeholder="Min. 6 characters"
                   value={signupData.password}
                   onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-700 dark:text-white border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                 />
               </div>
             </div>
@@ -116,7 +116,7 @@ const SignupPage = () => {
               type="submit"
               disabled={isPending}
               className={`w-full py-4 font-bold rounded-xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2 mt-4 
-                ${isPending ? 'bg-slate-700 text-white cursor-not-allowed' : 'bg-slate-900 hover:bg-blue-700 text-white shadow-slate-200'}`}
+                ${isPending ? 'bg-slate-700 text-white cursor-not-allowed' : 'bg-slate-900 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700 text-white'}`}
             >
               {isPending ? (
                 <>
@@ -132,13 +132,13 @@ const SignupPage = () => {
             </button>
           </form>
 
-          {/* Footer Navigation - FIXED: Links to /login */}
-          <div className="mt-8 text-center pt-6 border-t border-slate-100">
-            <p className="text-sm font-semibold text-slate-500">
+          {/* Footer Navigation */}
+          <div className="mt-8 text-center pt-6 border-t border-slate-100 dark:border-slate-700">
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
               Already have an account?{" "}
               <Link 
                 to="/login" 
-                className="text-blue-600 hover:text-blue-800 font-bold underline transition-colors"
+                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-bold underline transition-colors"
               >
                 Log in
               </Link>

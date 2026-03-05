@@ -5,12 +5,10 @@ import {
   fetchAlerts, createAlert, deactivateAlert
 } from '../lib/api.js';
 import useAuthUser from '../hooks/useAuthUser.js';
-import {
-  BarChart3, CheckCircle, XCircle, Clock, MapPin,
+import { ClipboardList, CheckCircle, XCircle, Clock, MapPin,
   Loader2, AlertTriangle, Bell, BellOff, Plus,
   X, Shield, TrendingUp, Users, Zap, ChevronDown,
-  Filter, Brain, MessageSquare
-} from 'lucide-react';
+  Filter, Brain, MessageSquare, BarChart3 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import ImageLightbox from '../components/ImageLightbox.jsx';
@@ -279,7 +277,8 @@ const AdminDashboard = () => {
   const { authUser }   = useAuthUser();
   const [filter,    setFilter]    = useState("pending");
   const [alertModal, setAlertModal] = useState(false);
-  const [activeTab, setActiveTab]  = useState("reports"); // reports | alerts
+  const [activeTab, setActiveTab]  = useState("sos"); // sos | alerts | ai | reports
+  const [expandedClusters, setExpandedClusters] = useState({}); // Track which clusters are expanded
 
   const { data: stats } = useQuery({
     queryKey: ["reportStats"],
@@ -326,10 +325,10 @@ const AdminDashboard = () => {
   });
 
   const statCards = [
-    { label: "Total",    value: stats?.total_reports    ?? "—", icon: <BarChart3 size={18} />,     color: "text-blue-500",    bg: "bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800" },
-    { label: "Pending",  value: stats?.pending_review   ?? "—", icon: <Clock size={18} />,          color: "text-yellow-500",  bg: "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-100 dark:border-yellow-800" },
-    { label: "Verified", value: stats?.verified_hazards ?? "—", icon: <Shield size={18} />,         color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800" },
-    { label: "Critical", value: stats?.critical_alerts  ?? "—", icon: <Zap size={18} />,            color: "text-red-500",     bg: "bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800" },
+    { label: "SOS Triggers", value: stats?.total_sos ?? "—", icon: <AlertTriangle size={18} />, color: "text-red-500", bg: "bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800" },
+    { label: "Active Hazards", value: stats?.total_active ?? "—", icon: <Zap size={18} />, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800" },
+    { label: "Flood", value: stats?.hazard_breakdown?.Flood ?? 0, icon: <BarChart3 size={18} />, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800" },
+    { label: "Cyclone", value: stats?.hazard_breakdown?.Cyclone ?? 0, icon: <TrendingUp size={18} />, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-800" },
   ];
 
   const FILTERS = [
@@ -383,7 +382,8 @@ const AdminDashboard = () => {
       {/* ── Tab Bar ── */}
       <div className="flex border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-6">
         {[
-          { key: "reports", label: "Verification Queue",   icon: <Filter size={15} /> },
+          { key: "sos", label: "SOS Triggers", icon: <AlertTriangle size={14} /> },
+          { key: "reports", label: "All Reports", icon: <ClipboardList size={14} /> },
           { key: "alerts",  label: "Issued Alerts",        icon: <Bell size={15} /> },
           { key: "ai", label: "AI Intelligence", icon: <Brain size={15} /> },
         ].map((tab) => (
@@ -415,76 +415,179 @@ const AdminDashboard = () => {
         <p className="text-xs text-slate-400 uppercase tracking-widest">No clusters yet — waiting for 2+ reports near each other</p>
       </div>
     ) : (
-      aiClusters.map((cluster) => (
-        <div key={cluster.cluster_id}
-          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+      aiClusters.map((cluster) => {
+        const isExpanded = expandedClusters[cluster.cluster_id] || false;
+        
+        return (
+          <div key={cluster.cluster_id}
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
 
-          {/* Header row */}
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h3 className="font-black text-slate-900 dark:text-white text-lg">
-                {cluster.hazard_type}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {cluster.report_count} reports · {cluster.center_lat.toFixed(3)}°N, {cluster.center_lon.toFixed(3)}°E · {cluster.max_severity?.toUpperCase()}
+            {/* Header row */}
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="font-black text-slate-900 dark:text-white text-lg">
+                  {cluster.hazard_type}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {cluster.report_count} reports · {cluster.center_lat.toFixed(3)}°N, {cluster.center_lon.toFixed(3)}°E · {cluster.max_severity?.toUpperCase()}
+                </p>
+              </div>
+              {/* AI Score */}
+              <div className="text-right shrink-0">
+                <div className={`text-3xl font-black ${
+                  cluster.authenticity_score >= 0.8 ? "text-emerald-500" :
+                  cluster.authenticity_score >= 0.5 ? "text-yellow-500" : "text-red-500"
+                }`}>
+                  {Math.round(cluster.authenticity_score * 100)}%
+                </div>
+                <div className="text-[10px] text-slate-400 flex items-center gap-1 justify-end">
+                  <Brain size={10} /> AI Authenticity
+                </div>
+              </div>
+            </div>
+
+            {/* AI Summary */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-3 mb-3">
+              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                <Brain size={10} /> Amazon Nova Analysis
               </p>
+              <p className="text-sm text-blue-800 dark:text-blue-200">{cluster.ai_summary}</p>
             </div>
-            {/* AI Score */}
-            <div className="text-right shrink-0">
-              <div className={`text-3xl font-black ${
-                cluster.authenticity_score >= 0.8 ? "text-emerald-500" :
-                cluster.authenticity_score >= 0.5 ? "text-yellow-500" : "text-red-500"
-              }`}>
-                {Math.round(cluster.authenticity_score * 100)}%
-              </div>
-              <div className="text-[10px] text-slate-400 flex items-center gap-1 justify-end">
-                <Brain size={10} /> AI Authenticity
-              </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-2 flex-wrap mb-3">
+              <button
+                onClick={() => setAlertModal(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 transition-colors"
+              >
+                <Bell size={13} /> Issue Alert for This Area
+              </button>
+              <button
+                onClick={() => {
+                  cluster.report_ids.forEach(id => doVerify({ id, status: "verified" }));
+                  toast.success(`Verified ${cluster.report_count} reports`);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors"
+              >
+                <CheckCircle size={13} /> Verify All ({cluster.report_count})
+              </button>
+              <button
+                onClick={() => {
+                  cluster.report_ids.forEach(id => doVerify({ id, status: "false" }));
+                  toast.success("Marked as fake");
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+              >
+                <XCircle size={13} /> Mark All Fake
+              </button>
+              <button
+                onClick={() => setExpandedClusters(prev => ({ ...prev, [cluster.cluster_id]: !isExpanded }))}
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold rounded-xl hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors ml-auto"
+              >
+                <ClipboardList size={13} /> {isExpanded ? "Hide" : "View"} Individual Reports ({cluster.report_count})
+                <ChevronDown size={13} className={`transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+              </button>
             </div>
-          </div>
 
-          {/* AI Summary */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-3 mb-3">
-            <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1 flex items-center gap-1">
-              <Brain size={10} /> Amazon Nova Analysis
-            </p>
-            <p className="text-sm text-blue-800 dark:text-blue-200">{cluster.ai_summary}</p>
+            {/* Individual Reports Section */}
+            {isExpanded && (
+              <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
+                  Individual Reports in This Cluster
+                </p>
+                {reports?.filter(r => cluster.report_ids.includes(r.id)).map((report) => (
+                  <AdminReportCard
+                    key={report.id}
+                    report={report}
+                    onVerify={(id, status) => doVerify({ id, status })}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-
-          {/* Action buttons */}
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => setAlertModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 transition-colors"
-            >
-              <Bell size={13} /> Issue Alert for This Area
-            </button>
-            <button
-              onClick={() => {
-                cluster.report_ids.forEach(id => doVerify({ id, status: "verified" }));
-                toast.success(`Verified ${cluster.report_count} reports`);
-              }}
-              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors"
-            >
-              <CheckCircle size={13} /> Verify All ({cluster.report_count})
-            </button>
-            <button
-              onClick={() => {
-                cluster.report_ids.forEach(id => doVerify({ id, status: "false" }));
-                toast.success("Marked as fake");
-              }}
-              className="flex items-center gap-1.5 px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-            >
-              <XCircle size={13} /> Mark All Fake
-            </button>
-          </div>
-        </div>
-      ))
+        );
+      })
     )}
   </div>
 )}
 
       <div className="p-4 md:p-6">
+
+        {/* ── SOS Triggers Tab ── */}
+        {activeTab === "sos" && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl">
+              <AlertTriangle size={14} className="text-red-500 shrink-0" />
+              <p className="text-xs text-red-700 dark:text-red-300">
+                Critical severity reports (SOS triggers) from your district. These require immediate attention.
+              </p>
+            </div>
+
+            {!stats?.sos_triggers?.length ? (
+              <div className="text-center py-20 bg-white dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 rounded-2xl">
+                <CheckCircle className="mx-auto text-emerald-400 mb-2" size={40} />
+                <p className="text-xs text-slate-400 uppercase tracking-widest">No SOS triggers at the moment</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {stats.sos_triggers.map((sos) => (
+                  <div key={sos.id}
+                    className="bg-white dark:bg-slate-800 border-2 border-red-200 dark:border-red-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="w-1.5 self-stretch rounded-full bg-red-500 shrink-0" />
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertTriangle size={16} className="text-red-500 shrink-0" />
+                          <span className="text-base font-black text-slate-900 dark:text-white">{sos.hazard_type}</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">
+                            CRITICAL
+                          </span>
+                        </div>
+
+                        <p className="text-sm text-slate-700 dark:text-slate-200 mb-3 italic">
+                          "{sos.description || "No description provided."}"
+                        </p>
+
+                        <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mb-3">
+                          <span className="flex items-center gap-1">
+                            <MapPin size={11} /> {sos.latitude.toFixed(4)}°N, {sos.longitude.toFixed(4)}°E
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock size={11} /> {new Date(sos.created_at).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+
+                        <div className="text-[10px] text-slate-400">
+                          Reported by: {sos.reporter_name} · ID: #{sos.id}
+                        </div>
+
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => setAlertModal(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors"
+                          >
+                            <Bell size={12} /> Issue Alert
+                          </button>
+                          <button
+                            onClick={() => {
+                              // Open map centered on this location
+                              window.open(`/map?lat=${sos.latitude}&lng=${sos.longitude}&zoom=12`, '_blank');
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            <MapPin size={12} /> View on Map
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Reports Tab ── */}
         {activeTab === "reports" && (

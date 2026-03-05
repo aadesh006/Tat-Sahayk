@@ -63,9 +63,9 @@ const SideBar = ({ isOpen, onClose }) => {
 
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-blue-100 dark:border-slate-700 shrink-0">
-          <span className="text-xl font-bold text-blue-600 dark:text-blue-400 tracking-wider">
+          <Link to="/" className="text-xl font-bold text-blue-600 dark:text-blue-400 tracking-wider hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
             तट-Sahayk
-          </span>
+          </Link>
           <button onClick={onClose} className="lg:hidden text-slate-500 dark:text-slate-400">
             <X size={24} />
           </button>

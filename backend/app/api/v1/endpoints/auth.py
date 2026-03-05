@@ -41,3 +41,17 @@ def update_me(
     current_user: User = Depends(deps.get_current_user)
 ):
     return crud_user.update_user(db, user=current_user, update=user_in)
+
+@router.patch("/update-location")
+def update_user_location(
+    district: str,
+    state: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    """Update user's location (district and state) for location-based alerts"""
+    current_user.district = district
+    current_user.state = state
+    db.commit()
+    db.refresh(current_user)
+    return {"message": "Location updated successfully", "district": district, "state": state}

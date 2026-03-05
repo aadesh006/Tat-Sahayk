@@ -29,7 +29,7 @@ const makeIcon = (emoji, color) => L.divIcon({
 });
 
 // ── Cluster verified reports by proximity ─────────────────────────────────────
-function clusterReports(reports, radiusKm = 2) {
+function clusterReports(reports, radiusKm = 80) {
   const clusters = [];
   const assigned = new Set();
 
@@ -240,7 +240,14 @@ const MapPage = () => {
           <MapContainer
             center={[20.5937, 78.9629]}
             zoom={5}
-            style={{ height: "100%", width: "100%", background: "#0f172a" }}
+            minZoom={5}
+            maxZoom={12}
+            maxBounds={[
+              [6.0, 68.0],   // Southwest corner (southern India)
+              [35.0, 97.0]   // Northeast corner (northern India)
+            ]}
+            maxBoundsViscosity={1.0}
+            style={{ height: "100%", width: "100%", background: "#0f172a", zIndex: 0 }}
           >
             <TileLayer
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"

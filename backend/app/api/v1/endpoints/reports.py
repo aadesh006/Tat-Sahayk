@@ -25,7 +25,7 @@ def calculate_distance(lat1, lon1, lat2, lon2):
          math.sin(dlon / 2) ** 2)
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-def cluster_reports(reports, max_distance_km=2.0):
+def cluster_reports(reports, max_distance_km=80.0):
     clusters = []
     visited = set()
     for i, report in enumerate(reports):
@@ -81,27 +81,59 @@ def analyze_report_with_ai(report_id: int, text: str, image_url: str):
 
 # ROUTES
 
-# 1. GET STATS
+# 1. GET STATS (SOS TRIGGERS)
 @router.get("/stats")
-def get_report_stats(db: Session = Depends(get_db)):
-    total    = db.query(Report).count()
-    pending  = db.query(Report).filter(Report.status == "pending").count()
-    verified = db.query(Report).filter(Report.status == "verified").count()
-    critical = db.query(Report).filter(Report.severity == "critical").count()
+def get_report_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    # Base query
+    query = db.query(Report)
+    
+    # Filter by admin's district if admin role
+    if current_user.role == "admin" and current_user.district:
+        query = query.join(User).filter(User.district == current_user.district)
+    
+    # Get SOS triggers (critical severity reports)
+    sos_triggers = query.filter(Report.severity == "critical").all()
+    
+    # Get active hazards by type
+    hazard_counts = {}
+    for report in query.filter(Report.status != "false").all():
+        hazard_counts[report.hazard_type] = hazard_counts.get(report.hazard_type, 0) + 1
+    
     return {
-        "total_reports":    total,
-        "pending_review":   pending,
-        "verified_hazards": verified,
-        "critical_alerts":  critical
+        "sos_triggers": [
+            {
+                "id": r.id,
+                "hazard_type": r.hazard_type,
+                "description": r.description,
+                "latitude": r.latitude,
+                "longitude": r.longitude,
+                "created_at": r.created_at,
+                "reporter_name": r.owner.full_name if r.owner else "Anonymous"
+            }
+            for r in sos_triggers
+        ],
+        "total_sos": len(sos_triggers),
+        "hazard_breakdown": hazard_counts,
+        "total_active": query.filter(Report.status != "false").count()
     }
 
 # 2. GET HOTSPOTS
 @router.get("/hotspots")
 def get_hazard_hotspots(
     db: Session = Depends(get_db),
-    radius_km: float = Query(2.0)
+    radius_km: float = Query(80.0),
+    current_user: User = Depends(deps.get_current_user)
 ):
-    active_reports = db.query(Report).filter(Report.status != "false").all()
+    # Filter reports by admin's district if admin role
+    query = db.query(Report).filter(Report.status != "false")
+    if current_user.role == "admin" and current_user.district:
+        # Admin sees only reports in their district
+        query = query.join(User).filter(User.district == current_user.district)
+    
+    active_reports = query.all()
     if not active_reports:
         return {"message": "No active hazards", "hotspots": []}
     hotspots = cluster_reports(active_reports, max_distance_km=radius_km)
@@ -125,40 +157,32 @@ def get_my_reports(
     return query.order_by(Report.created_at.desc()).all()
 
 # 4. GET ALL REPORTS
-@router.get("/", response_model=List[ReportResponse])
+@router.get("/")
 def read_reports(
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 100,
     status: Optional[str] = Query(None),
-    severity: Optional[str] = Query(None)
+    severity: Optional[str] = Query(None),
+    current_user: User = Depends(deps.get_current_user)
 ):
     query = db.query(Report)
+    
+    # NOTE: Admins see ALL reports on home page (no district filtering)
+    # District filtering only applies to admin dashboard endpoints (stats, hotspots)
+    
     if status:
         query = query.filter(Report.status == status)
     if severity:
         query = query.filter(Report.severity == severity)
-    return query.order_by(Report.created_at.desc()).offset(skip).limit(limit).all()
+    reports = query.order_by(Report.created_at.desc()).offset(skip).limit(limit).all()
 
-# 5. CREATE REPORT
-@router.post("/", response_model=ReportResponse)
-def create_report(
-    report_in: ReportCreate,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user)
-):
-    report = crud_report.create_report(db=db, report=report_in, user_id=current_user.id)
-
-    background_tasks.add_task(
-        score_single_report_bg,
-        report_id=report.id,
-        description=report_in.description or "",
-        hazard_type=report_in.hazard_type or "",
-        has_image=len(report_in.image_filenames or []) > 0
-    )
-
-    return report
+    result = []
+    for r in reports:
+        d = ReportResponse.model_validate(r).model_dump()
+        d["reporter_name"] = r.owner.full_name if r.owner else "Anonymous"
+        result.append(d)
+    return result
 
 def score_single_report_bg(report_id: int, description: str, hazard_type: str, image_url: str, lat: float, lon: float):
     from app.db.session import SessionLocal
@@ -183,7 +207,40 @@ def score_single_report_bg(report_id: int, description: str, hazard_type: str, i
     finally:
         db.close()
 
+# 5. CREATE REPORT
+@router.post("/", response_model=ReportResponse)
+def create_report(
+    *,
+    db: Session = Depends(get_db),
+    report_in: ReportCreate,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(deps.get_current_user)
+):
+    # Create the report
+    report = crud_report.create_report(db=db, report=report_in, user_id=current_user.id)
+    
+    # Get image URL for AI analysis
+    image_url = report.media[0].file_path if report.media else None
+    
+    # Schedule background AI analysis
+    background_tasks.add_task(
+        score_single_report_bg,
+        report.id,
+        report.description or "",
+        report.hazard_type,
+        image_url,
+        report.latitude,
+        report.longitude
+    )
+    
+    return report
+
 # DYNAMIC ROUTES
+
+def serialize_report(r):
+    d = ReportResponse.model_validate(r).model_dump()
+    d["reporter_name"] = r.owner.full_name if r.owner else "Anonymous"
+    return d
 
 # 6. GET SINGLE REPORT
 @router.get("/{report_id}", response_model=ReportResponse)
@@ -191,7 +248,7 @@ def get_report(report_id: int, db: Session = Depends(get_db)):
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    return report
+    return serialize_report(report)
 
 # 7. VERIFY REPORT (admin)
 @router.patch("/{report_id}/verify", response_model=ReportResponse)
@@ -223,3 +280,58 @@ def delete_report(
         raise HTTPException(status_code=403, detail="Not authorized")
     db.delete(report)
     db.commit()
+
+# 9. CONFIRM REPORT (Like/Upvote)
+@router.post("/{report_id}/confirm")
+def confirm_report(
+    report_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    from app.models.confirmation import ReportConfirmation
+    
+    report = db.query(Report).filter(Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    # Check if user already confirmed
+    existing = db.query(ReportConfirmation).filter(
+        ReportConfirmation.report_id == report_id,
+        ReportConfirmation.user_id == current_user.id
+    ).first()
+    
+    if existing:
+        # Remove confirmation (unlike)
+        db.delete(existing)
+        report.confirmation_count = max(0, report.confirmation_count - 1)
+        db.commit()
+        return {"message": "Confirmation removed", "confirmation_count": report.confirmation_count, "confirmed": False}
+    else:
+        # Add confirmation
+        confirmation = ReportConfirmation(
+            report_id=report_id,
+            user_id=current_user.id
+        )
+        db.add(confirmation)
+        report.confirmation_count += 1
+        db.commit()
+        return {"message": "Report confirmed", "confirmation_count": report.confirmation_count, "confirmed": True}
+
+# 10. CHECK IF USER CONFIRMED REPORT
+@router.get("/{report_id}/confirmed")
+def check_confirmation(
+    report_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    from app.models.confirmation import ReportConfirmation
+    
+    confirmed = db.query(ReportConfirmation).filter(
+        ReportConfirmation.report_id == report_id,
+        ReportConfirmation.user_id == current_user.id
+    ).first() is not None
+    
+    report = db.query(Report).filter(Report.id == report_id).first()
+    confirmation_count = report.confirmation_count if report else 0
+    
+    return {"confirmed": confirmed, "confirmation_count": confirmation_count}

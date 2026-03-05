@@ -17,6 +17,9 @@ class Report(Base):
     is_verified  = Column(Boolean, default=False)
     status       = Column(String,  default="pending")
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Confirmation/Like feature
+    confirmation_count = Column(Integer, default=0)
 
     # AI fields
     ai_authenticity_score = Column(Float,  nullable=True)
@@ -25,6 +28,7 @@ class Report(Base):
     owner    = relationship("User",    back_populates="reports")
     media    = relationship("Media",   back_populates="report")
     comments = relationship("Comment", back_populates="report", cascade="all, delete")
+    confirmations = relationship("ReportConfirmation", back_populates="report", cascade="all, delete-orphan", lazy="dynamic")
 
     @property
     def latitude(self):
