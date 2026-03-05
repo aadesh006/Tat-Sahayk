@@ -25,7 +25,7 @@ def calculate_distance(lat1, lon1, lat2, lon2):
          math.sin(dlon / 2) ** 2)
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-def cluster_reports(reports, max_distance_km=2.0):
+def cluster_reports(reports, max_distance_km=80.0):
     clusters = []
     visited = set()
     for i, report in enumerate(reports):
@@ -99,7 +99,7 @@ def get_report_stats(db: Session = Depends(get_db)):
 @router.get("/hotspots")
 def get_hazard_hotspots(
     db: Session = Depends(get_db),
-    radius_km: float = Query(2.0)
+    radius_km: float = Query(80.0)
 ):
     active_reports = db.query(Report).filter(Report.status != "false").all()
     if not active_reports:
@@ -125,7 +125,7 @@ def get_my_reports(
     return query.order_by(Report.created_at.desc()).all()
 
 # 4. GET ALL REPORTS
-@router.get("/", response_model=List[ReportResponse])
+@router.get("/")
 def read_reports(
     db: Session = Depends(get_db),
     skip: int = 0,
@@ -138,27 +138,14 @@ def read_reports(
         query = query.filter(Report.status == status)
     if severity:
         query = query.filter(Report.severity == severity)
-    return query.order_by(Report.created_at.desc()).offset(skip).limit(limit).all()
+    reports = query.order_by(Report.created_at.desc()).offset(skip).limit(limit).all()
 
-# 5. CREATE REPORT
-@router.post("/", response_model=ReportResponse)
-def create_report(
-    report_in: ReportCreate,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user)
-):
-    report = crud_report.create_report(db=db, report=report_in, user_id=current_user.id)
-
-    background_tasks.add_task(
-        score_single_report_bg,
-        report_id=report.id,
-        description=report_in.description or "",
-        hazard_type=report_in.hazard_type or "",
-        has_image=len(report_in.image_filenames or []) > 0
-    )
-
-    return report
+    result = []
+    for r in reports:
+        d = ReportResponse.model_validate(r).model_dump()
+        d["reporter_name"] = r.owner.full_name if r.owner else "Anonymous"
+        result.append(d)
+    return result
 
 def score_single_report_bg(report_id: int, description: str, hazard_type: str, image_url: str, lat: float, lon: float):
     from app.db.session import SessionLocal
@@ -183,7 +170,40 @@ def score_single_report_bg(report_id: int, description: str, hazard_type: str, i
     finally:
         db.close()
 
+# 5. CREATE REPORT
+@router.post("/", response_model=ReportResponse)
+def create_report(
+    *,
+    db: Session = Depends(get_db),
+    report_in: ReportCreate,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(deps.get_current_user)
+):
+    # Create the report
+    report = crud_report.create_report(db=db, report=report_in, user_id=current_user.id)
+    
+    # Get image URL for AI analysis
+    image_url = report.media[0].file_path if report.media else None
+    
+    # Schedule background AI analysis
+    background_tasks.add_task(
+        score_single_report_bg,
+        report.id,
+        report.description or "",
+        report.hazard_type,
+        image_url,
+        report.latitude,
+        report.longitude
+    )
+    
+    return report
+
 # DYNAMIC ROUTES
+
+def serialize_report(r):
+    d = ReportResponse.model_validate(r).model_dump()
+    d["reporter_name"] = r.owner.full_name if r.owner else "Anonymous"
+    return d
 
 # 6. GET SINGLE REPORT
 @router.get("/{report_id}", response_model=ReportResponse)
@@ -191,7 +211,7 @@ def get_report(report_id: int, db: Session = Depends(get_db)):
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    return report
+    return serialize_report(report)
 
 # 7. VERIFY REPORT (admin)
 @router.patch("/{report_id}/verify", response_model=ReportResponse)

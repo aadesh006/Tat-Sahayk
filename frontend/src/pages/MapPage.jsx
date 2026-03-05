@@ -239,7 +239,7 @@ const MapPage = () => {
 
           <MapContainer
             center={[20.5937, 78.9629]}
-            zoom={5}
+            zoom={4}
             style={{ height: "100%", width: "100%", background: "#0f172a" }}
           >
             <TileLayer

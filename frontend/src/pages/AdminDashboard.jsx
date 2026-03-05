@@ -383,7 +383,7 @@ const AdminDashboard = () => {
       {/* ── Tab Bar ── */}
       <div className="flex border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-6">
         {[
-          { key: "reports", label: "Verification Queue",   icon: <Filter size={15} /> },
+          { key: "sos", label: "SOS Map", icon: <MapPin size={14} /> },
           { key: "alerts",  label: "Issued Alerts",        icon: <Bell size={15} /> },
           { key: "ai", label: "AI Intelligence", icon: <Brain size={15} /> },
         ].map((tab) => (

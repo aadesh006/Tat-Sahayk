@@ -57,10 +57,12 @@ const normalizeReport = (r) => ({
   ...r,
   disasterType: r.hazard_type,
   date: r.created_at ? new Date(r.created_at).toLocaleString("en-IN") : "Just Now",
-  image: r.media?.[0]?.file_path || null,
+  images: r.media?.map((m) => m.file_path).filter(Boolean) || [],
+  image:  r.media?.[0]?.file_path || null,  // keep for backward compat
+  reporterName: r.reporter_name || "Anonymous",
   location:
     r.latitude && r.longitude
-      ? `${r.latitude.toFixed(4)}°N, ${r.longitude.toFixed(4)}°E`
+      ? `${Number(r.latitude).toFixed(4)}°N, ${Number(r.longitude).toFixed(4)}°E`
       : "Location unavailable",
 });
 

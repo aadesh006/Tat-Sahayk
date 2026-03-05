@@ -27,5 +27,6 @@ class ReportResponse(ReportBase):
     media:                 List[MediaResponse] = []
     ai_authenticity_score: Optional[float] = None
     ai_analysis_summary:   Optional[str]  = None
+    reporter_name:         Optional[str]  = None
 
     model_config = ConfigDict(from_attributes=True)
