@@ -19,17 +19,69 @@ export const login = async ({ email, password }) => {
   const formData = new URLSearchParams();
   formData.append("username", email);
   formData.append("password", password);
-  const res = await axiosInstance.post("/auth/login", formData, {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  });
-  localStorage.setItem("token", res.data.access_token);
-  const userRes = await axiosInstance.get("/auth/me");
-  return { user: userRes.data };
+  
+  try {
+    const res = await axiosInstance.post("/auth/login", formData, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+    localStorage.setItem("token", res.data.access_token);
+    const userRes = await axiosInstance.get("/auth/me");
+    return { user: userRes.data };
+  } catch (error) {
+    // Re-throw the error with proper message
+    if (error.response?.status === 401) {
+      throw new Error("Incorrect email or password");
+    } else if (error.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    } else {
+      throw new Error("Login failed. Please try again.");
+    }
+  }
+};
+
+export const googleLogin = async (credential) => {
+  try {
+    const res = await axiosInstance.post("/auth/google", { credential });
+    localStorage.setItem("token", res.data.access_token);
+    const userRes = await axiosInstance.get("/auth/me");
+    return { user: userRes.data };
+  } catch (error) {
+    // Re-throw the error with proper message
+    if (error.response?.status === 401) {
+      throw new Error("Invalid Google token");
+    } else if (error.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    } else {
+      throw new Error("Google login failed. Please try again.");
+    }
+  }
 };
 
 export const signup = async (data) => {
-  const res = await axiosInstance.post("/auth/signup", data);
-  return res.data;
+  try {
+    // First create the account
+    await axiosInstance.post("/auth/signup", data);
+    
+    // Then automatically log in
+    const formData = new URLSearchParams();
+    formData.append("username", data.email);
+    formData.append("password", data.password);
+    const loginRes = await axiosInstance.post("/auth/login", formData, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+    localStorage.setItem("token", loginRes.data.access_token);
+    const userRes = await axiosInstance.get("/auth/me");
+    return { user: userRes.data };
+  } catch (error) {
+    // Re-throw the error with proper message
+    if (error.response?.status === 400) {
+      throw new Error("Email already registered");
+    } else if (error.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    } else {
+      throw new Error("Signup failed. Please try again.");
+    }
+  }
 };
 
 export const logout = () => localStorage.removeItem("token");

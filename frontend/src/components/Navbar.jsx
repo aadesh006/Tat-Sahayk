@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../context/ThemeContext.jsx";
 import { Sun, Moon, Menu, ChevronDown, Phone } from "lucide-react";
+import toast from "react-hot-toast";
 
 const LANGUAGES = [
   { code: "en", label: "English",    native: "EN" },
@@ -42,6 +43,50 @@ const Navbar = ({ onMenuClick }) => {
     { name: "Coast Guard",     number: "1554" },
   ];
 
+  const handleSOS = async () => {
+    // Get user's current location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          const locationUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+          
+          // Create SOS message
+          const sosMessage = `🚨 EMERGENCY SOS 🚨\n\nI need immediate help!\n\nMy Location: ${locationUrl}\nCoordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}\n\nPlease send rescue assistance immediately.`;
+          
+          // Try to send SMS to emergency services (if supported by device)
+          // Note: SMS sending requires native app or specific permissions
+          // For web, we'll copy to clipboard and dial 112
+          
+          try {
+            // Copy SOS message to clipboard
+            await navigator.clipboard.writeText(sosMessage);
+            toast.success("SOS message copied to clipboard! Dialing 112...", { duration: 3000 });
+          } catch (err) {
+            console.error("Failed to copy to clipboard:", err);
+          }
+          
+          // Dial emergency number
+          window.location.href = "tel:112";
+        },
+        (error) => {
+          console.error("Location error:", error);
+          toast.error("Unable to get location. Dialing 112...");
+          // Still dial 112 even if location fails
+          window.location.href = "tel:112";
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0
+        }
+      );
+    } else {
+      toast.error("Geolocation not supported. Dialing 112...");
+      window.location.href = "tel:112";
+    }
+  };
+
   return (
     <header className="h-16 bg-white dark:bg-black border-b border-gray-200 dark:border-[rgb(47,51,54)] flex items-center justify-between px-4 lg:px-6 shrink-0 z-20 backdrop-blur-sm bg-white/80 dark:bg-black/80">
 
@@ -58,14 +103,14 @@ const Navbar = ({ onMenuClick }) => {
       {/* Right controls */}
       <div className="flex items-center gap-2">
 
-        {/* SOS Button - Direct emergency call */}
-        <a
-          href="tel:112"
-          className="flex items-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-full transition-all shadow-sm hover:shadow-md"
+        {/* SOS Button - Send location and dial 112 */}
+        <button
+          onClick={handleSOS}
+          className="flex items-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-full transition-all shadow-sm hover:shadow-md active:scale-95"
         >
           <Phone size={14} />
           <span className="hidden sm:inline">SOS 112</span>
-        </a>
+        </button>
 
         {/* Language dropdown */}
         <div ref={langRef} className="relative">

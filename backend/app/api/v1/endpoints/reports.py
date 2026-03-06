@@ -164,7 +164,7 @@ def read_reports(
     limit: int = 100,
     status: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
-    current_user: User = Depends(deps.get_current_user)
+    current_user: Optional[User] = Depends(deps.get_current_user_optional)
 ):
     query = db.query(Report)
     

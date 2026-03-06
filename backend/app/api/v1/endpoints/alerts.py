@@ -16,24 +16,25 @@ def require_admin(current_user: User = Depends(deps.get_current_user)) -> User:
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
 
-# GET alerts — filtered by user's location (district/state)
+# GET alerts — filtered by user's location (district/state) or all if not authenticated
 @router.get("/", response_model=List[AlertResponse])
 def get_alerts(
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user)
+    current_user: Optional[User] = Depends(deps.get_current_user_optional)
 ):
     query = db.query(Alert).filter(Alert.is_active == True)
 
-    # Filter alerts based on user's location
-    if current_user.district:
-        # Show alerts for user's district OR nationwide (no district set)
-        query = query.filter(
-            (Alert.district == current_user.district) | (Alert.district == None)
-        )
-    if current_user.state:
-        query = query.filter(
-            (Alert.state == current_user.state) | (Alert.state == None)
-        )
+    # Filter alerts based on user's location if authenticated
+    if current_user:
+        if current_user.district:
+            # Show alerts for user's district OR nationwide (no district set)
+            query = query.filter(
+                (Alert.district == current_user.district) | (Alert.district == None)
+            )
+        if current_user.state:
+            query = query.filter(
+                (Alert.state == current_user.state) | (Alert.state == None)
+            )
 
     alerts = query.order_by(Alert.created_at.desc()).limit(10).all()
 
