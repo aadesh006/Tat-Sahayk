@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { login, googleLogin } from "../lib/api.js";
+import { login, adminLogin, googleLogin } from "../lib/api.js";
 import { Lock, Mail, Loader2, ShieldAlert, Home, Sun, Moon } from "lucide-react";
 import { Link } from "react-router";
 import toast, { Toaster } from "react-hot-toast";
@@ -17,7 +17,7 @@ const LoginPage = () => {
   const queryClient = useQueryClient();
 
   const { mutate: loginMutation, isPending, error } = useMutation({
-    mutationFn: login,
+    mutationFn: isAdmin ? adminLogin : login,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
       // Force navigation after successful login
@@ -95,33 +95,39 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-black flex flex-col items-center justify-center p-6 relative">
-      <Toaster />
+    <div className="min-h-screen bg-slate-50 dark:bg-black flex flex-col items-center justify-center p-4 sm:p-6 relative">
+      <Toaster position="top-center" toastOptions={{
+        duration: 4000,
+        style: {
+          background: 'rgb(var(--bg-secondary))',
+          color: 'rgb(var(--text-primary))',
+        },
+      }} />
       
-      {/* Top-right controls */}
-      <div className="absolute top-6 right-6 flex items-center gap-2">
+      {/* Top-right controls - adjusted for mobile */}
+      <div className="absolute top-3 right-3 sm:top-6 sm:right-6 flex items-center gap-1.5 sm:gap-2">
         {/* Theme toggle */}
         <button
           onClick={toggle}
-          className="p-3 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-full hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all hover:scale-110 shadow-sm"
+          className="p-2 sm:p-3 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-full hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all hover:scale-110 shadow-sm"
           title={dark ? "Switch to light mode" : "Switch to dark mode"}
         >
-          {dark ? <Sun size={20} className="text-gray-300" /> : <Moon size={20} className="text-gray-700" />}
+          {dark ? <Sun size={16} className="sm:w-5 sm:h-5 text-gray-300" /> : <Moon size={16} className="sm:w-5 sm:h-5 text-gray-700" />}
         </button>
         
         {/* Home icon */}
         <Link 
           to="/" 
-          className="p-3 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-full hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all hover:scale-110 shadow-sm"
+          className="p-2 sm:p-3 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-full hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all hover:scale-110 shadow-sm"
           title="Go to Homepage"
         >
-          <Home size={20} className="text-gray-700 dark:text-gray-300" />
+          <Home size={16} className="sm:w-5 sm:h-5 text-gray-700 dark:text-gray-300" />
         </Link>
       </div>
       
-      {/* Logo */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
+      {/* Logo - adjusted spacing for mobile */}
+      <div className="mb-6 sm:mb-8 mt-12 sm:mt-0">
+        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
           तट-Sahayk
         </h1>
       </div>

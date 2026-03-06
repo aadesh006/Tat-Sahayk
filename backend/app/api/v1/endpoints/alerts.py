@@ -57,14 +57,34 @@ def create_alert(
     db:       Session = Depends(get_db),
     admin:    User    = Depends(require_admin)
 ):
+    # Jurisdiction validation: admins can only issue alerts for their own district/state
+    target_district = alert_in.district or admin.district
+    target_state = alert_in.state or admin.state
+    
+    # If admin has a district, they can only issue alerts for their district
+    if admin.district:
+        if target_district and target_district != admin.district:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"You can only issue alerts for your district: {admin.district}"
+            )
+    
+    # If admin has a state, they can only issue alerts for their state
+    if admin.state:
+        if target_state and target_state != admin.state:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"You can only issue alerts for your state: {admin.state}"
+            )
+    
     alert = Alert(
         admin_id    = admin.id,
         title       = alert_in.title,
         message     = alert_in.message,
         hazard_type = alert_in.hazard_type,
         severity    = alert_in.severity,
-        district    = alert_in.district or admin.district,
-        state       = alert_in.state    or admin.state,
+        district    = target_district,
+        state       = target_state,
         expires_at  = alert_in.expires_at,
         is_active   = True
     )

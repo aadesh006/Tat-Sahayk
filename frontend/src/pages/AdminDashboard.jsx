@@ -43,56 +43,79 @@ const IssueAlertModal = ({ adminDistrict, adminState, onClose, onSuccess }) => {
   const { mutate, isPending } = useMutation({
     mutationFn: createAlert,
     onSuccess: () => { toast.success("Alert issued successfully"); onSuccess(); onClose(); },
-    onError:   () => toast.error("Failed to issue alert"),
+    onError:   (error) => {
+      const msg = error.response?.data?.detail || "Failed to issue alert";
+      toast.error(msg);
+    },
   });
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden border border-gray-200 dark:border-[rgb(47,51,54)]">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-[rgb(47,51,54)]">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-500 to-orange-500 p-5 flex items-center justify-between">
+        <div className="bg-gradient-to-br from-red-600 via-red-500 to-orange-500 px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Bell size={20} className="text-white" />
-            <h2 className="text-white font-bold text-lg">Issue Government Alert</h2>
+            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+              <AlertTriangle size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-white font-black text-lg">Issue Emergency Alert</h2>
+              <p className="text-white/80 text-xs">Broadcast to citizens in your jurisdiction</p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-white/80 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-all">
             <X size={20} />
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-5">
+          {/* Jurisdiction notice */}
+          <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+            <Shield size={16} className="text-blue-500 mt-0.5 shrink-0" />
+            <div className="text-xs text-blue-700 dark:text-blue-300">
+              <p className="font-bold mb-1">Jurisdiction: {adminDistrict || "All Districts"}, {adminState || "National"}</p>
+              <p>This alert will be sent to citizens in your administrative area only.</p>
+            </div>
+          </div>
+
           {/* Title */}
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Alert Title</label>
+            <label className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 block">
+              Alert Title
+            </label>
             <input
               type="text"
               placeholder="e.g. Cyclone Warning — Coastal Districts"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="mt-2 w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+              className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500 transition-all text-sm font-medium"
             />
           </div>
 
           {/* Message */}
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Advisory Message</label>
+            <label className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 block">
+              Advisory Message
+            </label>
             <textarea
               rows={4}
               placeholder="Provide detailed instructions to citizens..."
               value={form.message}
               onChange={(e) => setForm({ ...form, message: e.target.value })}
-              className="mt-2 w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all resize-none"
+              className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500 transition-all resize-none text-sm"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             {/* Hazard type */}
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Hazard Type</label>
+              <label className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 block">
+                Hazard Type
+              </label>
               <select
                 value={form.hazard_type}
                 onChange={(e) => setForm({ ...form, hazard_type: e.target.value })}
-                className="mt-2 w-full px-3 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none"
+                className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none text-sm font-medium"
               >
                 {["Flood","Cyclone","Storm","Tsunami","Oil Spill","Earthquake","General"].map(h => (
                   <option key={h}>{h}</option>
@@ -102,56 +125,63 @@ const IssueAlertModal = ({ adminDistrict, adminState, onClose, onSuccess }) => {
 
             {/* Severity */}
             <div>
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Severity</label>
+              <label className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 block">
+                Severity Level
+              </label>
               <select
                 value={form.severity}
                 onChange={(e) => setForm({ ...form, severity: e.target.value })}
-                className="mt-1 w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl outline-none"
+                className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none text-sm font-medium"
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
+                <option value="low">🟢 Low</option>
+                <option value="medium">🟡 Medium</option>
+                <option value="high">🟠 High</option>
+                <option value="critical">🔴 Critical</option>
               </select>
             </div>
           </div>
 
-          {/* Target area */}
+          {/* Target area - read-only display */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">District</label>
+              <label className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 block">
+                Target District
+              </label>
               <input
                 type="text"
-                placeholder="Leave blank for statewide"
-                value={form.district}
-                onChange={(e) => setForm({ ...form, district: e.target.value })}
-                className="mt-1 w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl outline-none"
+                value={form.district || "All Districts"}
+                disabled
+                className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-600 dark:text-gray-400 rounded-xl outline-none text-sm font-medium cursor-not-allowed"
               />
             </div>
             <div>
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">State</label>
+              <label className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 block">
+                Target State
+              </label>
               <input
                 type="text"
-                placeholder="Leave blank for national"
-                value={form.state}
-                onChange={(e) => setForm({ ...form, state: e.target.value })}
-                className="mt-1 w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl outline-none"
+                value={form.state || "National"}
+                disabled
+                className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-600 dark:text-gray-400 rounded-xl outline-none text-sm font-medium cursor-not-allowed"
               />
             </div>
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-3">
             <button onClick={onClose}
-              className="flex-1 py-3 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              className="flex-1 py-3.5 border-2 border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all">
               Cancel
             </button>
             <button
-              onClick={() => { if (!form.title || !form.message) return toast.error("Title and message required"); mutate(form); }}
+              onClick={() => { 
+                if (!form.title || !form.message) return toast.error("Title and message required"); 
+                mutate(form); 
+              }}
               disabled={isPending}
-              className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
+              className="flex-1 py-3.5 bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white rounded-xl text-sm font-black flex items-center justify-center gap-2 disabled:opacity-60 transition-all shadow-lg shadow-red-500/20"
             >
-              {isPending ? <Loader2 size={16} className="animate-spin" /> : <Bell size={16} />}
-              Issue Alert
+              {isPending ? <Loader2 size={18} className="animate-spin" /> : <Bell size={18} />}
+              Broadcast Alert
             </button>
           </div>
         </div>
@@ -381,22 +411,23 @@ const AdminDashboard = () => {
       </div>
 
       {/* ── Tab Bar ── */}
-      <div className="flex border-b border-gray-200 dark:border-[rgb(47,51,54)] bg-white dark:bg-[rgb(22,22,22)] px-6">
+      <div className="flex overflow-x-auto border-b border-gray-200 dark:border-[rgb(47,51,54)] bg-white dark:bg-[rgb(22,22,22)] px-4 md:px-6 scrollbar-hide">
         {[
           { key: "sos", label: "SOS Triggers", icon: <AlertTriangle size={14} /> },
           { key: "reports", label: "All Reports", icon: <ClipboardList size={14} /> },
-          { key: "alerts",  label: "Issued Alerts",        icon: <Bell size={15} /> },
+          { key: "alerts",  label: "Issued Alerts", icon: <Bell size={15} /> },
           { key: "ai", label: "AI Intelligence", icon: <Brain size={15} /> },
         ].map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors
+            className={`flex items-center gap-2 px-4 md:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap
               ${activeTab === tab.key
                 ? "border-sky-500 text-sky-500"
                 : "border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"}`}
           >
-            {tab.icon} {tab.label}
+            {tab.icon} <span className="hidden sm:inline">{tab.label}</span>
+            <span className="sm:hidden">{tab.key.toUpperCase()}</span>
           </button>
         ))}
       </div>

@@ -13,6 +13,14 @@ class User(Base):
     role = Column(String, default="citizen")       # citizen | admin
     district = Column(String, nullable=True)        # e.g. "Mumbai", "Chennai"
     state = Column(String, nullable=True)
+    profile_photo = Column(String, nullable=True)   # URL to profile photo
+    
+    # Phone verification fields
+    phone = Column(String, nullable=True)
+    phone_verified = Column(Boolean, default=False)
+    otp_code = Column(String, nullable=True)
+    otp_expires_at = Column(DateTime(timezone=True), nullable=True)
+    
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

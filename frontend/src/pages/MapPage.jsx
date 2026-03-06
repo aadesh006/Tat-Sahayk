@@ -83,6 +83,16 @@ const MapClickHandler = ({ onMapClick, active }) => {
   return null;
 };
 
+// ── Zoom handler to hide navbar on zoom ──────────────────────────────────────
+const ZoomHandler = ({ onZoomChange }) => {
+  const map = useMapEvents({
+    zoomend: () => {
+      onZoomChange(map.getZoom());
+    }
+  });
+  return null;
+};
+
 // ── Main Map Page ─────────────────────────────────────────────────────────────
 const MapPage = () => {
   const { authUser } = useAuthUser();
@@ -93,6 +103,7 @@ const MapPage = () => {
   const [addMode,      setAddMode]      = useState(null);   // null | 'annotation' | 'force'
   const [pendingLatLng, setPending]     = useState(null);
   const [showForcePanel, setForcePanel] = useState(false);
+  const [currentZoom,  setCurrentZoom]  = useState(5);      // Track zoom level
   const [layers,       setLayers]       = useState({
     reports: true, annotations: true, forces: true
   });
@@ -185,59 +196,61 @@ const MapPage = () => {
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-black overflow-hidden">
       <Toaster />
 
-      {/* ── Top Bar ── */}
-      <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-4 py-3 flex items-center gap-3 flex-wrap shrink-0 relative z-10">
-        <div>
-          <h1 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
-            <Activity size={14} className="text-sky-500" /> Live Incident Map
-          </h1>
-          <p className="text-[10px] text-gray-400">
-            {clusters.length} active zones · {mapData?.verified_reports?.length ?? 0} verified reports
-          </p>
-        </div>
-
-        {/* Layer toggles */}
-        <div className="flex gap-2 ml-auto flex-wrap">
-          {[
-            { key:"reports",     label:"Reports",    color:"bg-sky-500" },
-            { key:"annotations", label:"Markers",    color:"bg-green-500" },
-            { key:"forces",      label:"Forces",     color:"bg-purple-500" },
-          ].map((l) => (
-            <button key={l.key}
-              onClick={() => setLayers(prev => ({ ...prev, [l.key]: !prev[l.key] }))}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all
-                ${layers[l.key]
-                  ? `${l.color} text-white border-transparent`
-                  : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-400 border-gray-200 dark:border-[rgb(47,51,54)]"}`}>
-              <span className={`w-2 h-2 rounded-full ${layers[l.key] ? "bg-white" : "bg-gray-400"}`} />
-              {l.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Admin controls */}
-        {isAdmin && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => { setAddMode(addMode === "annotation" ? null : "annotation"); setPending(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all
-                ${addMode === "annotation" ? "bg-green-500 text-white" : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)]"}`}>
-              <MapPin size={13} /> {addMode === "annotation" ? "Click map to place" : "Add Marker"}
-            </button>
-            <button
-              onClick={() => { setAddMode(addMode === "force" ? null : "force"); setPending(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all
-                ${addMode === "force" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)]"}`}>
-              <Shield size={13} /> {addMode === "force" ? "Click map to place" : "Deploy Force"}
-            </button>
-            <button
-              onClick={() => setForcePanel(!showForcePanel)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)] transition-all">
-              <Users size={13} /> Forces ({forcesAdmin?.length ?? 0})
-            </button>
+      {/* ── Top Bar ── Only show when zoom is less than 8 */}
+      {currentZoom < 8 && (
+        <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-4 py-3 flex items-center gap-3 flex-wrap shrink-0 relative z-10">
+          <div>
+            <h1 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+              <Activity size={14} className="text-sky-500" /> Live Incident Map
+            </h1>
+            <p className="text-[10px] text-gray-400">
+              {clusters.length} active zones · {mapData?.verified_reports?.length ?? 0} verified reports
+            </p>
           </div>
-        )}
-      </div>
+
+          {/* Layer toggles */}
+          <div className="flex gap-2 ml-auto flex-wrap">
+            {[
+              { key:"reports",     label:"Reports",    color:"bg-sky-500" },
+              { key:"annotations", label:"Markers",    color:"bg-green-500" },
+              { key:"forces",      label:"Forces",     color:"bg-purple-500" },
+            ].map((l) => (
+              <button key={l.key}
+                onClick={() => setLayers(prev => ({ ...prev, [l.key]: !prev[l.key] }))}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all
+                  ${layers[l.key]
+                    ? `${l.color} text-white border-transparent`
+                    : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-400 border-gray-200 dark:border-[rgb(47,51,54)]"}`}>
+                <span className={`w-2 h-2 rounded-full ${layers[l.key] ? "bg-white" : "bg-gray-400"}`} />
+                {l.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Admin controls */}
+          {isAdmin && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setAddMode(addMode === "annotation" ? null : "annotation"); setPending(null); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all
+                  ${addMode === "annotation" ? "bg-green-500 text-white" : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)]"}`}>
+                <MapPin size={13} /> {addMode === "annotation" ? "Click map to place" : "Add Marker"}
+              </button>
+              <button
+                onClick={() => { setAddMode(addMode === "force" ? null : "force"); setPending(null); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all
+                  ${addMode === "force" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)]"}`}>
+                <Shield size={13} /> {addMode === "force" ? "Click map to place" : "Deploy Force"}
+              </button>
+              <button
+                onClick={() => setForcePanel(!showForcePanel)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)] transition-all">
+                <Users size={13} /> Forces ({forcesAdmin?.length ?? 0})
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Map + Sidebar layout ── */}
       <div className="flex flex-1 overflow-hidden">
@@ -269,6 +282,7 @@ const MapPage = () => {
             />
 
             <MapClickHandler onMapClick={handleMapClick} active={!!addMode} />
+            <ZoomHandler onZoomChange={setCurrentZoom} />
 
             {/* ── Verified report clusters ── */}
             {layers.reports && clusters.map((cluster, idx) => {
@@ -279,7 +293,10 @@ const MapPage = () => {
                                cluster.find(r => r.severity === "medium")?.severity || "low";
               const color    = SEVERITY_COLOR[maxSev] || "#3b82f6";
               const hazColor = HAZARD_COLOR[center.hazard_type] || "#3b82f6";
-              const radius   = Math.min(18 + count * 6, 50); // Slightly smaller, more refined
+              
+              // Dynamic radius based on zoom level - smaller at higher zoom
+              const baseRadius = currentZoom >= 8 ? 12 : 18;
+              const radius = Math.min(baseRadius + count * (currentZoom >= 8 ? 3 : 6), currentZoom >= 8 ? 30 : 50);
 
               return (
                 <CircleMarker
@@ -288,24 +305,24 @@ const MapPage = () => {
                   radius={radius}
                   pathOptions={{
                     fillColor: hazColor,
-                    fillOpacity: 0.25,
+                    fillOpacity: currentZoom >= 8 ? 0.35 : 0.25,
                     color: color,
-                    weight: 3,
+                    weight: currentZoom >= 8 ? 2 : 3,
                   }}
                 >
                   <Tooltip permanent direction="center" className="cluster-label">
                     <div style={{
                       background: 'linear-gradient(135deg, white 0%, #f8fafc 100%)',
                       borderRadius: '50%',
-                      width: '36px',
-                      height: '36px',
+                      width: currentZoom >= 8 ? '32px' : '36px',
+                      height: currentZoom >= 8 ? '32px' : '36px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontWeight: '900',
-                      fontSize: '15px',
+                      fontSize: currentZoom >= 8 ? '13px' : '15px',
                       color: color,
-                      border: `3px solid ${color}`,
+                      border: `${currentZoom >= 8 ? 2 : 3}px solid ${color}`,
                       boxShadow: `0 4px 12px rgba(0,0,0,0.3), 0 0 0 2px white, 0 0 20px ${color}40`
                     }}>
                       {count}
