@@ -1,23 +1,82 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { login } from "../lib/api.js";
-import { Lock, Mail, Loader2, ShieldAlert } from "lucide-react";
+import { useState, useEffect } from "react";
+import { login, googleLogin } from "../lib/api.js";
+import { Lock, Mail, Loader2, ShieldAlert, Home, Sun, Moon } from "lucide-react";
 import { Link } from "react-router";
 import toast, { Toaster } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "../context/ThemeContext.jsx";
 
+const GOOGLE_CLIENT_ID = "156193308727-aq2u3kv8u5t8oh5p7v8nc7s44asb095e.apps.googleusercontent.com";
 
 const LoginPage = () => {
   const { t } = useTranslation();
+  const { dark, toggle } = useTheme();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const queryClient = useQueryClient();
 
   const { mutate: loginMutation, isPending, error } = useMutation({
     mutationFn: login,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["authUser"] }),
-    onError: (err) => toast.error(err?.response?.data?.detail || "Login failed"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      // Force navigation after successful login
+      window.location.href = "/";
+    },
+    onError: (err) => {
+      const errorMsg = err?.message || err?.response?.data?.detail || "Login failed. Please try again.";
+      toast.error(errorMsg);
+    },
   });
+
+  const { mutate: googleLoginMutation, isPending: isGooglePending } = useMutation({
+    mutationFn: googleLogin,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      // Force navigation after successful Google login
+      window.location.href = "/";
+    },
+    onError: (err) => {
+      const errorMsg = err?.message || err?.response?.data?.detail || "Google login failed";
+      toast.error(errorMsg);
+    },
+  });
+
+  // Initialize Google Sign-In
+  useEffect(() => {
+    if (isAdmin) return; // Don't show Google login for admin
+
+    const initializeGoogleSignIn = () => {
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleResponse,
+        });
+        window.google.accounts.id.renderButton(
+          document.getElementById("googleSignInButton"),
+          {
+            theme: "outline",
+            size: "large",
+            width: "100%",
+            text: "continue_with",
+            shape: "pill",
+          }
+        );
+      }
+    };
+
+    // Wait for Google script to load
+    if (window.google) {
+      initializeGoogleSignIn();
+    } else {
+      window.addEventListener("load", initializeGoogleSignIn);
+      return () => window.removeEventListener("load", initializeGoogleSignIn);
+    }
+  }, [isAdmin]);
+
+  const handleGoogleResponse = (response) => {
+    googleLoginMutation(response.credential);
+  };
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -36,8 +95,31 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-black flex flex-col items-center justify-center p-6 relative">
       <Toaster />
+      
+      {/* Top-right controls */}
+      <div className="absolute top-6 right-6 flex items-center gap-2">
+        {/* Theme toggle */}
+        <button
+          onClick={toggle}
+          className="p-3 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-full hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all hover:scale-110 shadow-sm"
+          title={dark ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {dark ? <Sun size={20} className="text-gray-300" /> : <Moon size={20} className="text-gray-700" />}
+        </button>
+        
+        {/* Home icon */}
+        <Link 
+          to="/" 
+          className="p-3 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-full hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all hover:scale-110 shadow-sm"
+          title="Go to Homepage"
+        >
+          <Home size={20} className="text-gray-700 dark:text-gray-300" />
+        </Link>
+      </div>
+      
+      {/* Logo */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
           तट-Sahayk
@@ -138,14 +220,31 @@ const LoginPage = () => {
           </form>
 
           {!isAdmin && (
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                New to the platform?{" "}
-                <Link to="/signup" className="text-sky-500 hover:text-sky-600 font-semibold">
-                  Register here
-                </Link>
-              </p>
-            </div>
+            <>
+              {/* Divider */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200 dark:border-[rgb(47,51,54)]"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-white dark:bg-[rgb(22,22,22)] text-gray-500 dark:text-gray-400">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+
+              {/* Google Sign-In Button */}
+              <div id="googleSignInButton" className="flex justify-center"></div>
+
+              <div className="mt-6 text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  New to the platform?{" "}
+                  <Link to="/signup" className="text-sky-500 hover:text-sky-600 font-semibold">
+                    Register here
+                  </Link>
+                </p>
+              </div>
+            </>
           )}
         </div>
       </div>

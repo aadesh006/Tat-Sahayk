@@ -27,11 +27,14 @@ const App = () => {
 
   const AdminOnly = ({ children }) =>
     isAuthenticated && isAdmin ? <Layout>{children}</Layout> : <Navigate to="/" />;
+  
+  const PublicOrProtected = ({ children }) =>
+    <Layout>{children}</Layout>; // Always show, but features may be limited
 
   return (
     <div className="h-screen">
       <Routes>
-        <Route path="/"      element={<Protected><HomePage /></Protected>} />
+        <Route path="/"      element={<PublicOrProtected><HomePage /></PublicOrProtected>} />
         <Route path="/map"   element={<Protected><MapPage /></Protected>} />
         <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
         <Route path="/new"   element={<Protected><CreateReport /></Protected>} />
