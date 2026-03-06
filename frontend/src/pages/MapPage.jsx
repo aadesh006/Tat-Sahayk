@@ -24,8 +24,22 @@ const ANNOTATION_CONFIG = {
 
 // ── Custom Leaflet Icons ──────────────────────────────────────────────────────
 const makeIcon = (emoji, color) => L.divIcon({
-  html: `<div style="background:${color};width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${emoji}</div>`,
-  iconSize: [32, 32], iconAnchor: [16, 16], className: ""
+  html: `<div style="
+    background: linear-gradient(135deg, ${color} 0%, ${color}dd 100%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    border: 3px solid white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.15);
+    transition: transform 0.2s;
+  ">${emoji}</div>`,
+  iconSize: [40, 40], 
+  iconAnchor: [20, 20], 
+  className: "custom-marker-icon"
 });
 
 // ── Cluster verified reports by proximity ─────────────────────────────────────
@@ -69,6 +83,16 @@ const MapClickHandler = ({ onMapClick, active }) => {
   return null;
 };
 
+// ── Zoom handler to hide navbar on zoom ──────────────────────────────────────
+const ZoomHandler = ({ onZoomChange }) => {
+  const map = useMapEvents({
+    zoomend: () => {
+      onZoomChange(map.getZoom());
+    }
+  });
+  return null;
+};
+
 // ── Main Map Page ─────────────────────────────────────────────────────────────
 const MapPage = () => {
   const { authUser } = useAuthUser();
@@ -79,6 +103,7 @@ const MapPage = () => {
   const [addMode,      setAddMode]      = useState(null);   // null | 'annotation' | 'force'
   const [pendingLatLng, setPending]     = useState(null);
   const [showForcePanel, setForcePanel] = useState(false);
+  const [currentZoom,  setCurrentZoom]  = useState(5);      // Track zoom level
   const [layers,       setLayers]       = useState({
     reports: true, annotations: true, forces: true
   });
@@ -171,59 +196,61 @@ const MapPage = () => {
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-black overflow-hidden">
       <Toaster />
 
-      {/* ── Top Bar ── */}
-      <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-4 py-3 flex items-center gap-3 flex-wrap shrink-0 relative z-10">
-        <div>
-          <h1 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
-            <Activity size={14} className="text-sky-500" /> Live Incident Map
-          </h1>
-          <p className="text-[10px] text-gray-400">
-            {clusters.length} active zones · {mapData?.verified_reports?.length ?? 0} verified reports
-          </p>
-        </div>
-
-        {/* Layer toggles */}
-        <div className="flex gap-2 ml-auto flex-wrap">
-          {[
-            { key:"reports",     label:"Reports",    color:"bg-sky-500" },
-            { key:"annotations", label:"Markers",    color:"bg-green-500" },
-            { key:"forces",      label:"Forces",     color:"bg-purple-500" },
-          ].map((l) => (
-            <button key={l.key}
-              onClick={() => setLayers(prev => ({ ...prev, [l.key]: !prev[l.key] }))}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all
-                ${layers[l.key]
-                  ? `${l.color} text-white border-transparent`
-                  : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-400 border-gray-200 dark:border-[rgb(47,51,54)]"}`}>
-              <span className={`w-2 h-2 rounded-full ${layers[l.key] ? "bg-white" : "bg-gray-400"}`} />
-              {l.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Admin controls */}
-        {isAdmin && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => { setAddMode(addMode === "annotation" ? null : "annotation"); setPending(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all
-                ${addMode === "annotation" ? "bg-green-500 text-white" : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)]"}`}>
-              <MapPin size={13} /> {addMode === "annotation" ? "Click map to place" : "Add Marker"}
-            </button>
-            <button
-              onClick={() => { setAddMode(addMode === "force" ? null : "force"); setPending(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all
-                ${addMode === "force" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)]"}`}>
-              <Shield size={13} /> {addMode === "force" ? "Click map to place" : "Deploy Force"}
-            </button>
-            <button
-              onClick={() => setForcePanel(!showForcePanel)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)] transition-all">
-              <Users size={13} /> Forces ({forcesAdmin?.length ?? 0})
-            </button>
+      {/* ── Top Bar ── Only show when zoom is less than 8 */}
+      {currentZoom < 8 && (
+        <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-4 py-3 flex items-center gap-3 flex-wrap shrink-0 relative z-10">
+          <div>
+            <h1 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+              <Activity size={14} className="text-sky-500" /> Live Incident Map
+            </h1>
+            <p className="text-[10px] text-gray-400">
+              {clusters.length} active zones · {mapData?.verified_reports?.length ?? 0} verified reports
+            </p>
           </div>
-        )}
-      </div>
+
+          {/* Layer toggles */}
+          <div className="flex gap-2 ml-auto flex-wrap">
+            {[
+              { key:"reports",     label:"Reports",    color:"bg-sky-500" },
+              { key:"annotations", label:"Markers",    color:"bg-green-500" },
+              { key:"forces",      label:"Forces",     color:"bg-purple-500" },
+            ].map((l) => (
+              <button key={l.key}
+                onClick={() => setLayers(prev => ({ ...prev, [l.key]: !prev[l.key] }))}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all
+                  ${layers[l.key]
+                    ? `${l.color} text-white border-transparent`
+                    : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-400 border-gray-200 dark:border-[rgb(47,51,54)]"}`}>
+                <span className={`w-2 h-2 rounded-full ${layers[l.key] ? "bg-white" : "bg-gray-400"}`} />
+                {l.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Admin controls */}
+          {isAdmin && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setAddMode(addMode === "annotation" ? null : "annotation"); setPending(null); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all
+                  ${addMode === "annotation" ? "bg-green-500 text-white" : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)]"}`}>
+                <MapPin size={13} /> {addMode === "annotation" ? "Click map to place" : "Add Marker"}
+              </button>
+              <button
+                onClick={() => { setAddMode(addMode === "force" ? null : "force"); setPending(null); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all
+                  ${addMode === "force" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)]"}`}>
+                <Shield size={13} /> {addMode === "force" ? "Click map to place" : "Deploy Force"}
+              </button>
+              <button
+                onClick={() => setForcePanel(!showForcePanel)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)] transition-all">
+                <Users size={13} /> Forces ({forcesAdmin?.length ?? 0})
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Map + Sidebar layout ── */}
       <div className="flex flex-1 overflow-hidden">
@@ -255,6 +282,7 @@ const MapPage = () => {
             />
 
             <MapClickHandler onMapClick={handleMapClick} active={!!addMode} />
+            <ZoomHandler onZoomChange={setCurrentZoom} />
 
             {/* ── Verified report clusters ── */}
             {layers.reports && clusters.map((cluster, idx) => {
@@ -265,7 +293,10 @@ const MapPage = () => {
                                cluster.find(r => r.severity === "medium")?.severity || "low";
               const color    = SEVERITY_COLOR[maxSev] || "#3b82f6";
               const hazColor = HAZARD_COLOR[center.hazard_type] || "#3b82f6";
-              const radius   = Math.min(20 + count * 8, 60); // px size scales with count
+              
+              // Dynamic radius based on zoom level - smaller at higher zoom
+              const baseRadius = currentZoom >= 8 ? 12 : 18;
+              const radius = Math.min(baseRadius + count * (currentZoom >= 8 ? 3 : 6), currentZoom >= 8 ? 30 : 50);
 
               return (
                 <CircleMarker
@@ -274,15 +305,28 @@ const MapPage = () => {
                   radius={radius}
                   pathOptions={{
                     fillColor: hazColor,
-                    fillOpacity: 0.35,
+                    fillOpacity: currentZoom >= 8 ? 0.35 : 0.25,
                     color: color,
-                    weight: 2,
+                    weight: currentZoom >= 8 ? 2 : 3,
                   }}
                 >
                   <Tooltip permanent direction="center" className="cluster-label">
-                    <span style={{ fontWeight:"900", fontSize:"13px", color:"white" }}>
+                    <div style={{
+                      background: 'linear-gradient(135deg, white 0%, #f8fafc 100%)',
+                      borderRadius: '50%',
+                      width: currentZoom >= 8 ? '32px' : '36px',
+                      height: currentZoom >= 8 ? '32px' : '36px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '900',
+                      fontSize: currentZoom >= 8 ? '13px' : '15px',
+                      color: color,
+                      border: `${currentZoom >= 8 ? 2 : 3}px solid ${color}`,
+                      boxShadow: `0 4px 12px rgba(0,0,0,0.3), 0 0 0 2px white, 0 0 20px ${color}40`
+                    }}>
                       {count}
-                    </span>
+                    </div>
                   </Tooltip>
                   <Popup>
                     <div className="min-w-[200px] p-1">
@@ -324,11 +368,19 @@ const MapPage = () => {
             {/* ── Admin annotations ── */}
             {layers.annotations && mapData?.annotations?.map((ann) => {
               const cfg = ANNOTATION_CONFIG[ann.type] || ANNOTATION_CONFIG.rescue_center;
+              const openInMaps = () => {
+                const url = `https://www.google.com/maps/dir/?api=1&destination=${ann.lat},${ann.lon}`;
+                window.open(url, '_blank');
+              };
+              
               return (
                 <React.Fragment key={ann.id}>
                   <Marker
                     position={[ann.lat, ann.lon]}
                     icon={makeIcon(cfg.emoji, cfg.color)}
+                    eventHandlers={{
+                      click: openInMaps
+                    }}
                   >
                     <Popup>
                       <div className="min-w-[180px] p-1">
@@ -347,10 +399,19 @@ const MapPage = () => {
                             {ann.description}
                           </p>
                         )}
+                        
+                        {/* Navigate button */}
+                        <button
+                          onClick={openInMaps}
+                          className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold rounded-lg transition-colors"
+                        >
+                          🧭 Navigate Here
+                        </button>
+                        
                         {isAdmin && (
                           <button
                             onClick={() => removeAnnotation(ann.id)}
-                            className="mt-3 flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+                            className="mt-2 flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
                           >
                             <Trash2 size={12} /> Remove Marker
                           </button>
@@ -371,44 +432,62 @@ const MapPage = () => {
             })}
 
             {/* ── Deployed forces ── */}
-            {layers.forces && mapData?.deployed_forces?.map((force) => (
-              <Marker
-                key={force.id}
-                position={[force.lat, force.lon]}
-                icon={makeIcon("🛡️", FORCE_COLOR[force.force_type] || "#1d4ed8")}
-              >
-                <Popup>
-                  <div className="min-w-[180px] p-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">🛡️</span>
-                      <p className="font-black text-gray-900 dark:text-white">{force.unit_name}</p>
-                    </div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mb-2" style={{ 
-                      backgroundColor: `${FORCE_COLOR[force.force_type]}20`,
-                      color: FORCE_COLOR[force.force_type] 
-                    }}>
-                      {force.force_type.replace("_", " ")}
-                    </p>
-                    <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 mt-2">
-                      <span className="text-base">👥</span>
-                      <span className="font-semibold">{force.personnel_count}</span>
-                      <span>personnel</span>
-                    </div>
-                    {force.equipment && (
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
-                        📦 {force.equipment}
+            {layers.forces && mapData?.deployed_forces?.map((force) => {
+              const openInMaps = () => {
+                const url = `https://www.google.com/maps/dir/?api=1&destination=${force.lat},${force.lon}`;
+                window.open(url, '_blank');
+              };
+              
+              return (
+                <Marker
+                  key={force.id}
+                  position={[force.lat, force.lon]}
+                  icon={makeIcon("🛡️", FORCE_COLOR[force.force_type] || "#1d4ed8")}
+                  eventHandlers={{
+                    click: openInMaps
+                  }}
+                >
+                  <Popup>
+                    <div className="min-w-[180px] p-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">🛡️</span>
+                        <p className="font-black text-gray-900 dark:text-white">{force.unit_name}</p>
+                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mb-2" style={{ 
+                        backgroundColor: `${FORCE_COLOR[force.force_type]}20`,
+                        color: FORCE_COLOR[force.force_type] 
+                      }}>
+                        {force.force_type.replace("_", " ")}
                       </p>
-                    )}
-                    <span className={`inline-block mt-2 px-2.5 py-1 rounded-full text-[10px] font-bold
-                      ${force.status === "active" 
-                        ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" 
-                        : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"}`}>
-                      {force.status.toUpperCase()}
-                    </span>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+                      <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 mt-2">
+                        <span className="text-base">👥</span>
+                        <span className="font-semibold">{force.personnel_count}</span>
+                        <span>personnel</span>
+                      </div>
+                      {force.equipment && (
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+                          📦 {force.equipment}
+                        </p>
+                      )}
+                      <span className={`inline-block mt-2 px-2.5 py-1 rounded-full text-[10px] font-bold
+                        ${force.status === "active" 
+                          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" 
+                          : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"}`}>
+                        {force.status.toUpperCase()}
+                      </span>
+                      
+                      {/* Navigate button */}
+                      <button
+                        onClick={openInMaps}
+                        className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold rounded-lg transition-colors"
+                      >
+                        🧭 Navigate to Force
+                      </button>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
 
             {/* Pending placement marker */}
             {pendingLatLng && (
@@ -635,19 +714,25 @@ const MapPage = () => {
           display: none !important; 
         }
         
+        /* Marker hover effect */
+        .custom-marker-icon:hover {
+          transform: scale(1.1);
+          z-index: 1000 !important;
+        }
+        
         /* Modern popup styling */
         .leaflet-popup-content-wrapper {
           background: white;
-          border-radius: 12px;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-          padding: 8px;
-          border: 1px solid rgba(0, 0, 0, 0.1);
+          border-radius: 16px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          padding: 12px;
+          border: 1px solid rgba(0, 0, 0, 0.08);
         }
         
         .dark .leaflet-popup-content-wrapper {
           background: rgb(22, 22, 22);
           border-color: rgb(47, 51, 54);
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
         }
         
         .leaflet-popup-content {
@@ -657,7 +742,7 @@ const MapPage = () => {
         
         .leaflet-popup-tip {
           background: white;
-          border: 1px solid rgba(0, 0, 0, 0.1);
+          border: 1px solid rgba(0, 0, 0, 0.08);
         }
         
         .dark .leaflet-popup-tip {
@@ -667,9 +752,9 @@ const MapPage = () => {
         
         .leaflet-popup-close-button {
           color: #9ca3af !important;
-          font-size: 20px !important;
-          padding: 4px 8px !important;
-          border-radius: 6px;
+          font-size: 22px !important;
+          padding: 6px 10px !important;
+          border-radius: 8px;
           transition: all 0.2s;
         }
         

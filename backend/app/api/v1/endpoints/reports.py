@@ -11,6 +11,7 @@ from app.models.user import User
 from app.db.session import SessionLocal, get_db
 import math
 from app.services.bedrock_ai import analyze_single_report
+from app.services.aws_services import send_disaster_alert_email
 
 router = APIRouter()
 
@@ -24,6 +25,63 @@ def calculate_distance(lat1, lon1, lat2, lon2):
          math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
          math.sin(dlon / 2) ** 2)
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+def send_disaster_alerts_to_nearby_users(
+    report_id: int,
+    hazard_type: str,
+    report_lat: float,
+    report_lon: float,
+    severity: str,
+    description: str,
+    radius_km: float = 100.0  # Alert users within 100km
+):
+    """Send email alerts to users near the disaster location"""
+    db = SessionLocal()
+    try:
+        # Get all users with verified emails and phone numbers (active citizens)
+        users = db.query(User).filter(
+            User.role == "citizen",
+            User.is_active == True,
+            User.email.isnot(None)
+        ).all()
+        
+        # Find users within radius
+        alerted_count = 0
+        for user in users:
+            # Skip if user doesn't have location set
+            if not user.district or not user.state:
+                continue
+            
+            # For now, send to all users in the same state
+            # TODO: Implement proper distance calculation based on user's exact location
+            # For MVP, we'll use state-level filtering
+            
+            # Get report owner's state (if available)
+            report = db.query(Report).filter(Report.id == report_id).first()
+            if not report or not report.owner:
+                continue
+                
+            report_state = report.owner.state
+            
+            # Send email if user is in the same state
+            if user.state == report_state:
+                location_str = f"{report_lat:.4f}°N, {report_lon:.4f}°E"
+                success = send_disaster_alert_email(
+                    to_email=user.email,
+                    user_name=user.full_name or "User",
+                    disaster_type=hazard_type,
+                    location=location_str,
+                    severity=severity,
+                    description=description
+                )
+                if success:
+                    alerted_count += 1
+        
+        print(f"✓ Sent {alerted_count} disaster alert emails")
+    except Exception as e:
+        print(f"Error sending disaster alerts: {e}")
+    finally:
+        db.close()
 
 def cluster_reports(reports, max_distance_km=80.0):
     clusters = []
@@ -87,12 +145,9 @@ def get_report_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    # Base query
+    # Base query - for now, show all reports to all admins
+    # TODO: Add district/state fields to Report model for proper filtering
     query = db.query(Report)
-    
-    # Filter by admin's district if admin role
-    if current_user.role == "admin" and current_user.district:
-        query = query.join(User).filter(User.district == current_user.district)
     
     # Get SOS triggers (critical severity reports)
     sos_triggers = query.filter(Report.severity == "critical").all()
@@ -164,7 +219,7 @@ def read_reports(
     limit: int = 100,
     status: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
-    current_user: User = Depends(deps.get_current_user)
+    current_user: Optional[User] = Depends(deps.get_current_user_optional)
 ):
     query = db.query(Report)
     
@@ -250,20 +305,36 @@ def get_report(report_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Report not found")
     return serialize_report(report)
 
-# 7. VERIFY REPORT (admin)
+# 7. VERIFY REPORT (admin) - Send email alerts to nearby users
 @router.patch("/{report_id}/verify", response_model=ReportResponse)
 def verify_report(
     report_id: int,
     status: str,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
+    
+    old_status = report.status
     report.status = status
     report.is_verified = (status == "verified")
     db.commit()
     db.refresh(report)
+    
+    # If report is being verified (not already verified), send email alerts
+    if status == "verified" and old_status != "verified":
+        background_tasks.add_task(
+            send_disaster_alerts_to_nearby_users,
+            report.id,
+            report.hazard_type,
+            report.latitude,
+            report.longitude,
+            report.severity,
+            report.description or "No description provided"
+        )
+    
     return report
 
 # 8. DELETE REPORT

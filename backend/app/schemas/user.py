@@ -3,17 +3,22 @@ from typing import Optional
 from datetime import datetime
 
 class UserBase(BaseModel):
-    email:     EmailStr
-    full_name: Optional[str] = None
-    role:      str = "citizen"
-    district:  Optional[str] = None
-    state:     Optional[str] = None
+    email:          EmailStr
+    full_name:      Optional[str] = None
+    role:           str = "citizen"
+    district:       Optional[str] = None
+    state:          Optional[str] = None
+    profile_photo:  Optional[str] = None
+    phone:          Optional[str] = None
+    phone_verified: bool = False
 
 class UserCreate(UserBase):
     password: str
+    phone:    Optional[str] = None
 
 class UserUpdate(BaseModel):
-    full_name: Optional[str] = None
+    full_name:     Optional[str] = None
+    profile_photo: Optional[str] = None
 
 class UserResponse(UserBase):
     id:         int

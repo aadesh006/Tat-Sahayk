@@ -7,7 +7,7 @@ import ReportModal from '../components/ReportModal.jsx';
 import { fetchReports, fetchSocialFeed, fetchAlerts } from '../lib/api.js';
 import { AlertOctagon } from 'lucide-react';
 import { Phone, ShieldAlert, HeartPulse, Flame, AlertTriangle,
-  ChevronRight, Loader2, PhoneCall } from "lucide-react";
+  ChevronRight, Loader2, PhoneCall, ClipboardList } from "lucide-react";
 
 const STATUS_FILTERS = [
   { labelKey: "all",      value: "" },
@@ -176,8 +176,8 @@ const { data: alerts } = useQuery({
   const IncidentsList = () => (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          {t("activeIncidents")}
+        <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
+          What's Happening
         </h2>
 
         {/* Filter pills */}
@@ -223,7 +223,7 @@ const { data: alerts } = useQuery({
         <button onClick={() => setMobileTab("incidents")}
           className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-semibold uppercase tracking-wide transition-colors
             ${mobileTab === "incidents" ? "text-sky-500 border-b-2 border-sky-500" : "text-gray-500 dark:text-gray-400"}`}>
-          <AlertTriangle size={15} /> {t("incidents")}
+          <ClipboardList size={15} /> {t("reports")}
         </button>
         <button onClick={() => setMobileTab("sidebar")}
           className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-semibold uppercase tracking-wide transition-colors

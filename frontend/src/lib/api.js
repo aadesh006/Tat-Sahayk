@@ -19,23 +19,115 @@ export const login = async ({ email, password }) => {
   const formData = new URLSearchParams();
   formData.append("username", email);
   formData.append("password", password);
-  const res = await axiosInstance.post("/auth/login", formData, {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  });
-  localStorage.setItem("token", res.data.access_token);
-  const userRes = await axiosInstance.get("/auth/me");
-  return { user: userRes.data };
+  
+  try {
+    const res = await axiosInstance.post("/auth/login", formData, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+    localStorage.setItem("token", res.data.access_token);
+    const userRes = await axiosInstance.get("/auth/me");
+    return { user: userRes.data };
+  } catch (error) {
+    // Re-throw the error with proper message
+    if (error.response?.status === 401) {
+      throw new Error("Incorrect email or password");
+    } else if (error.response?.status === 403) {
+      throw new Error(error.response.data.detail || "Access denied");
+    } else if (error.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    } else {
+      throw new Error("Login failed. Please try again.");
+    }
+  }
+};
+
+export const adminLogin = async ({ email, password }) => {
+  const formData = new URLSearchParams();
+  formData.append("username", email);
+  formData.append("password", password);
+  
+  try {
+    const res = await axiosInstance.post("/auth/admin-login", formData, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+    localStorage.setItem("token", res.data.access_token);
+    const userRes = await axiosInstance.get("/auth/me");
+    return { user: userRes.data };
+  } catch (error) {
+    // Re-throw the error with proper message
+    if (error.response?.status === 401) {
+      throw new Error("Incorrect email or password");
+    } else if (error.response?.status === 403) {
+      throw new Error(error.response.data.detail || "Access denied");
+    } else if (error.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    } else {
+      throw new Error("Admin login failed. Please try again.");
+    }
+  }
+};
+
+export const googleLogin = async (credential) => {
+  try {
+    const res = await axiosInstance.post("/auth/google", { credential });
+    localStorage.setItem("token", res.data.access_token);
+    const userRes = await axiosInstance.get("/auth/me");
+    return { user: userRes.data };
+  } catch (error) {
+    // Re-throw the error with proper message
+    if (error.response?.status === 401) {
+      throw new Error("Invalid Google token");
+    } else if (error.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    } else {
+      throw new Error("Google login failed. Please try again.");
+    }
+  }
 };
 
 export const signup = async (data) => {
-  const res = await axiosInstance.post("/auth/signup", data);
-  return res.data;
+  try {
+    // First create the account
+    await axiosInstance.post("/auth/signup", data);
+    
+    // Then automatically log in
+    const formData = new URLSearchParams();
+    formData.append("username", data.email);
+    formData.append("password", data.password);
+    const loginRes = await axiosInstance.post("/auth/login", formData, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+    localStorage.setItem("token", loginRes.data.access_token);
+    const userRes = await axiosInstance.get("/auth/me");
+    return { user: userRes.data };
+  } catch (error) {
+    // Re-throw the error with proper message
+    if (error.response?.status === 400) {
+      throw new Error("Email already registered");
+    } else if (error.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    } else {
+      throw new Error("Signup failed. Please try again.");
+    }
+  }
 };
 
 export const logout = () => localStorage.removeItem("token");
 
 export const updateProfile = async (data) => {
   const res = await axiosInstance.patch("/auth/me", data);
+  return res.data;
+};
+
+// ── Phone Verification ───────────────────────────────────────────────────────
+
+export const sendOTP = async (phone) => {
+  const res = await axiosInstance.post("/auth/send-otp", { phone });
+  return res.data;
+};
+
+export const verifyOTP = async (phone, otp) => {
+  const res = await axiosInstance.post("/auth/verify-otp", { phone, otp });
   return res.data;
 };
 
@@ -92,7 +184,37 @@ export const createReport = async (formData) => {
     imageFilenames = uploadRes.data.file_paths;
   }
 
-  const coords = await getCurrentPosition();
+  let coords;
+  const manualLocationStr = formData.get("manual_location");
+  
+  if (manualLocationStr) {
+    // Manual location provided - use geocoding or default coordinates
+    const manualLocation = JSON.parse(manualLocationStr);
+    
+    // Try to geocode the location
+    try {
+      const geocodeUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(manualLocation.district + ', ' + manualLocation.state + ', India')}&limit=1`;
+      const geocodeRes = await fetch(geocodeUrl);
+      const geocodeData = await geocodeRes.json();
+      
+      if (geocodeData && geocodeData.length > 0) {
+        coords = {
+          lat: parseFloat(geocodeData[0].lat),
+          lng: parseFloat(geocodeData[0].lon)
+        };
+      } else {
+        // Fallback to approximate center of India if geocoding fails
+        coords = { lat: 20.5937, lng: 78.9629 };
+      }
+    } catch (error) {
+      console.error("Geocoding error:", error);
+      // Fallback to approximate center of India
+      coords = { lat: 20.5937, lng: 78.9629 };
+    }
+  } else {
+    // Use GPS location
+    coords = await getCurrentPosition();
+  }
 
   const res = await axiosInstance.post("/reports/", {
     hazard_type: formData.get("disasterType"),

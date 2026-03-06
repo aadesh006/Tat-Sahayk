@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router";
 import { ClipboardList, Map, LayoutDashboard, X,
-  PlusCircle, LogOut, ShieldAlert } from 'lucide-react';
+  PlusCircle, LogOut, ShieldAlert, LogIn, Home } from 'lucide-react';
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast, Toaster } from "react-hot-toast";
 import { logout } from "../lib/api.js";
@@ -22,15 +22,18 @@ const SideBar = ({ isOpen, onClose }) => {
     },
     onSuccess: () => {
       queryClient.clear();
-      window.location.href = "/login";
+      // Stay on homepage instead of redirecting to login
+      window.location.href = "/";
     },
     onError: () => toast.error("Failed to sign out"),
   });
 
   const navItems = [
-    { to: "/",        label: t("dashboard"), icon: <LayoutDashboard size={20} /> },
-    { to: "/profile", label: t("myProfile"), icon: <ClipboardList size={20} /> },
-    { to: "/map",     label: t("map"),        icon: <Map size={20} /> },
+    { to: "/",        label: "Home", icon: <Home size={20} />, public: true },
+    ...(authUser ? [
+      { to: "/profile", label: t("myProfile"), icon: <ClipboardList size={20} /> },
+      { to: "/map",     label: t("map"),        icon: <Map size={20} /> },
+    ] : []),
     // Admin Panel link only appears for admins
     ...(isAdmin ? [{ to: "/admin", label: t("adminPanel"), icon: <ShieldAlert size={20} /> }] : []),
   ];
@@ -71,8 +74,8 @@ const SideBar = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Nav links */}
-        <nav className="flex-1 px-3 space-y-1 pt-4 overflow-y-auto">
+        {/* Nav links - scrollable */}
+        <nav className="flex-1 px-3 space-y-1 pt-4 overflow-y-auto min-h-0">
           {navItems.map(({ to, label, icon }) => (
             <Link
               key={to}
@@ -88,8 +91,8 @@ const SideBar = ({ isOpen, onClose }) => {
             </Link>
           ))}
 
-          {!isAdmin && (
-            <div className="pt-3 mt-2">
+          {!isAdmin && authUser && (
+            <div className="pt-3 mt-2 pb-4">
               <Link
                 to="/new"
                 onClick={onClose}
@@ -101,37 +104,48 @@ const SideBar = ({ isOpen, onClose }) => {
           )}
         </nav>
 
-        {/* Bottom — user info + sign out */}
-        <div className="p-3 border-t border-gray-200 dark:border-[rgb(47,51,54)] shrink-0">
-          {authUser && (
-            <div className="mb-3 px-3 py-2">
-              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                {authUser.full_name}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-[rgb(139,152,165)] truncate">{authUser.email}</p>
-              {isAdmin && authUser.district && (
-                <p className="text-xs text-sky-500 dark:text-sky-400 truncate mt-1">
-                  📍 {authUser.district}, {authUser.state}
+        {/* Bottom — user info + sign out/login - always visible */}
+        <div className="p-3 shrink-0 bg-white dark:bg-black">
+          {authUser ? (
+            <>
+              <div className="mb-3 px-3 py-2 border-t border-gray-200 dark:border-[rgb(47,51,54)] pt-3">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                  {authUser.full_name}
                 </p>
-              )}
-              {isAdmin && (
-                <span className="text-[10px] font-semibold uppercase px-2 py-1 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-full mt-2 inline-block">
-                  Admin
-                </span>
-              )}
-            </div>
-          )}
+                <p className="text-xs text-gray-500 dark:text-[rgb(139,152,165)] truncate">{authUser.email}</p>
+                {isAdmin && authUser.district && (
+                  <p className="text-xs text-sky-500 dark:text-sky-400 truncate mt-1">
+                    📍 {authUser.district}, {authUser.state}
+                  </p>
+                )}
+                {isAdmin && (
+                  <span className="text-[10px] font-semibold uppercase px-2 py-1 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-full mt-2 inline-block">
+                    Admin
+                  </span>
+                )}
+              </div>
 
-          <button
-            onClick={() => logoutMutation()}
-            disabled={isPending}
-            className="flex items-center gap-3 w-full px-4 py-2.5 text-red-500 dark:text-red-400 font-medium text-sm hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-all"
-          >
-            <LogOut size={18} />
-            <span className="text-sm">
-              {isPending ? "Signing out..." : t("signOut")}
-            </span>
-          </button>
+              <button
+                onClick={() => logoutMutation()}
+                disabled={isPending}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-red-500 dark:text-red-400 font-medium text-sm hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-all"
+              >
+                <LogOut size={18} />
+                <span className="text-sm">
+                  {isPending ? "Signing out..." : t("signOut")}
+                </span>
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              onClick={onClose}
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white rounded-full font-semibold shadow-md hover:shadow-lg transition-all active:scale-95"
+            >
+              <LogIn size={18} />
+              <span>Login</span>
+            </Link>
+          )}
         </div>
 
       </aside>

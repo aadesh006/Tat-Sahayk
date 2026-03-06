@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../context/ThemeContext.jsx";
 import { Sun, Moon, Menu, ChevronDown, Phone } from "lucide-react";
+import toast from "react-hot-toast";
+import useAuthUser from "../hooks/useAuthUser.js";
 
 const LANGUAGES = [
   { code: "en", label: "English",    native: "EN" },
@@ -17,10 +19,13 @@ const LANGUAGES = [
 const Navbar = ({ onMenuClick }) => {
   const { t, i18n } = useTranslation();
   const { dark, toggle } = useTheme();
+  const { authUser } = useAuthUser();
   const [langOpen, setLangOpen] = useState(false);
   const [sosOpen, setSosOpen] = useState(false);
   const langRef = useRef(null);
   const sosRef  = useRef(null);
+  
+  const isAdmin = authUser?.role === "admin";
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -42,30 +47,88 @@ const Navbar = ({ onMenuClick }) => {
     { name: "Coast Guard",     number: "1554" },
   ];
 
+  const handleSOS = async () => {
+    // Get user's current location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          const locationUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+          
+          // Create SOS message
+          const sosMessage = `🚨 EMERGENCY SOS 🚨\n\nI need immediate help!\n\nMy Location: ${locationUrl}\nCoordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}\n\nPlease send rescue assistance immediately.`;
+          
+          // Try to send SMS to emergency services (if supported by device)
+          // Note: SMS sending requires native app or specific permissions
+          // For web, we'll copy to clipboard and dial 112
+          
+          try {
+            // Copy SOS message to clipboard
+            await navigator.clipboard.writeText(sosMessage);
+            toast.success("SOS message copied to clipboard! Dialing 112...", { duration: 3000 });
+          } catch (err) {
+            console.error("Failed to copy to clipboard:", err);
+          }
+          
+          // Dial emergency number
+          window.location.href = "tel:112";
+        },
+        (error) => {
+          console.error("Location error:", error);
+          toast.error("Unable to get location. Dialing 112...");
+          // Still dial 112 even if location fails
+          window.location.href = "tel:112";
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0
+        }
+      );
+    } else {
+      toast.error("Geolocation not supported. Dialing 112...");
+      window.location.href = "tel:112";
+    }
+  };
+
   return (
-    <header className="h-16 bg-white dark:bg-black border-b border-gray-200 dark:border-[rgb(47,51,54)] flex items-center justify-between px-4 lg:px-6 shrink-0 z-20 backdrop-blur-sm bg-white/80 dark:bg-black/80">
+    <header className="h-16 bg-white dark:bg-black border-b border-gray-200 dark:border-[rgb(47,51,54)] flex items-center justify-between px-4 lg:px-6 shrink-0 z-30 backdrop-blur-sm bg-white/80 dark:bg-black/80">
 
-      {/* Left — hamburger */}
-      <button
-        onClick={onMenuClick}
-        className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-[rgb(22,22,22)] rounded-full transition-colors"
-      >
-        <Menu size={20} className="text-gray-700 dark:text-gray-200" />
-      </button>
-
-      <div className="hidden lg:block" />
+      {/* Left — hamburger + logo */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onMenuClick}
+          className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-[rgb(22,22,22)] rounded-full transition-colors"
+        >
+          <Menu size={20} className="text-gray-700 dark:text-gray-200" />
+        </button>
+        
+        {/* Logo - visible on desktop */}
+        <div className="hidden lg:flex items-center gap-2">
+          <div className="text-2xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
+            तट-Sahayk
+          </div>
+          {isAdmin && (
+            <span className="px-2 py-1 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-full border border-purple-200 dark:border-purple-500/20">
+              ADMIN
+            </span>
+          )}
+        </div>
+      </div>
 
       {/* Right controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 relative z-40">
 
-        {/* SOS Button - Direct emergency call */}
-        <a
-          href="tel:112"
-          className="flex items-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-full transition-all shadow-sm hover:shadow-md"
-        >
-          <Phone size={14} />
-          <span className="hidden sm:inline">SOS 112</span>
-        </a>
+        {/* SOS Button - Only for citizens, not admins */}
+        {!isAdmin && (
+          <button
+            onClick={handleSOS}
+            className="flex items-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-full transition-all shadow-sm hover:shadow-md active:scale-95"
+          >
+            <Phone size={14} />
+            <span className="hidden sm:inline">SOS 112</span>
+          </button>
+        )}
 
         {/* Language dropdown */}
         <div ref={langRef} className="relative">
@@ -79,7 +142,7 @@ const Navbar = ({ onMenuClick }) => {
           </button>
 
           {langOpen && (
-            <div className="absolute right-0 top-full mt-2 w-44 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl shadow-xl overflow-hidden z-50">
+            <div className="absolute right-0 top-full mt-2 w-44 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl shadow-xl overflow-hidden z-[9999]">
               <div className="px-4 py-2 border-b border-gray-100 dark:border-[rgb(47,51,54)]">
                 <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Select Language</p>
               </div>
