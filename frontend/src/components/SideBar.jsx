@@ -64,6 +64,7 @@ const SideBar = ({ isOpen, onClose }) => {
         transition-transform duration-300 ease-in-out
         lg:translate-x-0 lg:relative
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
+        overflow-hidden
       `}>
 
         {/* Logo */}

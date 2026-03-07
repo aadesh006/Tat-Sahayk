@@ -195,7 +195,7 @@ const MapPage = () => {
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-black overflow-hidden">
       {/* ── Top Bar ── Always visible, doesn't hide on zoom */}
-      <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-3 md:px-4 py-2 md:py-3 flex items-center gap-2 md:gap-3 shrink-0 relative z-10">
+      <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-3 md:px-4 py-2 md:py-3 flex items-center gap-2 md:gap-3 shrink-0 relative z-10 pointer-events-auto">
         <div className="min-w-0">
           <h1 className="text-xs md:text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5 md:gap-2">
             <Activity size={12} className="text-sky-500 shrink-0" /> 
@@ -271,11 +271,11 @@ const MapPage = () => {
           <MapContainer
             center={[20.5937, 78.9629]}
             zoom={5}
-            minZoom={5}
+            minZoom={4}
             maxZoom={12}
             maxBounds={[
-              [6.0, 68.0],   // Southwest corner (southern India)
-              [35.0, 97.0]   // Northeast corner (northern India)
+              [4.0, 68.0],   // Southwest corner (includes southern tip of India)
+              [37.0, 98.0]   // Northeast corner (northern India)
             ]}
             maxBoundsViscosity={1.0}
             style={{ height: "100%", width: "100%", background: "#0f172a", zIndex: 1 }}

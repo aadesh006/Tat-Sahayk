@@ -331,6 +331,13 @@ const AdminDashboard = () => {
     refetchInterval: 30000,
   });
 
+  // Fetch ALL reports for cluster modal (not filtered by status)
+  const { data: allReports } = useQuery({
+    queryKey: ["allAdminReports"],
+    queryFn:  () => fetchAdminReports({}),
+    refetchInterval: 30000,
+  });
+
   const { data: myAlerts } = useQuery({
     queryKey: ["myAlerts"],
     queryFn:  () => fetchAlerts({
@@ -468,36 +475,39 @@ const AdminDashboard = () => {
         meaningfulClusters.map((cluster) => {
           return (
             <div key={cluster.cluster_id}
-              className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-5 shadow-sm">
+              className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4">
 
             {/* Header row */}
             <div className="flex items-start justify-between mb-3">
-              <div>
-                <h3 className="font-black text-gray-900 dark:text-white text-lg">
-                  {cluster.hazard_type}
-                </h3>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold text-gray-900 dark:text-white text-base">
+                    {cluster.hazard_type}
+                  </h3>
+                  <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded-md">
+                    {cluster.report_count} reports
+                  </span>
+                </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {cluster.report_count} reports · {cluster.center_lat.toFixed(3)}°N, {cluster.center_lon.toFixed(3)}°E · {cluster.max_severity?.toUpperCase()}
+                  {cluster.center_lat.toFixed(3)}°N, {cluster.center_lon.toFixed(3)}°E · {cluster.max_severity}
                 </p>
               </div>
               {/* AI Score */}
-              <div className="text-right shrink-0">
-                <div className={`text-3xl font-black ${
+              <div className="text-right shrink-0 ml-4">
+                <div className={`text-2xl font-semibold ${
                   cluster.authenticity_score >= 0.8 ? "text-emerald-500" :
                   cluster.authenticity_score >= 0.5 ? "text-yellow-500" : "text-red-500"
                 }`}>
                   {Math.round(cluster.authenticity_score * 100)}%
                 </div>
-                <div className="text-[10px] text-gray-400 flex items-center gap-1 justify-end">
-                  <Brain size={10} /> AI Authenticity
-                </div>
+                <div className="text-[10px] text-gray-400">AI Score</div>
               </div>
             </div>
 
             {/* AI Summary */}
-            <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4 mb-3">
-              <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1">
-                <Brain size={10} /> AI Analysis
+            <div className="bg-gray-50 dark:bg-[rgb(30,30,30)] rounded-lg p-3 mb-3">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
+                <Brain size={12} /> AI Analysis
               </p>
               <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{cluster.ai_summary}</p>
             </div>
@@ -506,7 +516,7 @@ const AdminDashboard = () => {
             <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => setAlertModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-600 transition-colors"
               >
                 <Bell size={13} /> Issue Alert
               </button>
@@ -515,7 +525,7 @@ const AdminDashboard = () => {
                   cluster.report_ids.forEach(id => doVerify({ id, status: "verified" }));
                   toast.success(`Verified ${cluster.report_count} reports`);
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg hover:bg-emerald-600 transition-colors"
               >
                 <CheckCircle size={13} /> Verify All
               </button>
@@ -524,13 +534,13 @@ const AdminDashboard = () => {
                   cluster.report_ids.forEach(id => doVerify({ id, status: "false" }));
                   toast.success("Marked as fake");
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)] transition-colors border border-gray-200 dark:border-[rgb(47,51,54)]"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
                 <XCircle size={13} /> Mark Fake
               </button>
               <button
                 onClick={() => setSelectedCluster(cluster)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 text-white text-xs font-semibold rounded-lg hover:bg-sky-700 transition-colors ml-auto"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 text-white text-xs font-semibold rounded-lg hover:bg-sky-600 transition-colors ml-auto"
               >
                 <ClipboardList size={13} /> View Reports ({cluster.report_count})
               </button>
@@ -744,7 +754,7 @@ const AdminDashboard = () => {
       {selectedCluster && (
         <ClusterReportsModal
           cluster={selectedCluster}
-          reports={reports}
+          reports={allReports || reports}
           onClose={() => setSelectedCluster(null)}
           onVerify={(id, status) => doVerify({ id, status })}
         />
