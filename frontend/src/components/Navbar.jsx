@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../context/ThemeContext.jsx";
-import { Sun, Moon, Menu, ChevronDown, Phone } from "lucide-react";
+import { Sun, Moon, Menu, ChevronDown, Phone, User, LogOut } from "lucide-react";
 import toast from "react-hot-toast";
 import useAuthUser from "../hooks/useAuthUser.js";
+import { Link } from "react-router";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { logout } from "../lib/api.js";
 
 const LANGUAGES = [
   { code: "en", label: "English",    native: "EN" },
@@ -20,10 +23,13 @@ const Navbar = ({ onMenuClick }) => {
   const { t, i18n } = useTranslation();
   const { dark, toggle } = useTheme();
   const { authUser } = useAuthUser();
+  const queryClient = useQueryClient();
   const [langOpen, setLangOpen] = useState(false);
   const [sosOpen, setSosOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const langRef = useRef(null);
   const sosRef  = useRef(null);
+  const userMenuRef = useRef(null);
   
   const isAdmin = authUser?.role === "admin";
 
@@ -32,10 +38,23 @@ const Navbar = ({ onMenuClick }) => {
     const handler = (e) => {
       if (langRef.current && !langRef.current.contains(e.target)) setLangOpen(false);
       if (sosRef.current  && !sosRef.current.contains(e.target))  setSosOpen(false);
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const { mutate: logoutMutation, isPending: loggingOut } = useMutation({
+    mutationFn: () => {
+      logout();
+      return Promise.resolve();
+    },
+    onSuccess: () => {
+      queryClient.clear();
+      window.location.href = "/";
+    },
+    onError: () => toast.error("Failed to sign out"),
+  });
 
   const currentLang = LANGUAGES.find((l) => l.code === i18n.language) || LANGUAGES[0];
 
@@ -172,6 +191,70 @@ const Navbar = ({ onMenuClick }) => {
         >
           {dark ? <Sun size={18} /> : <Moon size={18} />}
         </button>
+
+        {/* User menu - only show if authenticated */}
+        {authUser && (
+          <div ref={userMenuRef} className="relative">
+            <button
+              onClick={() => setUserMenuOpen((o) => !o)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-[rgb(22,22,22)] hover:bg-gray-200 dark:hover:bg-[rgb(38,38,38)] rounded-full transition-colors"
+            >
+              {authUser.profile_photo ? (
+                <img 
+                  src={authUser.profile_photo} 
+                  alt={authUser.full_name}
+                  className="w-6 h-6 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-xs font-semibold">
+                  {authUser.full_name?.charAt(0)}
+                </div>
+              )}
+              <ChevronDown size={13} className={`text-gray-400 transition-transform hidden sm:block ${userMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {userMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl shadow-xl overflow-hidden z-[9999]">
+                {/* User info */}
+                <div className="px-4 py-3 border-b border-gray-100 dark:border-[rgb(47,51,54)]">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                    {authUser.full_name}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{authUser.email}</p>
+                  {isAdmin && (
+                    <span className="inline-block mt-1.5 px-2 py-0.5 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-full">
+                      ADMIN
+                    </span>
+                  )}
+                </div>
+
+                {/* Menu items */}
+                <div className="py-1">
+                  <Link
+                    to="/profile"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors"
+                  >
+                    <User size={16} />
+                    <span>{t("myProfile")}</span>
+                  </Link>
+                  
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      logoutMutation();
+                    }}
+                    disabled={loggingOut}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                  >
+                    <LogOut size={16} />
+                    <span>{loggingOut ? "Signing out..." : t("signOut")}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
     </header>
