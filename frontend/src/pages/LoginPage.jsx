@@ -65,7 +65,7 @@ const LoginPage = () => {
           {
             theme: "outline",
             size: "large",
-            width: "100%",
+            width: 320,
             text: "continue_with",
             shape: "pill",
           }
