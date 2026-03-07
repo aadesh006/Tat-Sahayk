@@ -12,10 +12,9 @@ from app.api import deps
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from app.services.aws_services import send_otp_sms, generate_otp
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel
-
-GOOGLE_CLIENT_ID = "156193308727-aq2u3kv8u5t8oh5p7v8nc7s44asb095e.apps.googleusercontent.com"
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -41,7 +40,7 @@ def google_login(payload: dict, db: Session = Depends(get_db)):
         idinfo = id_token.verify_oauth2_token(
             credential,
             google_requests.Request(),
-            GOOGLE_CLIENT_ID
+            settings.GOOGLE_CLIENT_ID
         )
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid Google token")
@@ -159,12 +158,17 @@ def update_me(data: UserUpdate, db: Session = Depends(get_db),
 
 @router.patch("/update-location")
 def update_user_location(
-    district: str,
-    state: str,
+    location_data: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
     """Update user's location (district and state) for location-based alerts"""
+    district = location_data.get("district")
+    state = location_data.get("state")
+    
+    if not district or not state:
+        raise HTTPException(status_code=400, detail="Both district and state are required")
+    
     current_user.district = district
     current_user.state = state
     db.commit()
@@ -184,7 +188,7 @@ def send_otp(
     otp = generate_otp()
     
     # Set expiry (10 minutes from now)
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
     
     # Save OTP to database
     current_user.phone = request.phone
@@ -213,7 +217,7 @@ def verify_otp(
         raise HTTPException(status_code=400, detail="Invalid OTP")
     
     # Check if OTP is expired
-    if not current_user.otp_expires_at or current_user.otp_expires_at < datetime.utcnow():
+    if not current_user.otp_expires_at or current_user.otp_expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
     
     # Check if phone matches

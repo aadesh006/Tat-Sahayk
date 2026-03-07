@@ -102,8 +102,8 @@ def delete_comment(
     ).first()
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
-    # Only comment author can delete their own comment
-    if comment.user_id != current_user.id:
+    # Allow comment author or admin to delete
+    if comment.user_id != current_user.id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     db.delete(comment)
     db.commit()

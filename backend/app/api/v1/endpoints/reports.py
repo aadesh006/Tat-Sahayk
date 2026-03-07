@@ -10,11 +10,13 @@ from app.models.report import Report
 from app.models.user import User
 from app.db.session import SessionLocal, get_db
 import math
+import logging
 from app.services.bedrock_ai import analyze_single_report
 from app.services.aws_services import send_disaster_alert_email
 from geoalchemy2.functions import ST_DWithin, ST_MakePoint, ST_SetSRID
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 #HELPERS
 
@@ -25,7 +27,8 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     a = (math.sin(dlat / 2) ** 2 +
          math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
          math.sin(dlon / 2) ** 2)
-    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    # Clamp to prevent floating-point errors causing domain error in atan2
+    return R * 2 * math.atan2(math.sqrt(min(1.0, a)), math.sqrt(1 - min(1.0, a)))
 
 def send_disaster_alerts_to_nearby_users(
     report_id: int,
@@ -248,7 +251,7 @@ def read_reports(
     limit: int = 100,
     status: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
-    all_reports: bool = Query(False),  # New parameter to bypass district filtering
+    all_reports: bool = Query(False),  # Bypass district filtering - used for citizen home page to show nationwide reports
     current_user: User = Depends(deps.get_current_user_optional),  # optional auth
 ):
     from app.models.confirmation import ReportConfirmation
@@ -284,13 +287,13 @@ def read_reports(
         result.append(d)
     return result
 
-def score_single_report_bg(report_id: int, description: str, hazard_type: str, image_url: str, lat: float, lon: float):
+def score_single_report_bg(report_id: int, description: str, hazard_type: str, image_url: str, lat: float, lon: float, state: str = None):
     from app.db.session import SessionLocal
     from app.services.bedrock_ai import analyze_single_report
     db = SessionLocal()
     try:
-        # Run the deep forensic analysis
-        result = analyze_single_report(description, hazard_type, image_url, lat, lon)
+        # Run the deep forensic analysis with contextual verification
+        result = analyze_single_report(description, hazard_type, image_url, lat, lon, state)
         
         report = db.query(Report).filter(Report.id == report_id).first()
         if report:
@@ -303,7 +306,7 @@ def score_single_report_bg(report_id: int, description: str, hazard_type: str, i
                 
             db.commit()
     except Exception as e:
-        print(f"Background AI scoring failed: {e}")
+        logger.error(f"Background AI scoring failed: {e}")
     finally:
         db.close()
 
@@ -341,7 +344,8 @@ def create_report(
         report.hazard_type,
         image_url,
         report.latitude,
-        report.longitude
+        report.longitude,
+        current_user.state if hasattr(current_user, 'state') else None
     )
     
     return report
@@ -367,25 +371,20 @@ def update_report_district_bg(report_id: int, latitude: float, longitude: float)
 
 # DYNAMIC ROUTES
 
-def serialize_report(r, current_user=None):
+def serialize_report(r, current_user=None, db=None):
     from app.models.confirmation import ReportConfirmation
-    from app.db.session import SessionLocal
     
     d = ReportResponse.model_validate(r).model_dump()
     d["reporter_name"] = r.owner.full_name if r.owner else "Anonymous"
     d["reporter_profile_photo"] = r.owner.profile_photo if r.owner else None
     
     # Add user_confirmed field if user is authenticated
-    if current_user:
-        db = SessionLocal()
-        try:
-            confirmed = db.query(ReportConfirmation).filter(
-                ReportConfirmation.report_id == r.id,
-                ReportConfirmation.user_id == current_user.id
-            ).first() is not None
-            d["user_confirmed"] = confirmed
-        finally:
-            db.close()
+    if current_user and db:
+        confirmed = db.query(ReportConfirmation).filter(
+            ReportConfirmation.report_id == r.id,
+            ReportConfirmation.user_id == current_user.id
+        ).first() is not None
+        d["user_confirmed"] = confirmed
     else:
         d["user_confirmed"] = False
     
@@ -401,7 +400,7 @@ def get_report(
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    return serialize_report(report, current_user)
+    return serialize_report(report, current_user, db)
 
 # 7. VERIFY REPORT (admin) - Send email alerts to nearby users
 @router.patch("/{report_id}/verify", response_model=ReportResponse)
@@ -409,8 +408,13 @@ def verify_report(
     report_id: int,
     status: str,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin: User = Depends(deps.get_current_user)
 ):
+    # Verify admin role
+    if admin.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -472,8 +476,12 @@ def confirm_report(
     if existing:
         # Remove confirmation (unlike)
         db.delete(existing)
-        report.confirmation_count = max(0, report.confirmation_count - 1)
+        # Use atomic SQL update to avoid race condition
+        db.query(Report).filter(Report.id == report_id).update(
+            {"confirmation_count": func.greatest(0, Report.confirmation_count - 1)}
+        )
         db.commit()
+        db.refresh(report)
         return {"message": "Confirmation removed", "confirmation_count": report.confirmation_count, "confirmed": False}
     else:
         # Add confirmation
@@ -482,8 +490,12 @@ def confirm_report(
             user_id=current_user.id
         )
         db.add(confirmation)
-        report.confirmation_count += 1
+        # Use atomic SQL update to avoid race condition
+        db.query(Report).filter(Report.id == report_id).update(
+            {"confirmation_count": Report.confirmation_count + 1}
+        )
         db.commit()
+        db.refresh(report)
         return {"message": "Report confirmed", "confirmation_count": report.confirmation_count, "confirmed": True}
 
 # 10. CHECK IF USER CONFIRMED REPORT

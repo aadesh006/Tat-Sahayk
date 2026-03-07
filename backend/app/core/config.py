@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ""
     S3_BUCKET: str = ""
     
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str = ""
+    
+    # OpenWeather API for contextual verification
+    OPENWEATHER_API_KEY: str = ""
+    
     # Tavily API for real-time news search
     TAVILY_API_KEY: str = ""
 

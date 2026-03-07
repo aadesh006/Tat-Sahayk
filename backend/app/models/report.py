@@ -36,8 +36,12 @@ class Report(Base):
 
     @property
     def latitude(self):
-        return to_shape(self.location).y if self.location else 0.0
+        if not self.location:
+            return None
+        return to_shape(self.location).y
 
     @property
     def longitude(self):
-        return to_shape(self.location).x if self.location else 0.0
+        if not self.location:
+            return None
+        return to_shape(self.location).x

@@ -26,6 +26,3 @@ api_router.include_router(ai_analysis.router, prefix="/ai", tags=["ai"])
 
 #Map Admin
 api_router.include_router(map_admin.router, prefix="/map", tags=["map"])
-
-api_router.include_router(ai_analysis.router, prefix="/ai", tags=["ai"])
-api_router.include_router(map_admin.router,   prefix="/map", tags=["map"])

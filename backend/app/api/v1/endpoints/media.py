@@ -52,7 +52,7 @@ executor = ThreadPoolExecutor(max_workers=5)
 async def upload_single(file: UploadFile = File(...)):
     content = await file.read()
     # Run S3 upload in thread pool to avoid blocking
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     url = await loop.run_in_executor(
         executor,
         upload_image,
@@ -74,7 +74,7 @@ async def upload_many(files: List[UploadFile] = File(...)):
         file_data.append((content, f.filename, f.content_type or "image/jpeg"))
     
     # Upload all files concurrently using thread pool
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     upload_tasks = [
         loop.run_in_executor(executor, upload_image, content, filename, content_type)
         for content, filename, content_type in file_data
