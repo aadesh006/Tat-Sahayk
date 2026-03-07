@@ -87,7 +87,7 @@ const LoginPage = () => {
   // Pre-fill admin credentials hint
   const switchToAdmin = () => {
     setIsAdmin(true);
-    setLoginData({ email: "admin@tatsahayk.gov.in", password: "" });
+    setLoginData({ email: "admin.mumbai@tatsahayk.gov.in", password: "MUMBAI_ADMIN_123" });
   };
 
   const switchToCitizen = () => {
@@ -169,10 +169,17 @@ const LoginPage = () => {
           </div>
 
           {isAdmin && (
-            <div className="mb-6 p-3 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 rounded-xl">
-              <p className="text-xs text-purple-600 dark:text-purple-400 font-medium flex items-center gap-1.5">
+            <div className="mb-6 p-4 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 rounded-xl space-y-2">
+              <p className="text-xs text-purple-600 dark:text-purple-400 font-semibold flex items-center gap-1.5">
                 <ShieldAlert size={13} />
-                Admin ID is issued by the government. Contact your district authority if you don't have one.
+                Demo Credentials (Pre-filled)
+              </p>
+              <div className="text-xs text-purple-700 dark:text-purple-300 space-y-1 pl-5">
+                <p><span className="font-medium">Email:</span> admin.mumbai@tatsahayk.gov.in</p>
+                <p><span className="font-medium">Password:</span> MUMBAI_ADMIN_123</p>
+              </div>
+              <p className="text-[10px] text-purple-600 dark:text-purple-400 italic pl-5">
+                Other admins: admin.chennai / admin.national (follow same pattern: CITY_ADMIN_123)
               </p>
             </div>
           )}
@@ -187,7 +194,7 @@ const LoginPage = () => {
                 <input
                   type="email"
                   required
-                  placeholder={isAdmin ? "admin@tatsahayk.gov.in" : "name@email.com"}
+                  placeholder={isAdmin ? "admin.mumbai@tatsahayk.gov.in" : "name@email.com"}
                   value={loginData.email}
                   onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-[rgb(38,38,38)] dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"

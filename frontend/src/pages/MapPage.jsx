@@ -199,7 +199,7 @@ const MapPage = () => {
       {/* ── Top Bar ── Always visible, doesn't hide on zoom */}
       <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-3 md:px-4 py-2 md:py-3 flex items-center gap-2 md:gap-3 shrink-0 relative z-10">
         <div className="min-w-0">
-          <h1 className="text-xs md:text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-1.5 md:gap-2">
+          <h1 className="text-xs md:text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5 md:gap-2">
             <Activity size={12} className="text-sky-500 shrink-0" /> 
             <span className="truncate">Live Incident Map</span>
           </h1>
@@ -217,7 +217,7 @@ const MapPage = () => {
           ].map((l) => (
             <button key={l.key}
               onClick={() => setLayers(prev => ({ ...prev, [l.key]: !prev[l.key] }))}
-              className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold border transition-all
+              className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold border transition-all
                 ${layers[l.key]
                   ? `${l.color} text-white border-transparent`
                   : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-400 border-gray-200 dark:border-[rgb(47,51,54)]"}`}>
@@ -233,7 +233,7 @@ const MapPage = () => {
           <div className="flex gap-1.5 md:gap-2">
             <button
               onClick={() => { setAddMode(addMode === "annotation" ? null : "annotation"); setPending(null); }}
-              className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-xl text-[10px] md:text-xs font-bold transition-all
+              className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-xl text-[10px] md:text-xs font-semibold transition-all
                 ${addMode === "annotation" ? "bg-green-500 text-white" : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)]"}`}>
               <MapPin size={11} className="md:w-[13px] md:h-[13px]" /> 
               <span className="hidden md:inline">{addMode === "annotation" ? "Click map" : "Add Marker"}</span>
@@ -241,7 +241,7 @@ const MapPage = () => {
             </button>
             <button
               onClick={() => { setAddMode(addMode === "force" ? null : "force"); setPending(null); }}
-              className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-xl text-[10px] md:text-xs font-bold transition-all
+              className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-xl text-[10px] md:text-xs font-semibold transition-all
                 ${addMode === "force" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)]"}`}>
               <Shield size={11} className="md:w-[13px] md:h-[13px]" /> 
               <span className="hidden md:inline">{addMode === "force" ? "Click map" : "Deploy"}</span>
@@ -249,7 +249,7 @@ const MapPage = () => {
             </button>
             <button
               onClick={() => setForcePanel(!showForcePanel)}
-              className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-xl text-[10px] md:text-xs font-bold bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)] transition-all">
+              className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-xl text-[10px] md:text-xs font-semibold bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)] transition-all">
               <Users size={11} className="md:w-[13px] md:h-[13px]" /> 
               <span className="hidden sm:inline">Forces</span>
               <span>({forcesAdmin?.length ?? 0})</span>
@@ -264,8 +264,8 @@ const MapPage = () => {
         {/* MAP */}
         <div className="flex-1 relative">
           {addMode && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-yellow-400 text-yellow-900 px-4 py-2 rounded-full text-xs font-black shadow-lg flex items-center gap-2">
-              <Crosshair size={14} className="animate-pulse" />
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-yellow-400 text-yellow-900 px-4 py-2 rounded-full text-xs font-semibold shadow-lg flex items-center gap-2">
+              <Crosshair size={14} />
               Click anywhere on the map to place the {addMode === "annotation" ? "marker" : "force"}
             </div>
           )}
@@ -514,7 +514,7 @@ const MapPage = () => {
             {addMode === "annotation" && (
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black text-gray-900 dark:text-white flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                     <MapPin size={14} className="text-green-400" /> Add Map Marker
                   </h3>
                   <button onClick={() => { setAddMode(null); setPending(null); }}
@@ -523,17 +523,17 @@ const MapPage = () => {
 
                 {pendingLatLng ? (
                   <div className="px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl">
-                    <p className="text-[10px] text-green-600 dark:text-green-400 font-bold">✓ Location pinned</p>
+                    <p className="text-[10px] text-green-600 dark:text-green-400 font-semibold">✓ Location pinned</p>
                     <p className="text-xs text-green-700 dark:text-green-300">{pendingLatLng.lat.toFixed(4)}°N, {pendingLatLng.lng.toFixed(4)}°E</p>
                   </div>
                 ) : (
                   <div className="px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl">
-                    <p className="text-[10px] text-yellow-600 dark:text-yellow-400 font-bold animate-pulse">← Click the map to pin location</p>
+                    <p className="text-[10px] text-yellow-600 dark:text-yellow-400 font-semibold">← Click the map to pin location</p>
                   </div>
                 )}
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Type</label>
+                  <label className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">Type</label>
                   <select value={annForm.type} onChange={e => setAnnForm({...annForm, type: e.target.value})}
                     className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none">
                     {Object.entries(ANNOTATION_CONFIG).map(([k, v]) => (
@@ -543,14 +543,14 @@ const MapPage = () => {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Title</label>
+                  <label className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">Title</label>
                   <input type="text" placeholder="e.g. Marina Beach Rescue Centre"
                     value={annForm.title} onChange={e => setAnnForm({...annForm, title: e.target.value})}
                     className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none" />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Description</label>
+                  <label className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">Description</label>
                   <textarea rows={2} placeholder="Capacity, contact, instructions..."
                     value={annForm.description} onChange={e => setAnnForm({...annForm, description: e.target.value})}
                     className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none resize-none" />
@@ -558,7 +558,7 @@ const MapPage = () => {
 
                 {annForm.type === "affected_zone" && (
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                    <label className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">
                       Affected Radius (km)
                     </label>
                     <input type="number" placeholder="e.g. 5"
@@ -568,7 +568,7 @@ const MapPage = () => {
                 )}
 
                 <button onClick={handleAnnotationSubmit} disabled={addingAnn || !pendingLatLng}
-                  className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 transition-colors">
+                  className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 transition-colors">
                   {addingAnn ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
                   Add to Map
                 </button>
@@ -579,7 +579,7 @@ const MapPage = () => {
             {addMode === "force" && (
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black text-gray-900 dark:text-white flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                     <Shield size={14} className="text-purple-400" /> Deploy Force
                   </h3>
                   <button onClick={() => { setAddMode(null); setPending(null); }}
@@ -588,17 +588,17 @@ const MapPage = () => {
 
                 {pendingLatLng ? (
                   <div className="px-3 py-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-xl">
-                    <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">✓ Deployment location set</p>
+                    <p className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">✓ Deployment location set</p>
                     <p className="text-xs text-purple-700 dark:text-purple-300">{pendingLatLng.lat.toFixed(4)}°N, {pendingLatLng.lng.toFixed(4)}°E</p>
                   </div>
                 ) : (
                   <div className="px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl">
-                    <p className="text-[10px] text-yellow-600 dark:text-yellow-400 font-bold animate-pulse">← Click the map to set position</p>
+                    <p className="text-[10px] text-yellow-600 dark:text-yellow-400 font-semibold">← Click the map to set deployment location</p>
                   </div>
                 )}
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Unit Name</label>
+                  <label className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">Unit Name</label>
                   <input type="text" placeholder="e.g. NDRF Team 11"
                     value={forceForm.unit_name} onChange={e => setForceForm({...forceForm, unit_name: e.target.value})}
                     className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none" />
@@ -606,7 +606,7 @@ const MapPage = () => {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Type</label>
+                    <label className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">Type</label>
                     <select value={forceForm.force_type} onChange={e => setForceForm({...forceForm, force_type: e.target.value})}
                       className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none">
                       {["NDRF","Coast_Guard","Police","Medical","Army"].map(t => (
@@ -615,7 +615,7 @@ const MapPage = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Status</label>
+                    <label className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">Status</label>
                     <select value={forceForm.status} onChange={e => setForceForm({...forceForm, status: e.target.value})}
                       className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none">
                       <option value="active">Active</option>
@@ -625,21 +625,21 @@ const MapPage = () => {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Personnel Count</label>
+                  <label className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">Personnel Count</label>
                   <input type="number" min="0"
                     value={forceForm.personnel_count} onChange={e => setForceForm({...forceForm, personnel_count: parseInt(e.target.value)||0})}
                     className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none" />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Equipment</label>
+                  <label className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">Equipment</label>
                   <input type="text" placeholder="e.g. 2 boats, life jackets, medical kits"
                     value={forceForm.equipment} onChange={e => setForceForm({...forceForm, equipment: e.target.value})}
                     className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-900 dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm outline-none" />
                 </div>
 
                 <button onClick={handleForceSubmit} disabled={deploying || !pendingLatLng}
-                  className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 transition-colors">
+                  className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 transition-colors">
                   {deploying ? <Loader2 size={15} className="animate-spin" /> : <Shield size={15} />}
                   Deploy on Map
                 </button>
@@ -650,7 +650,7 @@ const MapPage = () => {
             {showForcePanel && (
               <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-black text-gray-900 dark:text-white flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                     <Users size={14} className="text-sky-500" /> Deployed Forces
                   </h3>
                   <button onClick={() => setForcePanel(false)} className="text-gray-400 hover:text-gray-900 dark:hover:text-white">
@@ -662,8 +662,8 @@ const MapPage = () => {
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {Object.entries(forceSummary).map(([type, data]) => (
                     <div key={type} className="bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-xl p-3 border border-gray-200 dark:border-[rgb(47,51,54)]">
-                      <p className="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400">{type.replace("_"," ")}</p>
-                      <p className="text-xl font-black text-gray-900 dark:text-white">{data.count}</p>
+                      <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">{type.replace("_"," ")}</p>
+                      <p className="text-xl font-semibold text-gray-900 dark:text-white">{data.count}</p>
                       <p className="text-[10px] text-gray-400">{data.count} unit{data.count > 1 ? "s" : ""}</p>
                     </div>
                   ))}
@@ -671,8 +671,8 @@ const MapPage = () => {
 
                 {/* Total */}
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-3 mb-4">
-                  <p className="text-[10px] text-blue-600 dark:text-blue-400 font-black uppercase">Total Deployed</p>
-                  <p className="text-2xl font-black text-gray-900 dark:text-white">
+                  <p className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">Total Deployed</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">
                     {forcesAdmin?.length ?? 0} units
                   </p>
                   <p className="text-xs text-blue-700 dark:text-blue-300">{(forcesAdmin || []).reduce((s, f) => s + f.personnel_count, 0)} personnel</p>
@@ -684,14 +684,14 @@ const MapPage = () => {
                     <div key={force.id} className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-3">
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="text-xs font-bold text-gray-900 dark:text-white">{force.unit_name}</p>
+                          <p className="text-xs font-semibold text-gray-900 dark:text-white">{force.unit_name}</p>
                           <p className="text-[10px]" style={{ color: FORCE_COLOR[force.force_type] }}>
                             {force.force_type.replace("_"," ")} · {force.personnel_count} units
                           </p>
                           {force.equipment && (
                             <p className="text-[10px] text-gray-400 mt-0.5">{force.equipment}</p>
                           )}
-                          <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold
+                          <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-semibold
                             ${force.status === "active" ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400" : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400"}`}>
                             {force.status.toUpperCase()}
                           </span>

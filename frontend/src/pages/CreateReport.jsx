@@ -14,6 +14,7 @@ const CreateReport = () => {
   const [gpsStatus, setGpsStatus] = useState("idle");
   const [useManualLocation, setUseManualLocation] = useState(false);
   const [manualLocation, setManualLocation] = useState({ district: "", state: "" });
+  const [geocodedCoords, setGeocodedCoords] = useState(null); // Store geocoded coordinates
   const [formData, setFormData] = useState({
     disasterType: "Flood",
     description: "",
@@ -29,6 +30,36 @@ const CreateReport = () => {
       );
     }
   }, [useManualLocation]);
+
+  // Geocode manual location when user finishes typing
+  const handleGeocodeLocation = async () => {
+    if (!manualLocation.district || !manualLocation.state) return;
+    
+    const locationQuery = `${manualLocation.district}, ${manualLocation.state}, India`;
+    
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationQuery)}&format=json&limit=1&countrycodes=in`,
+        { headers: { "User-Agent": "TatSahayk/1.0" } }
+      );
+      const data = await res.json();
+      
+      if (data.length > 0) {
+        setGeocodedCoords({
+          lat: parseFloat(data[0].lat),
+          lon: parseFloat(data[0].lon)
+        });
+        toast.success(`Location set to ${data[0].display_name}`);
+      } else {
+        toast.error("Location not found — try a different name");
+        setGeocodedCoords(null);
+      }
+    } catch (error) {
+      console.error("Geocoding error:", error);
+      toast.error("Could not geocode location");
+      setGeocodedCoords(null);
+    }
+  };
 
   const { mutate, isPending } = useMutation({
     mutationFn: createReport,
@@ -66,12 +97,23 @@ const CreateReport = () => {
     if (useManualLocation && (!manualLocation.district || !manualLocation.state)) {
       return toast.error("Please enter district and state");
     }
+    if (useManualLocation && !geocodedCoords) {
+      return toast.error("Please wait for location to be geocoded");
+    }
+    
     const data = new FormData();
     data.append("disasterType", formData.disasterType);
     data.append("description", formData.description);
-    if (useManualLocation) {
-      data.append("manual_location", JSON.stringify(manualLocation));
+    
+    if (useManualLocation && geocodedCoords) {
+      // Send both manual location text and geocoded coordinates
+      data.append("manual_location", JSON.stringify({
+        ...manualLocation,
+        lat: geocodedCoords.lat,
+        lon: geocodedCoords.lon
+      }));
     }
+    
     previews.forEach((p) => data.append("images", p.file));
     mutate(data);
   };
@@ -80,16 +122,16 @@ const CreateReport = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-black p-4 md:p-6">
       <Toaster />
       <div className="max-w-2xl mx-auto">
-        <main className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl border border-gray-200 dark:border-[rgb(47,51,54)] shadow-xl overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-[rgb(47,51,54)] bg-gradient-to-r from-sky-500 to-blue-500">
-            <h1 className="text-2xl font-bold text-white">{t("submitReport")}</h1>
-            <p className="text-white/90 text-sm mt-1">Provide details to help emergency services respond.</p>
+        <main className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl border border-gray-200 dark:border-[rgb(47,51,54)] shadow-lg overflow-hidden">
+          <div className="p-6 border-b border-gray-200 dark:border-[rgb(47,51,54)] bg-white dark:bg-[rgb(22,22,22)]">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{t("submitReport")}</h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Provide details to help emergency services respond.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
 
             {/* Multi-image upload */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="block text-sm font-semibold text-gray-900 dark:text-white">
                 {t("reportPhoto")} <span className="text-gray-400 font-normal text-xs">(up to 5)</span>
               </label>
@@ -115,26 +157,26 @@ const CreateReport = () => {
 
               {/* Preview grid */}
               {previews.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mb-2">
+                <div className="grid grid-cols-3 gap-3 mb-2">
                   {previews.map((p, i) => (
-                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-[rgb(47,51,54)]">
-                      <img src={p.url} alt="" className="w-full h-full object-cover" />
+                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-[rgb(47,51,54)] group">
+                      <img src={p.url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                       <button
                         type="button"
                         onClick={() => removeImage(i)}
-                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 shadow"
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg transition-all active:scale-90"
                       >
-                        <X size={12} />
+                        <X size={14} />
                       </button>
                     </div>
                   ))}
                   {/* Add more buttons */}
                   {previews.length < 5 && (
-                    <div className="aspect-square rounded-xl border-2 border-dashed border-gray-200 dark:border-[rgb(47,51,54)] flex flex-col items-center justify-center gap-1">
+                    <div className="aspect-square rounded-xl border-2 border-dashed border-gray-300 dark:border-[rgb(47,51,54)] flex flex-col items-center justify-center gap-2 bg-gray-50 dark:bg-[rgb(38,38,38)] hover:bg-gray-100 dark:hover:bg-[rgb(47,51,54)] transition-colors">
                       <button
                         type="button"
                         onClick={() => cameraInputRef.current?.click()}
-                        className="p-2 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded-lg transition-colors"
+                        className="p-2 hover:bg-sky-100 dark:hover:bg-sky-900/30 rounded-lg transition-colors"
                         title="Take photo"
                       >
                         <Camera size={20} className="text-sky-500" />
@@ -142,7 +184,7 @@ const CreateReport = () => {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="p-2 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded-lg transition-colors"
+                        className="p-2 hover:bg-sky-100 dark:hover:bg-sky-900/30 rounded-lg transition-colors"
                         title="Upload from device"
                       >
                         <Plus size={20} className="text-sky-500" />
@@ -154,14 +196,14 @@ const CreateReport = () => {
 
               {/* Empty state */}
               {previews.length === 0 && (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {/* Camera button (mobile) */}
                   <button
                     type="button"
                     onClick={() => cameraInputRef.current?.click()}
-                    className="w-full aspect-[16/9] border-2 border-dashed border-sky-300 dark:border-sky-700 rounded-xl bg-sky-50 dark:bg-sky-900/20 flex flex-col items-center justify-center hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors group"
+                    className="w-full aspect-[16/9] border-2 border-dashed border-sky-300 dark:border-sky-700 rounded-xl bg-sky-50 dark:bg-sky-900/20 flex flex-col items-center justify-center hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-all group"
                   >
-                    <div className="p-4 bg-white dark:bg-[rgb(22,22,22)] rounded-full shadow-sm group-hover:scale-110 transition-transform border border-sky-200 dark:border-sky-700">
+                    <div className="p-4 bg-white dark:bg-[rgb(22,22,22)] rounded-xl shadow-sm group-hover:scale-105 transition-transform duration-200 border border-sky-200 dark:border-sky-700">
                       <Camera className="text-sky-500" size={32} />
                     </div>
                     <p className="mt-3 text-sm text-gray-900 dark:text-white font-medium">Take Photo</p>
@@ -172,9 +214,9 @@ const CreateReport = () => {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-4 border-2 border-dashed border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl bg-gray-50 dark:bg-[rgb(38,38,38)] flex items-center justify-center gap-2 hover:bg-gray-100 dark:hover:bg-[rgb(47,51,54)] transition-colors group"
+                    className="w-full py-3.5 border-2 border-dashed border-gray-300 dark:border-[rgb(47,51,54)] rounded-xl bg-gray-50 dark:bg-[rgb(38,38,38)] flex items-center justify-center gap-2 hover:bg-gray-100 dark:hover:bg-[rgb(47,51,54)] transition-all group"
                   >
-                    <Plus size={20} className="text-gray-500 dark:text-gray-400 group-hover:text-sky-500 transition-colors" />
+                    <Plus size={18} className="text-gray-500 dark:text-gray-400 group-hover:text-sky-500 transition-colors" />
                     <span className="text-sm text-gray-700 dark:text-gray-300 font-medium group-hover:text-sky-500 transition-colors">
                       Or upload from device
                     </span>
@@ -190,7 +232,7 @@ const CreateReport = () => {
                   <AlertTriangle size={16} className="text-amber-500" /> {t("disasterType")}
                 </label>
                 <select
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none bg-white transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none bg-white transition-all font-medium text-sm"
                   value={formData.disasterType}
                   onChange={(e) => setFormData({ ...formData, disasterType: e.target.value })}
                   required
@@ -213,24 +255,24 @@ const CreateReport = () => {
                 {!useManualLocation ? (
                   <>
                     {gpsStatus === "detecting" && (
-                      <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)] text-gray-700 dark:text-gray-300 text-sm">
-                        <Loader2 size={16} className="animate-spin" /> {t("detectingLocation")}
+                      <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)] text-gray-700 dark:text-gray-300 text-sm font-medium">
+                        <Loader2 size={16} className="animate-spin text-sky-500" /> {t("detectingLocation")}
                       </div>
                     )}
                     {gpsStatus === "found" && (
-                      <div className="px-4 py-2.5 rounded-xl border border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-400 text-sm font-medium">
+                      <div className="px-4 py-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-sm font-medium">
                         ✓ {t("locationFound")}
                       </div>
                     )}
                     {gpsStatus === "denied" && (
-                      <div className="px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm">
+                      <div className="px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm font-medium">
                         ⚠ {t("locationDenied")}
                       </div>
                     )}
                     <button
                       type="button"
                       onClick={() => setUseManualLocation(true)}
-                      className="text-xs text-sky-500 hover:text-sky-600 font-medium"
+                      className="text-xs text-sky-500 hover:text-sky-600 font-medium hover:underline"
                     >
                       Enter location manually
                     </button>
@@ -239,24 +281,35 @@ const CreateReport = () => {
                   <div className="space-y-2">
                     <input
                       type="text"
-                      placeholder="District"
+                      placeholder="District (e.g., Ennore)"
                       value={manualLocation.district}
                       onChange={(e) => setManualLocation({ ...manualLocation, district: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                      onBlur={handleGeocodeLocation}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white text-sm font-medium outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
                       required
                     />
                     <input
                       type="text"
-                      placeholder="State"
+                      placeholder="State (e.g., Tamil Nadu)"
                       value={manualLocation.state}
                       onChange={(e) => setManualLocation({ ...manualLocation, state: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                      onBlur={handleGeocodeLocation}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white text-sm font-medium outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
                       required
                     />
+                    {geocodedCoords && (
+                      <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                        ✓ Coordinates: {geocodedCoords.lat.toFixed(4)}°N, {geocodedCoords.lon.toFixed(4)}°E
+                      </div>
+                    )}
                     <button
                       type="button"
-                      onClick={() => { setUseManualLocation(false); setManualLocation({ district: "", state: "" }); }}
-                      className="text-xs text-sky-500 hover:text-sky-600 font-medium flex items-center gap-1"
+                      onClick={() => { 
+                        setUseManualLocation(false); 
+                        setManualLocation({ district: "", state: "" }); 
+                        setGeocodedCoords(null);
+                      }}
+                      className="text-xs text-sky-500 hover:text-sky-600 font-medium flex items-center gap-1 hover:underline"
                     >
                       <Navigation size={12} /> Use GPS instead
                     </button>
@@ -273,7 +326,7 @@ const CreateReport = () => {
               <textarea
                 rows="4"
                 placeholder="Describe the situation clearly..."
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all placeholder:text-gray-400"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 required
@@ -284,8 +337,8 @@ const CreateReport = () => {
             <button
               type="submit"
               disabled={isPending}
-              className={`w-full py-4 text-white font-black uppercase tracking-[0.2em] text-xs rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2
-                ${isPending ? "bg-gray-400 cursor-not-allowed opacity-70" : "bg-sky-500 hover:bg-sky-600"}`}
+              className={`w-full py-4 text-white font-semibold text-sm rounded-2xl shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2
+                ${isPending ? "bg-gray-400 cursor-not-allowed opacity-70" : "bg-sky-600 hover:bg-sky-700"}`}
             >
               {isPending
                 ? <><Loader2 className="animate-spin" size={20} /> {t("transmitting")}</>

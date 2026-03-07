@@ -430,11 +430,11 @@ Respond with only a score from 0.0 to 1.0 indicating authenticity."""
                 modelId="anthropic.claude-3-haiku-20240307-v1:0",
                 body=json.dumps({
                     "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 100,
                     "messages": [{
                         "role": "user",
                         "content": prompt
-                    }]
+                    }],
+                    "max_tokens": 100
                 })
             )
             
@@ -479,11 +479,11 @@ Provide a 2-3 sentence summary for emergency responders. Be concise and actionab
                 modelId="anthropic.claude-3-sonnet-20240229-v1:0",
                 body=json.dumps({
                     "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 200,
                     "messages": [{
                         "role": "user",
                         "content": prompt
-                    }]
+                    }],
+                    "max_tokens": 200
                 })
             )
             

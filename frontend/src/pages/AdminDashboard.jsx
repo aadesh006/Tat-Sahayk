@@ -50,37 +50,39 @@ const IssueAlertModal = ({ adminDistrict, adminState, onClose, onSuccess }) => {
   });
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-[rgb(47,51,54)]">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-[rgb(47,51,54)] animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="bg-gradient-to-br from-red-600 via-red-500 to-orange-500 px-6 py-5 flex items-center justify-between">
+        <div className="bg-white dark:bg-[rgb(22,22,22)] px-6 py-5 flex items-center justify-between border-b border-gray-200 dark:border-[rgb(47,51,54)]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-              <AlertTriangle size={20} className="text-white" />
+            <div className="w-11 h-11 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center border border-red-100 dark:border-red-800">
+              <AlertTriangle size={20} className="text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <h2 className="text-white font-black text-lg">Issue Emergency Alert</h2>
-              <p className="text-white/80 text-xs">Broadcast to citizens in your jurisdiction</p>
+              <h2 className="text-gray-900 dark:text-white font-semibold text-lg">Issue Emergency Alert</h2>
+              <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">Broadcast to citizens in your jurisdiction</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-all">
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg p-2 transition-all">
             <X size={20} />
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 max-h-[calc(100vh-200px)] overflow-y-auto scrollbar-hide">
           {/* Jurisdiction notice */}
-          <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
-            <Shield size={16} className="text-blue-500 mt-0.5 shrink-0" />
+          <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/50 rounded-xl">
+            <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+              <Shield size={14} className="text-white" />
+            </div>
             <div className="text-xs text-blue-700 dark:text-blue-300">
-              <p className="font-bold mb-1">Jurisdiction: {adminDistrict || "All Districts"}, {adminState || "National"}</p>
-              <p>This alert will be sent to citizens in your administrative area only.</p>
+              <p className="font-semibold mb-1">Jurisdiction: {adminDistrict || "All Districts"}, {adminState || "National"}</p>
+              <p className="text-blue-600 dark:text-blue-400">This alert will be sent to citizens in your administrative area only.</p>
             </div>
           </div>
 
           {/* Title */}
           <div>
-            <label className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 block">
+            <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
               Alert Title
             </label>
             <input
@@ -88,13 +90,13 @@ const IssueAlertModal = ({ adminDistrict, adminState, onClose, onSuccess }) => {
               placeholder="e.g. Cyclone Warning — Coastal Districts"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500 transition-all text-sm font-medium"
+              className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all text-sm font-medium placeholder:text-gray-400 placeholder:font-normal"
             />
           </div>
 
           {/* Message */}
           <div>
-            <label className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 block">
+            <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
               Advisory Message
             </label>
             <textarea
@@ -102,20 +104,20 @@ const IssueAlertModal = ({ adminDistrict, adminState, onClose, onSuccess }) => {
               placeholder="Provide detailed instructions to citizens..."
               value={form.message}
               onChange={(e) => setForm({ ...form, message: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500 transition-all resize-none text-sm"
+              className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all resize-none text-sm placeholder:text-gray-400"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             {/* Hazard type */}
             <div>
-              <label className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 block">
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
                 Hazard Type
               </label>
               <select
                 value={form.hazard_type}
                 onChange={(e) => setForm({ ...form, hazard_type: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none text-sm font-medium"
+                className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none text-sm font-medium focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
               >
                 {["Flood","Cyclone","Storm","Tsunami","Oil Spill","Earthquake","General"].map(h => (
                   <option key={h}>{h}</option>
@@ -125,13 +127,13 @@ const IssueAlertModal = ({ adminDistrict, adminState, onClose, onSuccess }) => {
 
             {/* Severity */}
             <div>
-              <label className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 block">
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
                 Severity Level
               </label>
               <select
                 value={form.severity}
                 onChange={(e) => setForm({ ...form, severity: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none text-sm font-medium"
+                className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none text-sm font-medium focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -144,32 +146,32 @@ const IssueAlertModal = ({ adminDistrict, adminState, onClose, onSuccess }) => {
           {/* Target area - read-only display */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 block">
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
                 Target District
               </label>
               <input
                 type="text"
                 value={form.district || "All Districts"}
                 disabled
-                className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-600 dark:text-gray-400 rounded-xl outline-none text-sm font-medium cursor-not-allowed"
+                className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-500 dark:text-gray-400 rounded-xl outline-none text-sm font-medium cursor-not-allowed"
               />
             </div>
             <div>
-              <label className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 block">
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
                 Target State
               </label>
               <input
                 type="text"
                 value={form.state || "National"}
                 disabled
-                className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-600 dark:text-gray-400 rounded-xl outline-none text-sm font-medium cursor-not-allowed"
+                className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-50 dark:bg-[rgb(38,38,38)] text-gray-500 dark:text-gray-400 rounded-xl outline-none text-sm font-medium cursor-not-allowed"
               />
             </div>
           </div>
 
-          <div className="flex gap-3 pt-3">
+          <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-[rgb(47,51,54)]">
             <button onClick={onClose}
-              className="flex-1 py-3.5 border-2 border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all">
+              className="flex-1 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all">
               Cancel
             </button>
             <button
@@ -178,7 +180,7 @@ const IssueAlertModal = ({ adminDistrict, adminState, onClose, onSuccess }) => {
                 mutate(form); 
               }}
               disabled={isPending}
-              className="flex-1 py-3.5 bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white rounded-xl text-sm font-black flex items-center justify-center gap-2 disabled:opacity-60 transition-all shadow-lg shadow-red-500/20"
+              className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60 transition-all active:scale-[0.98]"
             >
               {isPending ? <Loader2 size={18} className="animate-spin" /> : <Bell size={18} />}
               Broadcast Alert
@@ -357,10 +359,10 @@ const AdminDashboard = () => {
   });
 
   const statCards = [
-    { label: "SOS TRIGGERS", value: stats?.total_sos ?? 0, icon: <AlertTriangle size={20} />, color: "bg-red-500", textColor: "text-white" },
-    { label: "ACTIVE HAZARDS", value: stats?.total_active ?? 0, icon: <Zap size={20} />, color: "bg-blue-500", textColor: "text-white" },
-    { label: "FLOOD", value: stats?.hazard_breakdown?.Flood ?? 0, icon: <BarChart3 size={20} />, color: "bg-sky-500", textColor: "text-white" },
-    { label: "CYCLONE", value: stats?.hazard_breakdown?.Cyclone ?? 0, icon: <TrendingUp size={20} />, color: "bg-purple-500", textColor: "text-white" },
+    { label: "SOS Triggers", value: stats?.total_sos ?? 0 },
+    { label: "Active Hazards", value: stats?.total_active ?? 0 },
+    { label: "Flood", value: stats?.hazard_breakdown?.Flood ?? 0 },
+    { label: "Cyclone", value: stats?.hazard_breakdown?.Cyclone ?? 0 },
   ];
 
   const FILTERS = [
@@ -378,11 +380,11 @@ const AdminDashboard = () => {
       <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-6 py-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-              <Shield size={20} className="text-sky-500" />
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Shield size={18} className="text-sky-500" />
               District Command — {authUser?.district || "National"}
             </h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               {authUser?.full_name} · {authUser?.state || "All States"} · Admin
             </p>
           </div>
@@ -390,24 +392,36 @@ const AdminDashboard = () => {
           {/* Push Alert Button */}
           <button
             onClick={() => setAlertModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-red-900/20 transition-all active:scale-95"
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-[rgb(22,22,22)] border-2 border-red-500 text-red-600 dark:text-red-400 font-semibold text-sm rounded-xl hover:bg-red-50 dark:hover:bg-red-900/10 transition-all"
           >
-            <Bell size={16} className="animate-pulse" />
-            Push Live Alert
+            <Bell size={16} />
+            Issue Alert
           </button>
         </div>
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-          {statCards.map((s) => (
-            <div key={s.label} className={`${s.color} rounded-xl p-4 flex items-center justify-between shadow-sm`}>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-white/80 mb-1">{s.label}</p>
-                <p className={`text-3xl font-black ${s.textColor}`}>{s.value}</p>
+          {statCards.map((s) => {
+            // Color coding based on card type and value
+            let valueColor = "text-gray-900 dark:text-white"; // default
+            
+            if (s.label === "SOS Triggers" && s.value > 0) {
+              valueColor = "text-red-600 dark:text-red-400";
+            } else if (s.label === "Active Hazards" && s.value > 0) {
+              valueColor = "text-orange-600 dark:text-orange-400";
+            } else if (s.label === "Flood" && s.value > 0) {
+              valueColor = "text-blue-600 dark:text-blue-400";
+            } else if (s.label === "Cyclone" && s.value > 0) {
+              valueColor = "text-red-600 dark:text-red-400";
+            }
+            
+            return (
+              <div key={s.label} className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{s.label}</p>
+                <p className={`text-2xl font-semibold ${valueColor}`}>{s.value}</p>
               </div>
-              <div className="text-white/80">{s.icon}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -422,7 +436,7 @@ const AdminDashboard = () => {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 md:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap
+            className={`flex items-center gap-2 px-4 md:px-5 py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap
               ${activeTab === tab.key
                 ? "border-sky-500 text-sky-500"
                 : "border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"}`}
@@ -545,8 +559,7 @@ const AdminDashboard = () => {
 
             {!stats?.sos_triggers?.length ? (
               <div className="text-center py-20 bg-white dark:bg-[rgb(22,22,22)] border border-dashed border-gray-300 dark:border-[rgb(47,51,54)] rounded-2xl">
-                <CheckCircle className="mx-auto text-emerald-400 mb-2" size={40} />
-                <p className="text-xs text-gray-400 uppercase tracking-widest">No SOS triggers at the moment</p>
+                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">No SOS triggers at the moment</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -645,8 +658,7 @@ const AdminDashboard = () => {
               </div>
             ) : (
               <div className="text-center py-20 bg-white dark:bg-[rgb(22,22,22)] border border-dashed border-gray-300 dark:border-[rgb(47,51,54)] rounded-2xl">
-                <CheckCircle className="mx-auto text-emerald-400 mb-2" size={40} />
-                <p className="text-xs text-gray-400 uppercase tracking-widest">No reports in this category</p>
+                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">No reports in this category</p>
               </div>
             )}
           </>
@@ -689,15 +701,28 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                       </div>
-                      {alert.is_active && (
-                        <button
-                          onClick={() => doDeactivate(alert.id)}
-                          className="shrink-0 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                          title="Deactivate alert"
-                        >
-                          <BellOff size={16} />
-                        </button>
-                      )}
+                      {alert.is_active && (() => {
+                        // Check if this is a national alert (no district and no state)
+                        const isNationalAlert = !alert.district && !alert.state;
+                        // Check if current admin is a district admin (has a district)
+                        const isDistrictAdmin = authUser?.district;
+                        // District admins cannot deactivate national alerts
+                        const canDeactivate = !(isNationalAlert && isDistrictAdmin);
+                        
+                        return canDeactivate ? (
+                          <button
+                            onClick={() => doDeactivate(alert.id)}
+                            className="shrink-0 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            title="Deactivate alert"
+                          >
+                            <BellOff size={16} />
+                          </button>
+                        ) : (
+                          <div className="shrink-0 p-2 text-gray-300 dark:text-gray-600" title="Only national admins can deactivate national alerts">
+                            <BellOff size={16} />
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 );

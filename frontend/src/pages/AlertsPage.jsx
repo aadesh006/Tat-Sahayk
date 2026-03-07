@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, AlertOctagon, MapPin, Calendar, Shield, Bell, Filter, Loader2 } from 'lucide-react';
+import { ArrowLeft, AlertOctagon, MapPin, Calendar, Shield, Bell, Filter, Loader2, Brain, TrendingUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAlerts } from '../lib/api.js';
 import useAuthUser from '../hooks/useAuthUser.js';
@@ -17,6 +17,7 @@ const SEVERITY_FILTERS = [
 const AlertsPage = () => {
   const { authUser } = useAuthUser();
   const [severityFilter, setSeverityFilter] = useState("");
+  const [showAIInfo, setShowAIInfo] = useState(false);
 
   const { data: alerts, isLoading } = useQuery({
     queryKey: ['alerts'],
@@ -80,7 +81,7 @@ const AlertsPage = () => {
             <ArrowLeft size={20} className="text-gray-900 dark:text-white" />
           </Link>
           <div className="flex-1">
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Bell size={20} className="text-sky-500" />
               Government Alerts & Notices
             </h1>
@@ -95,6 +96,89 @@ const AlertsPage = () => {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 lg:px-6 py-6">
+        {/* AI Intelligence Info Card - Only for Admins */}
+        {authUser?.is_admin && (
+          <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-5 mb-6">
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shrink-0">
+                  <Brain size={22} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                    AI Intelligence System
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Multi-model analysis for {authUser.district === "National" ? "nationwide" : "district"} reports
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAIInfo(!showAIInfo)}
+                className="px-3 py-1.5 text-xs font-medium text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-500/10 rounded-lg transition-colors"
+              >
+                {showAIInfo ? "Hide Details" : "Learn More"}
+              </button>
+            </div>
+
+            {showAIInfo && (
+              <div className="space-y-4 pt-3 border-t border-gray-200 dark:border-[rgb(47,51,54)]">
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                  Our AI system analyzes disaster reports using 5 specialized models to verify authenticity and severity:
+                </p>
+
+                <div className="grid gap-3">
+                  {[
+                    { name: "Image Authenticity", weight: "30%", desc: "Amazon Rekognition detects AI-generated images, deepfakes, and verifies scene consistency with reported hazard type", icon: "🖼️" },
+                    { name: "Geographic Verification", weight: "25%", desc: "Validates location context - coastal areas for tsunamis, flood-prone zones, earthquake regions", icon: "🌍" },
+                    { name: "News Correlation", weight: "20%", desc: "Tavily web search cross-references with real-time news from trusted Indian media outlets", icon: "📰" },
+                    { name: "Temporal Consistency", weight: "15%", desc: "Checks if multiple reports arrive within reasonable timeframe (6-24 hours)", icon: "⏱️" },
+                    { name: "Text Coherence", weight: "10%", desc: "Claude AI analyzes descriptions for authenticity, detecting spam and bot-like patterns", icon: "📝" },
+                  ].map((model) => (
+                    <div key={model.name} className="flex gap-3 p-3 bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-xl">
+                      <span className="text-2xl shrink-0">{model.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {model.name}
+                          </h4>
+                          <span className="px-2 py-0.5 text-[10px] font-semibold bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 rounded-full">
+                            {model.weight}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                          {model.desc}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <TrendingUp size={18} className="text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                        {authUser.district === "National" ? "National Admin View" : "District Admin View"}
+                      </h4>
+                      <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {authUser.district === "National" 
+                          ? "As a national admin, you see AI analysis for report clusters across all districts in India. The system identifies geographic clusters (80km radius) of similar hazard types and analyzes them collectively. This helps identify nationwide patterns, verify large-scale disasters, and prioritize critical alerts that affect multiple regions."
+                          : `As a district admin for ${authUser.district}, you see AI analysis for report clusters within your jurisdiction. The system groups nearby reports (80km radius) of the same hazard type and provides authenticity scores to help you verify local incidents and issue timely alerts to your community.`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <Shield size={12} />
+                  <span>Reports with 2+ confirmations in same area trigger automatic AI analysis</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Info Banner */}
         <div className="bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20 border border-sky-200 dark:border-sky-800 rounded-2xl p-4 mb-6">
           <div className="flex items-start gap-3">
@@ -155,7 +239,7 @@ const AlertsPage = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${config.badge}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border ${config.badge}`}>
                           {alert.severity}
                         </span>
                         {alert.hazard_type && (
@@ -164,7 +248,7 @@ const AlertsPage = () => {
                           </span>
                         )}
                       </div>
-                      <h2 className={`text-lg font-bold ${config.text} mb-2`}>
+                      <h2 className={`text-lg font-semibold ${config.text} mb-2`}>
                         {alert.title}
                       </h2>
                       <p className={`text-sm ${config.text} opacity-90 leading-relaxed`}>

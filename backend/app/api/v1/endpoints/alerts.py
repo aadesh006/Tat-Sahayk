@@ -118,8 +118,34 @@ def deactivate_alert(
     alert = db.query(Alert).filter(Alert.id == alert_id).first()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
-    if alert.admin_id != admin.id and admin.role != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Authorization checks:
+    # 1. Admins can only deactivate their own alerts
+    if alert.admin_id != admin.id:
+        raise HTTPException(
+            status_code=403, 
+            detail="You can only deactivate alerts you created"
+        )
+    
+    # 2. District admins cannot deactivate national alerts
+    # National alerts have no district and no state
+    is_national_alert = (alert.district is None and alert.state is None)
+    is_district_admin = (admin.district is not None)
+    
+    if is_national_alert and is_district_admin:
+        raise HTTPException(
+            status_code=403, 
+            detail="District admins cannot deactivate national alerts"
+        )
+    
+    # 3. District admins can only deactivate alerts for their district
+    if admin.district:
+        if alert.district and alert.district != admin.district:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"You can only deactivate alerts for your district: {admin.district}"
+            )
+    
     alert.is_active = False
     db.commit()
     return {"message": "Alert deactivated"}

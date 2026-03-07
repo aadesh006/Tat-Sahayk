@@ -252,11 +252,14 @@ i18n
           pending: "प्रलंबित",
           verified: "सत्यापित",
           rejected: "नाकारले",
+          fakeIrrelevant: "बनावट/असंबद्ध",
           
-          // Emergency
+          // Emergency & SOS
           emergencyDirectory: "आपत्कालीन निर्देशिका",
           socialUpdates: "सोशल अपडेट",
           noUpdates: "अद्याप कोणतेही अपडेट नाही",
+          sos: "एसओएस",
+          sosTriggers: "एसओएस ट्रिगर",
           
           // Reports
           incidents: "घटना",
@@ -277,12 +280,28 @@ i18n
           noReports: "कोणतेही अहवाल सापडले नाहीत",
           deleteReport: "अहवाल हटवा",
           confirmDelete: "हा अहवाल हटवायचा?",
+          allReports: "सर्व अहवाल",
           
           // Profile
           editProfile: "प्रोफाइल संपादित करा",
           fullName: "पूर्ण नाव",
           email: "ईमेल",
           password: "पासवर्ड",
+          governmentAdmin: "सरकारी प्रशासक",
+          areaOfControl: "नियंत्रण क्षेत्र",
+          emergencyContacts: "आपत्कालीन संपर्क",
+          quickActions: "द्रुत क्रिया",
+          dangerZone: "धोक्याचे क्षेत्र",
+          deleteMyAccount: "माझे खाते हटवा",
+          deleteAccount: "खाते हटवा",
+          accountDeletion: "खाते हटवणे",
+          cannotBeUndone: "पूर्ववत करता येणार नाही",
+          permanentlyDelete: "हे आपले खाते कायमचे हटवेल आणि आमच्या सर्व्हरवरून आपला सर्व डेटा काढून टाकेल.",
+          willBeDeleted: "खालील कायमचे हटवले जाईल:",
+          disasterReports: "आपत्ती अहवाल",
+          allComments: "आपल्या सर्व टिप्पण्या आणि परस्परसंवाद",
+          profileInfo: "आपला प्रोफाइल फोटो आणि वैयक्तिक माहिती",
+          phoneVerification: "फोन सत्यापन आणि अलर्ट प्राधान्ये",
           
           // Admin
           adminDashboard: "प्रशासक डॅशबोर्ड",
@@ -293,6 +312,8 @@ i18n
           verify: "सत्यापित करा",
           reject: "नाकारा",
           reset: "रीसेट",
+          issuedAlerts: "जारी केलेले अलर्ट",
+          aiIntelligence: "एआय इंटेलिजन्स",
           
           // Comments
           comments: "टिप्पण्या",
@@ -307,10 +328,18 @@ i18n
           welcomeBack: "परत स्वागत आहे",
           createAccount: "खाते तयार करा",
           
-          // Misc
+          // Alerts & Notices
+          governmentAlerts: "सरकारी अलर्ट",
           governmentAdvisory: "शासकीय सल्ला",
+          noActiveAlerts: "कोणतेही सक्रिय अलर्ट नाहीत",
+          
+          // Misc
           confirm: "पुष्टी करा",
           share: "शेअर करा",
+          cancel: "रद्द करा",
+          save: "जतन करा",
+          close: "बंद करा",
+          delete: "हटवा",
         },
       },
     bn: {
@@ -323,11 +352,11 @@ i18n
     // Status & States
     activeIncidents: "সক্রিয় ঘটনা", live: "লাইভ", noIncidents: "কোনো সক্রিয় ঘটনা নেই",
     loading: "লোড হচ্ছে...", all: "সব", pending: "অপেক্ষমাণ", 
-    verified: "যাচাইকৃত", rejected: "প্রত্যাখ্যাত",
+    verified: "যাচাইকৃত", rejected: "প্রত্যাখ্যাত", fakeIrrelevant: "জাল/অপ্রাসঙ্গিক",
     
-    // Emergency
+    // Emergency & SOS
     emergencyDirectory: "জরুরি নির্দেশিকা", socialUpdates: "সামাজিক আপডেট", 
-    noUpdates: "এখনও কোনো আপডেট নেই",
+    noUpdates: "এখনও কোনো আপডেট নেই", sos: "এসওএস", sosTriggers: "এসওএস ট্রিগার",
     
     // Reports
     incidents: "ঘটনা", infoFeed: "তথ্য ও ফিড", filter: "ফিল্টার", 
@@ -338,17 +367,28 @@ i18n
     transmitting: "পাঠানো হচ্ছে...", reportSubmitted: "রিপোর্ট সফলভাবে জমা দেওয়া হয়েছে!",
     uploadPhoto: "ফটো আপলোড করুন", myReports: "আমার রিপোর্ট", 
     noReports: "কোনো রিপোর্ট পাওয়া যায়নি", deleteReport: "রিপোর্ট মুছুন",
-    confirmDelete: "এই রিপোর্ট মুছবেন?",
+    confirmDelete: "এই রিপোর্ট মুছবেন?", allReports: "সব রিপোর্ট",
     
     // Profile
     editProfile: "প্রোফাইল সম্পাদনা", fullName: "পুরো নাম", 
     email: "ইমেইল", password: "পাসওয়ার্ড",
+    governmentAdmin: "সরকারি প্রশাসক", areaOfControl: "নিয়ন্ত্রণ এলাকা",
+    emergencyContacts: "জরুরি যোগাযোগ", quickActions: "দ্রুত কর্ম",
+    dangerZone: "বিপদ অঞ্চল", deleteMyAccount: "আমার অ্যাকাউন্ট মুছুন",
+    deleteAccount: "অ্যাকাউন্ট মুছুন", accountDeletion: "অ্যাকাউন্ট মুছে ফেলা",
+    cannotBeUndone: "পূর্বাবস্থায় ফেরানো যাবে না",
+    permanentlyDelete: "এটি আপনার অ্যাকাউন্ট স্থায়ীভাবে মুছে দেবে এবং আমাদের সার্ভার থেকে আপনার সমস্ত ডেটা সরিয়ে দেবে।",
+    willBeDeleted: "নিম্নলিখিত স্থায়ীভাবে মুছে ফেলা হবে:",
+    disasterReports: "দুর্যোগ রিপোর্ট", allComments: "আপনার সমস্ত মন্তব্য এবং মিথস্ক্রিয়া",
+    profileInfo: "আপনার প্রোফাইল ফটো এবং ব্যক্তিগত তথ্য",
+    phoneVerification: "ফোন যাচাইকরণ এবং সতর্কতা পছন্দ",
     
     // Admin
     adminDashboard: "অ্যাডমিন ড্যাশবোর্ড", totalReports: "মোট রিপোর্ট",
     pendingReview: "পর্যালোচনা অপেক্ষমাণ", verifiedHazards: "যাচাইকৃত বিপদ",
     criticalAlerts: "গুরুতর সতর্কতা", verify: "যাচাই করুন", 
     reject: "প্রত্যাখ্যান করুন", reset: "রিসেট",
+    issuedAlerts: "জারি করা সতর্কতা", aiIntelligence: "এআই ইন্টেলিজেন্স",
     
     // Comments
     comments: "মন্তব্য", addComment: "মন্তব্য যোগ করুন...", post: "পোস্ট করুন",
@@ -358,8 +398,13 @@ i18n
     login: "লগইন", signup: "সাইন আপ", welcomeBack: "স্বাগতম", 
     createAccount: "অ্যাকাউন্ট তৈরি করুন",
     
+    // Alerts & Notices
+    governmentAlerts: "সরকারি সতর্কতা", governmentAdvisory: "সরকারি পরামর্শ",
+    noActiveAlerts: "কোনো সক্রিয় সতর্কতা নেই",
+    
     // Misc
-    governmentAdvisory: "সরকারি পরামর্শ", confirm: "নিশ্চিত করুন", share: "শেয়ার করুন",
+    confirm: "নিশ্চিত করুন", share: "শেয়ার করুন",
+    cancel: "বাতিল করুন", save: "সংরক্ষণ করুন", close: "বন্ধ করুন", delete: "মুছুন",
   },
 },
 te: {
@@ -372,11 +417,11 @@ te: {
     // Status & States
     activeIncidents: "చురుకైన సంఘటనలు", live: "లైవ్", noIncidents: "చురుకైన సంఘటనలు లేవు",
     loading: "లోడవుతోంది...", all: "అన్నీ", pending: "పెండింగ్", 
-    verified: "ధృవీకరించబడింది", rejected: "తిరస్కరించబడింది",
+    verified: "ధృవీకరించబడింది", rejected: "తిరస్కరించబడింది", fakeIrrelevant: "నకిలీ/అసంబద్ధం",
     
-    // Emergency
+    // Emergency & SOS
     emergencyDirectory: "అత్యవసర డైరెక్టరీ", socialUpdates: "సోషల్ అప్‌డేట్లు", 
-    noUpdates: "ఇంకా అప్‌డేట్లు లేవు",
+    noUpdates: "ఇంకా అప్‌డేట్లు లేవు", sos: "ఎస్ఓఎస్", sosTriggers: "ఎస్ఓఎస్ ట్రిగ్గర్లు",
     
     // Reports
     incidents: "సంఘటనలు", infoFeed: "సమాచారం", filter: "ఫిల్టర్", 
@@ -387,17 +432,28 @@ te: {
     transmitting: "పంపిస్తోంది...", reportSubmitted: "నివేదిక విజయవంతంగా సమర్పించబడింది!",
     uploadPhoto: "ఫోటో అప్‌లోడ్ చేయండి", myReports: "నా నివేదికలు", 
     noReports: "నివేదికలు కనుగొనబడలేదు", deleteReport: "నివేదికను తొలగించు",
-    confirmDelete: "ఈ నివేదికను తొలగించాలా?",
+    confirmDelete: "ఈ నివేదికను తొలగించాలా?", allReports: "అన్ని నివేదికలు",
     
     // Profile
     editProfile: "ప్రొఫైల్ సవరించు", fullName: "పూర్తి పేరు", 
     email: "ఇమెయిల్", password: "పాస్‌వర్డ్",
+    governmentAdmin: "ప్రభుత్వ నిర్వాహకుడు", areaOfControl: "నియంత్రణ ప్రాంతం",
+    emergencyContacts: "అత్యవసర పరిచయాలు", quickActions: "త్వరిత చర్యలు",
+    dangerZone: "ప్రమాద మండలం", deleteMyAccount: "నా ఖాతాను తొలగించు",
+    deleteAccount: "ఖాతా తొలగించు", accountDeletion: "ఖాతా తొలగింపు",
+    cannotBeUndone: "రద్దు చేయలేము",
+    permanentlyDelete: "ఇది మీ ఖాతాను శాశ్వతంగా తొలగిస్తుంది మరియు మా సర్వర్ల నుండి మీ మొత్తం డేటాను తొలగిస్తుంది.",
+    willBeDeleted: "ఈ క్రింది వాటిని శాశ్వతంగా తొలగించబడతాయి:",
+    disasterReports: "విపత్తు నివేదికలు", allComments: "మీ అన్ని వ్యాఖ్యలు మరియు పరస్పర చర్యలు",
+    profileInfo: "మీ ప్రొఫైల్ ఫోటో మరియు వ్యక్తిగత సమాచారం",
+    phoneVerification: "ఫోన్ ధృవీకరణ మరియు హెచ్చరిక ప్రాధాన్యతలు",
     
     // Admin
     adminDashboard: "అడ్మిన్ డాష్‌బోర్డ్", totalReports: "మొత్తం నివేదికలు",
     pendingReview: "సమీక్ష పెండింగ్", verifiedHazards: "ధృవీకరించబడిన ప్రమాదాలు",
     criticalAlerts: "క్లిష్టమైన హెచ్చరికలు", verify: "ధృవీకరించు", 
     reject: "తిరస్కరించు", reset: "రీసెట్",
+    issuedAlerts: "జారీ చేసిన హెచ్చరికలు", aiIntelligence: "ఏఐ ఇంటెలిజెన్స్",
     
     // Comments
     comments: "వ్యాఖ్యలు", addComment: "వ్యాఖ్య జోడించండి...", post: "పోస్ట్ చేయి",
@@ -407,8 +463,13 @@ te: {
     login: "లాగిన్", signup: "సైన్ అప్", welcomeBack: "తిరిగి స్వాగతం", 
     createAccount: "ఖాతా సృష్టించు",
     
+    // Alerts & Notices
+    governmentAlerts: "ప్రభుత్వ హెచ్చరికలు", governmentAdvisory: "ప్రభుత్వ సలహా",
+    noActiveAlerts: "సక్రియ హెచ్చరికలు లేవు",
+    
     // Misc
-    governmentAdvisory: "ప్రభుత్వ సలహా", confirm: "నిర్ధారించు", share: "షేర్ చేయి",
+    confirm: "నిర్ధారించు", share: "షేర్ చేయి",
+    cancel: "రద్దు చేయి", save: "సేవ్ చేయి", close: "మూసివేయి", delete: "తొలగించు",
   },
 },
 ta: {
@@ -422,11 +483,11 @@ ta: {
     activeIncidents: "செயலில் உள்ள சம்பவங்கள்", live: "நேரடி", 
     noIncidents: "செயலில் உள்ள சம்பவங்கள் இல்லை", loading: "ஏற்றுகிறது...", 
     all: "அனைத்தும்", pending: "நிலுவையில்", verified: "சரிபார்க்கப்பட்டது", 
-    rejected: "நிராகரிக்கப்பட்டது",
+    rejected: "நிராகரிக்கப்பட்டது", fakeIrrelevant: "போலி/பொருத்தமற்றது",
     
-    // Emergency
+    // Emergency & SOS
     emergencyDirectory: "அவசர கோப்பகம்", socialUpdates: "சமூக புதுப்பிப்புகள்", 
-    noUpdates: "இன்னும் புதுப்பிப்புகள் இல்லை",
+    noUpdates: "இன்னும் புதுப்பிப்புகள் இல்லை", sos: "எஸ்ஓஎஸ்", sosTriggers: "எஸ்ஓஎஸ் தூண்டுதல்கள்",
     
     // Reports
     incidents: "சம்பவங்கள்", infoFeed: "தகவல்", filter: "வடிகட்டி", 
@@ -437,17 +498,28 @@ ta: {
     transmitting: "அனுப்புகிறது...", reportSubmitted: "அறிக்கை வெற்றிகரமாக சமர்பிக்கப்பட்டது!",
     uploadPhoto: "புகைப்படம் பதிவேற்றவும்", myReports: "என் அறிக்கைகள்", 
     noReports: "அறிக்கைகள் இல்லை", deleteReport: "அறிக்கையை நீக்கு",
-    confirmDelete: "இந்த அறிக்கையை நீக்கவா?",
+    confirmDelete: "இந்த அறிக்கையை நீக்கவா?", allReports: "அனைத்து அறிக்கைகள்",
     
     // Profile
     editProfile: "சுயவிவரம் திருத்து", fullName: "முழு பெயர்", 
     email: "மின்னஞ்சல்", password: "கடவுச்சொல்",
+    governmentAdmin: "அரசு நிர்வாகி", areaOfControl: "கட்டுப்பாட்டு பகுதி",
+    emergencyContacts: "அவசர தொடர்புகள்", quickActions: "விரைவு செயல்கள்",
+    dangerZone: "ஆபத்து மண்டலம்", deleteMyAccount: "என் கணக்கை நீக்கு",
+    deleteAccount: "கணக்கை நீக்கு", accountDeletion: "கணக்கு நீக்கம்",
+    cannotBeUndone: "மீட்டமைக்க முடியாது",
+    permanentlyDelete: "இது உங்கள் கணக்கை நிரந்தரமாக நீக்கி, எங்கள் சர்வர்களில் இருந்து உங்கள் அனைத்து தரவையும் அகற்றும்.",
+    willBeDeleted: "பின்வருவன நிரந்தரமாக நீக்கப்படும்:",
+    disasterReports: "பேரிடர் அறிக்கைகள்", allComments: "உங்கள் அனைத்து கருத்துகள் மற்றும் தொடர்புகள்",
+    profileInfo: "உங்கள் சுயவிவர புகைப்படம் மற்றும் தனிப்பட்ட தகவல்",
+    phoneVerification: "தொலைபேசி சரிபார்ப்பு மற்றும் எச்சரிக்கை விருப்பத்தேர்வுகள்",
     
     // Admin
     adminDashboard: "நிர்வாக டாஷ்போர்டு", totalReports: "மொத்த அறிக்கைகள்",
     pendingReview: "மதிப்பாய்வு நிலுவையில்", verifiedHazards: "சரிபார்க்கப்பட்ட ஆபத்துகள்",
     criticalAlerts: "முக்கியமான எச்சரிக்கைகள்", verify: "சரிபார்", 
     reject: "நிராகரி", reset: "மீட்டமை",
+    issuedAlerts: "வெளியிடப்பட்ட எச்சரிக்கைகள்", aiIntelligence: "ஏஐ நுண்ணறிவு",
     
     // Comments
     comments: "கருத்துகள்", addComment: "கருத்து சேர்க்கவும்...", post: "பதிவிடு",
@@ -457,8 +529,13 @@ ta: {
     login: "உள்நுழை", signup: "பதிவு செய்க", welcomeBack: "மீண்டும் வரவேற்கிறோம்", 
     createAccount: "கணக்கு உருவாக்கு",
     
+    // Alerts & Notices
+    governmentAlerts: "அரசு எச்சரிக்கைகள்", governmentAdvisory: "அரசு ஆலோசனை",
+    noActiveAlerts: "செயலில் உள்ள எச்சரிக்கைகள் இல்லை",
+    
     // Misc
-    governmentAdvisory: "அரசு ஆலோசனை", confirm: "உறுதிப்படுத்து", share: "பகிர்",
+    confirm: "உறுதிப்படுத்து", share: "பகிர்",
+    cancel: "ரத்து செய்", save: "சேமி", close: "மூடு", delete: "நீக்கு",
   },
 },
 gu: {

@@ -69,8 +69,8 @@ Respond ONLY with the JSON object. No explanation."""
                 {"type": "text", "text": prompt}
             ]
         }],
-        "max_tokens": 500,
-        "anthropic_version": "bedrock-2023-05-31"
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 500
     }
 
     response = bedrock.invoke_model(
