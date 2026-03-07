@@ -92,6 +92,19 @@ const ProfilePage = () => {
     }
   };
 
+  const handleDeletePhoto = async () => {
+    if (!window.confirm("Remove profile photo?")) return;
+    
+    try {
+      await updateProfile({ profile_photo: null });
+      queryClient.invalidateQueries({ queryKey: ['authUser'] });
+      toast.success("Profile photo removed");
+    } catch (error) {
+      console.error("Photo delete error:", error);
+      toast.error("Failed to remove photo");
+    }
+  };
+
   const handleDelete = (id) => {
     if (window.confirm(t("confirmDelete"))) doDelete(id);
   };
@@ -138,37 +151,44 @@ const ProfilePage = () => {
       <div className="h-32 md:h-48 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-[rgb(38,38,38)] dark:to-[rgb(47,51,54)] relative">
         <div className="absolute -bottom-14 left-4 lg:left-8 p-1 bg-white dark:bg-black rounded-full">
           <div className="relative group">
+            {/* Profile Photo or Initial */}
             {authUser.profile_photo ? (
               <img
                 src={authUser.profile_photo}
                 alt={authUser.full_name}
                 className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white dark:border-black object-cover shadow-lg"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                  e.target.nextSibling.style.display = "flex";
-                }}
               />
-            ) : null}
-            <div 
-              className={`w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 border-4 border-white dark:border-black flex items-center justify-center text-3xl md:text-4xl font-bold text-white shadow-lg ${authUser.profile_photo ? 'hidden' : ''}`}
-            >
-              {authUser.full_name?.charAt(0)}
-            </div>
+            ) : (
+              <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 border-4 border-white dark:border-black flex items-center justify-center text-3xl md:text-4xl font-bold text-white shadow-lg">
+                {authUser.full_name?.charAt(0)}
+              </div>
+            )}
             
-            {/* Upload button overlay - only for citizens */}
+            {/* Upload/Delete buttons overlay - only for citizens */}
             {!isAdmin && (
-              <>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingPhoto}
-                  className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  {uploadingPhoto ? (
-                    <Loader2 size={24} className="text-white animate-spin" />
-                  ) : (
-                    <Camera size={24} className="text-white" />
-                  )}
-                </button>
+              <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {uploadingPhoto ? (
+                  <Loader2 size={24} className="text-white animate-spin" />
+                ) : (
+                  <>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
+                      title="Upload photo"
+                    >
+                      <Camera size={20} className="text-white" />
+                    </button>
+                    {authUser.profile_photo && (
+                      <button
+                        onClick={handleDeletePhoto}
+                        className="p-2 bg-red-500/80 backdrop-blur-sm rounded-full hover:bg-red-600 transition-colors"
+                        title="Remove photo"
+                      >
+                        <Trash2 size={20} className="text-white" />
+                      </button>
+                    )}
+                  </>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -176,7 +196,7 @@ const ProfilePage = () => {
                   onChange={handlePhotoUpload}
                   className="hidden"
                 />
-              </>
+              </div>
             )}
           </div>
         </div>

@@ -78,9 +78,17 @@ const ReportModal = ({ report, onClose }) => {
             <div className="p-4 md:p-6 space-y-4">
             {/* Reporter info */}
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-lg font-semibold shrink-0">
-                {report.reporterName?.charAt(0) || "?"}
-              </div>
+              {report.reporter_profile_photo ? (
+                <img 
+                  src={report.reporter_profile_photo} 
+                  alt={report.reporterName}
+                  className="w-12 h-12 rounded-full object-cover border-2 border-gray-200 dark:border-[rgb(47,51,54)] shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-lg font-semibold shrink-0">
+                  {report.reporterName?.charAt(0) || "?"}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 dark:text-white">{report.reporterName || "Anonymous"}</p>
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">

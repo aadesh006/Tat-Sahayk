@@ -236,6 +236,7 @@ def read_reports(
     for r in reports:
         d = ReportResponse.model_validate(r).model_dump()
         d["reporter_name"] = r.owner.full_name if r.owner else "Anonymous"
+        d["reporter_profile_photo"] = r.owner.profile_photo if r.owner else None
         result.append(d)
     return result
 
@@ -295,6 +296,7 @@ def create_report(
 def serialize_report(r):
     d = ReportResponse.model_validate(r).model_dump()
     d["reporter_name"] = r.owner.full_name if r.owner else "Anonymous"
+    d["reporter_profile_photo"] = r.owner.profile_photo if r.owner else None
     return d
 
 # 6. GET SINGLE REPORT

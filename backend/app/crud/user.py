@@ -20,8 +20,9 @@ def create_user(db: Session, user: UserCreate):
     return db_user
 
 def update_user(db: Session, user: User, update: UserUpdate):
-    if update.full_name is not None:
-        user.full_name = update.full_name
+    update_data = update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(user, field, value)
     db.commit()
     db.refresh(user)
     return user

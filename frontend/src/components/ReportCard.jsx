@@ -64,9 +64,17 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
             <div className="space-y-1.5">
               {/* Reporter name + time */}
               <div className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-xs font-semibold shrink-0">
-                  {report.reporterName?.charAt(0) || "?"}
-                </div>
+                {report.reporter_profile_photo ? (
+                  <img 
+                    src={report.reporter_profile_photo} 
+                    alt={report.reporterName}
+                    className="w-6 h-6 rounded-full object-cover border border-gray-200 dark:border-[rgb(47,51,54)] shrink-0"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                    {report.reporterName?.charAt(0) || "?"}
+                  </div>
+                )}
                 <span className="text-gray-900 dark:text-white font-semibold">{report.reporterName || "Anonymous"}</span>
                 <span className="text-gray-300 dark:text-gray-600">·</span>
                 <Clock size={12} />

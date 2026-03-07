@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 const CreateReport = () => {
   const { t } = useTranslation();
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
   const queryClient = useQueryClient();
   const [previews, setPreviews] = useState([]);
   const [gpsStatus, setGpsStatus] = useState("idle");
@@ -102,6 +103,16 @@ const CreateReport = () => {
                 className="hidden"
               />
 
+              {/* Camera input for mobile */}
+              <input
+                type="file"
+                ref={cameraInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+              />
+
               {/* Preview grid */}
               {previews.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mb-2">
@@ -117,31 +128,57 @@ const CreateReport = () => {
                       </button>
                     </div>
                   ))}
-                  {/* Add more button */}
+                  {/* Add more buttons */}
                   {previews.length < 5 && (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current.click()}
-                      className="aspect-square rounded-xl border-2 border-dashed border-gray-200 dark:border-[rgb(47,51,54)] flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors"
-                    >
-                      <Plus size={24} className="text-sky-500" />
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Add</span>
-                    </button>
+                    <div className="aspect-square rounded-xl border-2 border-dashed border-gray-200 dark:border-[rgb(47,51,54)] flex flex-col items-center justify-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="p-2 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded-lg transition-colors"
+                        title="Take photo"
+                      >
+                        <Camera size={20} className="text-sky-500" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-2 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded-lg transition-colors"
+                        title="Upload from device"
+                      >
+                        <Plus size={20} className="text-sky-500" />
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
 
               {/* Empty state */}
               {previews.length === 0 && (
-                <div
-                  onClick={() => fileInputRef.current.click()}
-                  className="aspect-[16/9] w-full border-2 border-dashed border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl bg-gray-50 dark:bg-[rgb(38,38,38)] flex flex-col items-center justify-center hover:bg-gray-100 dark:hover:bg-[rgb(47,51,54)] transition-colors cursor-pointer group"
-                >
-                  <div className="p-4 bg-white dark:bg-[rgb(22,22,22)] rounded-full shadow-sm group-hover:scale-110 transition-transform border border-gray-200 dark:border-[rgb(47,51,54)]">
-                    <Camera className="text-sky-500" size={32} />
-                  </div>
-                  <p className="mt-3 text-sm text-gray-900 dark:text-white font-medium">Click to upload photo or video</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">JPEG, PNG, or MP4, up to 5 files</p>
+                <div className="space-y-2">
+                  {/* Camera button (mobile) */}
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="w-full aspect-[16/9] border-2 border-dashed border-sky-300 dark:border-sky-700 rounded-xl bg-sky-50 dark:bg-sky-900/20 flex flex-col items-center justify-center hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors group"
+                  >
+                    <div className="p-4 bg-white dark:bg-[rgb(22,22,22)] rounded-full shadow-sm group-hover:scale-110 transition-transform border border-sky-200 dark:border-sky-700">
+                      <Camera className="text-sky-500" size={32} />
+                    </div>
+                    <p className="mt-3 text-sm text-gray-900 dark:text-white font-medium">Take Photo</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Use your camera to capture the scene</p>
+                  </button>
+
+                  {/* Upload button */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full py-4 border-2 border-dashed border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl bg-gray-50 dark:bg-[rgb(38,38,38)] flex items-center justify-center gap-2 hover:bg-gray-100 dark:hover:bg-[rgb(47,51,54)] transition-colors group"
+                  >
+                    <Plus size={20} className="text-gray-500 dark:text-gray-400 group-hover:text-sky-500 transition-colors" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium group-hover:text-sky-500 transition-colors">
+                      Or upload from device
+                    </span>
+                  </button>
                 </div>
               )}
             </div>
