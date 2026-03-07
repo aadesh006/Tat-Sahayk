@@ -5,7 +5,7 @@ import { MapPin, Calendar, Mail, ArrowLeft, Clock,
   Users, Phone, AlertTriangle, Map as MapIcon, Camera, Upload, PhoneCall } from 'lucide-react';
 import useAuthUser from '../hooks/useAuthUser.js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchUserReports, deleteReport, updateProfile } from '../lib/api.js';
+import { fetchUserReports, deleteReport, updateProfile, deleteAccount } from '../lib/api.js';
 import { axiosInstance } from '../lib/axios.js';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +27,7 @@ const ProfilePage = () => {
   const [editName,     setEditName]     = useState(authUser?.full_name || "");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [phoneVerifyOpen, setPhoneVerifyOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const fileInputRef = useRef(null);
   const isAdmin = authUser?.role === "admin";
 
@@ -107,6 +108,22 @@ const ProfilePage = () => {
 
   const handleDelete = (id) => {
     if (window.confirm(t("confirmDelete"))) doDelete(id);
+  };
+
+  const { mutate: doDeleteAccount, isPending: deletingAccount } = useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: () => {
+      toast.success("Account deleted successfully");
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || "Failed to delete account");
+    },
+  });
+
+  const handleDeleteAccount = () => {
+    doDeleteAccount();
   };
 
   if (!authUser) return null;
@@ -469,6 +486,34 @@ const ProfilePage = () => {
       </div>
       </div>
 
+      {/* Danger Zone - Account Deletion (Citizens only) */}
+      {!isAdmin && (
+        <div className="max-w-7xl mx-auto px-4 lg:px-6 pb-8">
+          <div className="bg-red-50 dark:bg-red-900/10 border-2 border-red-200 dark:border-red-900/30 rounded-2xl p-6">
+            <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2">
+              <AlertTriangle size={20} />
+              Danger Zone
+            </h3>
+            <p className="text-sm text-red-600 dark:text-red-400 mb-4">
+              Once you delete your account, there is no going back. This will permanently delete:
+            </p>
+            <ul className="text-sm text-red-600 dark:text-red-400 mb-4 space-y-1 ml-6 list-disc">
+              <li>All your disaster reports</li>
+              <li>All your comments</li>
+              <li>Your profile information</li>
+              <li>Your phone verification status</li>
+            </ul>
+            <button
+              onClick={() => setDeleteModalOpen(true)}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2"
+            >
+              <Trash2 size={16} />
+              Delete My Account
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Edit Profile Modal — citizens only */}
       {editOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
@@ -540,6 +585,72 @@ const ProfilePage = () => {
           onClose={() => setPhoneVerifyOpen(false)}
           onSuccess={() => toast.success('Phone verified! You will now receive emergency alerts.')}
         />
+      )}
+
+      {/* Delete Account Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl w-full max-w-md p-6 shadow-2xl border-2 border-red-500 dark:border-red-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <AlertTriangle size={24} className="text-red-600 dark:text-red-400" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                Delete Account?
+              </h2>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                This action <span className="font-bold text-red-600 dark:text-red-400">cannot be undone</span>. 
+                This will permanently delete your account and remove all your data from our servers.
+              </p>
+              
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 rounded-lg p-3">
+                <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-2">
+                  The following will be permanently deleted:
+                </p>
+                <ul className="text-xs text-red-600 dark:text-red-400 space-y-1 ml-4 list-disc">
+                  <li>{userReports?.length || 0} disaster report(s)</li>
+                  <li>All your comments and interactions</li>
+                  <li>Your profile photo and personal information</li>
+                  <li>Phone verification and alert preferences</li>
+                </ul>
+              </div>
+
+              <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                If you're sure you want to proceed, click "Delete Account" below.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={deletingAccount}
+                className="flex-1 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] rounded-full text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                className="flex-1 py-3 bg-red-600 text-white rounded-full text-sm font-semibold hover:bg-red-700 flex items-center justify-center gap-2 disabled:opacity-60 transition-colors shadow-sm"
+              >
+                {deletingAccount ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    Delete Account
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

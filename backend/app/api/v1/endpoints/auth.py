@@ -209,3 +209,57 @@ def verify_otp(
     db.refresh(current_user)
     
     return {"message": "Phone verified successfully", "phone_verified": True}
+
+# ── Account Deletion ──────────────────────────────────────────────────────────
+
+@router.delete("/me")
+def delete_account(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    """
+    Delete user account permanently
+    - Deletes all user reports
+    - Deletes all user comments
+    - Deletes all user confirmations
+    - Deletes user account
+    - Cannot be undone
+    """
+    from app.models.report import Report
+    from app.models.comment import Comment
+    from app.models.confirmation import ReportConfirmation
+    
+    # Prevent admin account deletion through this endpoint
+    if current_user.role == "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin accounts cannot be deleted through this endpoint. Contact system administrator."
+        )
+    
+    try:
+        # Delete all user's report confirmations
+        db.query(ReportConfirmation).filter(
+            ReportConfirmation.user_id == current_user.id
+        ).delete(synchronize_session=False)
+        
+        # Delete all user's comments
+        db.query(Comment).filter(
+            Comment.user_id == current_user.id
+        ).delete(synchronize_session=False)
+        
+        # Delete all user's reports (cascade will handle media)
+        db.query(Report).filter(
+            Report.user_id == current_user.id
+        ).delete(synchronize_session=False)
+        
+        # Delete the user account
+        db.delete(current_user)
+        db.commit()
+        
+        return {"message": "Account deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete account: {str(e)}"
+        )

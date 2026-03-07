@@ -131,6 +131,11 @@ export const verifyOTP = async (phone, otp) => {
   return res.data;
 };
 
+export const deleteAccount = async () => {
+  const res = await axiosInstance.delete("/auth/me");
+  return res.data;
+};
+
 // ─── GPS ─────────────────────────────────────────────────────────────────────
 
 export const getCurrentPosition = () =>

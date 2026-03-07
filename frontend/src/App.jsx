@@ -8,6 +8,7 @@ import CreateReport from './pages/CreateReport.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import SignupPage from './pages/SignupPage.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
+import AlertsPage from './pages/AlertsPage.jsx';
 import { Loader2 } from 'lucide-react';
 
 const App = () => {
@@ -36,6 +37,7 @@ const App = () => {
       <Routes>
         <Route path="/"      element={<PublicOrProtected><HomePage /></PublicOrProtected>} />
         <Route path="/map"   element={<Protected><MapPage /></Protected>} />
+        <Route path="/alerts" element={<PublicOrProtected><AlertsPage /></PublicOrProtected>} />
         <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
         <Route path="/new"   element={<Protected><CreateReport /></Protected>} />
         <Route path="/admin" element={<AdminOnly><AdminDashboard /></AdminOnly>} />

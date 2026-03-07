@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router";
 import { ClipboardList, Map, LayoutDashboard, X,
-  PlusCircle, LogOut, ShieldAlert, LogIn, Home } from 'lucide-react';
+  PlusCircle, LogOut, ShieldAlert, LogIn, Home, Bell } from 'lucide-react';
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast, Toaster } from "react-hot-toast";
 import { logout } from "../lib/api.js";
@@ -30,6 +30,7 @@ const SideBar = ({ isOpen, onClose }) => {
 
   const navItems = [
     { to: "/",        label: "Home", icon: <Home size={20} />, public: true },
+    { to: "/alerts",  label: "Alerts & Notices", icon: <Bell size={20} />, public: true },
     ...(authUser ? [
       { to: "/profile", label: t("myProfile"), icon: <ClipboardList size={20} /> },
       { to: "/map",     label: t("map"),        icon: <Map size={20} /> },

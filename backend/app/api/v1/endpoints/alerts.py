@@ -25,18 +25,25 @@ def get_alerts(
     query = db.query(Alert).filter(Alert.is_active == True)
 
     # Filter alerts based on user's location if authenticated
-    if current_user:
-        if current_user.district:
-            # Show alerts for user's district OR nationwide (no district set)
-            query = query.filter(
-                (Alert.district == current_user.district) | (Alert.district == None)
-            )
+    if current_user and current_user.role == "citizen":
+        # Citizens see alerts for their location OR nationwide alerts (no district/state set)
+        filters = []
+        
+        # Nationwide alerts (no district and no state)
+        filters.append((Alert.district == None) & (Alert.state == None))
+        
+        # State-level alerts (matching state, no district)
         if current_user.state:
-            query = query.filter(
-                (Alert.state == current_user.state) | (Alert.state == None)
-            )
+            filters.append((Alert.state == current_user.state) & (Alert.district == None))
+        
+        # District-level alerts (matching both district and state)
+        if current_user.district and current_user.state:
+            filters.append((Alert.district == current_user.district) & (Alert.state == current_user.state))
+        
+        from sqlalchemy import or_
+        query = query.filter(or_(*filters))
 
-    alerts = query.order_by(Alert.created_at.desc()).limit(10).all()
+    alerts = query.order_by(Alert.created_at.desc()).limit(20).all()
 
     result = []
     for a in alerts:

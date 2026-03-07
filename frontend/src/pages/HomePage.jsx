@@ -63,7 +63,35 @@ const { data: alerts } = useQuery({
     { id: 4, name: "Disaster Mgmt.",    number: "108",  icon: <Phone size={18} />,        color: "from-sky-500 to-sky-600" },
   ];
 
-  const SidebarContent = () => (
+  const SidebarContent = () => {
+    const severityConfig = {
+      critical: { 
+        bg: "bg-red-50 dark:bg-red-500/10", 
+        border: "border-red-200 dark:border-red-500/20",
+        text: "text-red-600 dark:text-red-400",
+        icon: "text-red-500"
+      },
+      high: { 
+        bg: "bg-orange-50 dark:bg-orange-500/10", 
+        border: "border-orange-200 dark:border-orange-500/20",
+        text: "text-orange-600 dark:text-orange-400",
+        icon: "text-orange-500"
+      },
+      medium: { 
+        bg: "bg-yellow-50 dark:bg-yellow-500/10", 
+        border: "border-yellow-200 dark:border-yellow-500/20",
+        text: "text-yellow-600 dark:text-yellow-400",
+        icon: "text-yellow-500"
+      },
+      low: { 
+        bg: "bg-sky-50 dark:bg-sky-500/10", 
+        border: "border-sky-200 dark:border-sky-500/20",
+        text: "text-sky-600 dark:text-sky-400",
+        icon: "text-sky-500"
+      },
+    };
+
+    return (
     <div className="space-y-4">
       {/* Emergency Contacts */}
       <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl p-4 border border-gray-200 dark:border-[rgb(47,51,54)]">
@@ -90,7 +118,21 @@ const { data: alerts } = useQuery({
       </div>
 
       {/* Government Advisories */}
-{alerts?.filter(a => a.is_active).map((alert) => {
+      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl p-4 border border-gray-200 dark:border-[rgb(47,51,54)]">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <AlertOctagon size={16} className="text-sky-500" /> Government Alerts
+          </h3>
+          <a href="/alerts" className="text-xs font-medium text-sky-500 hover:text-sky-600 transition-colors">
+            View All →
+          </a>
+        </div>
+        
+        {!alerts?.filter(a => a.is_active).length ? (
+          <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">No active alerts</p>
+        ) : (
+          <div className="space-y-2">
+            {alerts.filter(a => a.is_active).slice(0, 3).map((alert) => {
   const severityConfig = {
     critical: { 
       bg: "bg-red-50 dark:bg-red-500/10", 
@@ -121,8 +163,10 @@ const { data: alerts } = useQuery({
   const config = severityConfig[alert.severity] || severityConfig.low;
 
   return (
-    <div key={alert.id}
-      className={`${config.bg} border ${config.border} rounded-2xl p-4`}>
+    <a
+      key={alert.id}
+      href="/alerts"
+      className={`block ${config.bg} border ${config.border} rounded-2xl p-4 hover:shadow-md transition-all`}>
       <div className="flex items-start gap-3">
         <AlertOctagon size={18} className={`${config.icon} shrink-0 mt-0.5`} />
         <div className="flex-1 min-w-0">
@@ -135,15 +179,18 @@ const { data: alerts } = useQuery({
             </span>
           </div>
           <p className={`font-semibold text-sm ${config.text} mb-1`}>{alert.title}</p>
-          <p className={`text-xs ${config.text} opacity-90 leading-relaxed`}>{alert.message}</p>
+          <p className={`text-xs ${config.text} opacity-90 leading-relaxed line-clamp-2`}>{alert.message}</p>
           <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2">
             {alert.admin_name} · {alert.district || "National"} · {new Date(alert.created_at).toLocaleString("en-IN", { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
       </div>
-    </div>
+    </a>
   );
 })}
+          </div>
+        )}
+      </div>
 
       {/* Social Feed */}
       <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl p-4 border border-gray-200 dark:border-[rgb(47,51,54)]">
@@ -171,7 +218,8 @@ const { data: alerts } = useQuery({
         )}
       </div>
     </div>
-  );
+    );
+  };
 
   const IncidentsList = () => (
     <>
