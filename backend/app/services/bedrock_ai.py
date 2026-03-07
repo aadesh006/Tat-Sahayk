@@ -12,18 +12,19 @@ NOVA_PRO_ID = "us.amazon.nova-pro-v1:0"
 NOVA_MICRO_ID = "us.amazon.nova-micro-v1:0"
 
 def fetch_media_base64(url: str):
-    """Fetches media from S3 and returns base64 + media type."""
     if not url: return None, None
     try:
-        ext = url.split('.')[-1].lower()
-        resp = requests.get(url, stream=True, timeout=10)
+        ext = url.split('.')[-1].lower().split('?')[0]  # handle S3 query params
+        resp = requests.get(url, timeout=10)
         if resp.status_code == 200:
-            media_bytes = resp.raw.read(15 * 1024 * 1024)
-            b64_data = base64.b64encode(media_bytes).decode('utf-8')
-            if ext in ['mp4', 'mov', 'webm']:
-                return b64_data, 'video'
-            else:
-                return b64_data, 'image'
+            b64_data = base64.b64encode(resp.content).decode('utf-8')
+            fmt_map = {
+                'jpg': 'jpeg', 'jpeg': 'jpeg',
+                'png': 'png', 'gif': 'gif', 'webp': 'webp',
+                'mp4': 'video', 'mov': 'video', 'webm': 'video'
+            }
+            media_type = fmt_map.get(ext, 'jpeg')
+            return b64_data, media_type
     except Exception as e:
         logger.error(f"Media fetch failed: {e}")
     return None, None
@@ -33,44 +34,51 @@ def ask_forensic_vision_expert(hazard_type, lat, lon, b64_data, media_type):
 
 A citizen submitted a report claiming: "{hazard_type}" at coordinates {lat}, {lon} (India).
 
-Analyze the provided image/video and answer in this EXACT JSON format only:
+Analyze the provided image and answer in this EXACT JSON format only:
 {{
-  "is_disaster_relevant": true/false,
+  "is_disaster_relevant": true,
   "relevance_reason": "one sentence",
-  "is_fake": true/false,
-  "fake_reason": "one sentence or null",
-  "location_plausible": true/false,
+  "is_fake": false,
+  "fake_reason": null,
+  "location_plausible": true,
   "location_reason": "one sentence",
-  "authenticity_score": 0.0 to 1.0,
+  "authenticity_score": 0.0,
   "summary": "one sentence final verdict"
 }}
 
-SCORING RULES — follow strictly:
-- If the image shows NO disaster (e.g. laptop, selfie, food, unrelated scene) → is_disaster_relevant: false, authenticity_score: 0.05
-- If image shows AI-generated artifacts or is clearly fake → is_fake: true, authenticity_score: 0.10
-- If disaster type doesn't match location geography (e.g. coastal flood in Rajasthan desert) → location_plausible: false, authenticity_score: 0.15
-- If image genuinely shows the claimed disaster type with realistic damage → authenticity_score: 0.75 to 0.95
-- Only score above 0.70 if image CLEARLY shows: flood water, fire, earthquake damage, storm damage, industrial accident, or similar real disaster
+SCORING RULES:
+- Image shows NO disaster (laptop, selfie, food, fabric, unrelated) → is_disaster_relevant: false, authenticity_score: 0.05
+- AI-generated artifacts or clearly fake → is_fake: true, authenticity_score: 0.10
+- Disaster type impossible for that geography → location_plausible: false, authenticity_score: 0.15
+- Genuine disaster image with realistic damage → authenticity_score: 0.75 to 0.95
+- Only score above 0.70 if image CLEARLY shows flood, fire, earthquake damage, storm, oil spill, industrial accident
 
-Respond ONLY with the JSON object. No explanation."""
+Respond ONLY with the JSON object."""
 
+    # Nova Pro image format — different from Anthropic Claude
+    img_format = media_type if media_type != "video" else "jpeg"
+    
     body = {
         "messages": [{
             "role": "user",
             "content": [
                 {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": media_type,
-                        "data": b64_data
+                    "image": {
+                        "format": img_format,
+                        "source": {
+                            "bytes": b64_data   # Nova takes base64 string directly
+                        }
                     }
                 },
-                {"type": "text", "text": prompt}
+                {
+                    "text": prompt
+                }
             ]
         }],
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 500
+        "inferenceConfig": {
+            "maxTokens": 500,
+            "temperature": 0.1
+        }
     }
 
     response = bedrock.invoke_model(
@@ -78,9 +86,9 @@ Respond ONLY with the JSON object. No explanation."""
         body=json.dumps(body)
     )
     result = json.loads(response["body"].read())
-    text = result["content"][0]["text"].strip()
     
-    # Strip markdown fences if present
+    # Nova response format — different from Anthropic
+    text = result["output"]["message"]["content"][0]["text"].strip()
     text = text.replace("```json", "").replace("```", "").strip()
     return json.loads(text)
 

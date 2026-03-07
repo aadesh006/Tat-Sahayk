@@ -17,12 +17,34 @@ const ReportModal = ({ report, onClose }) => {
 
   const { mutate: toggleConfirm, isPending: confirmPending } = useMutation({
     mutationFn: () => axiosInstance.post(`/reports/${report.id}/confirm`),
+    onMutate: async () => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['reports'] });
+      
+      // Snapshot previous values
+      const previousConfirmed = confirmed;
+      const previousCount = confirmCount;
+      
+      // Optimistically update UI
+      const newConfirmed = !confirmed;
+      const newCount = newConfirmed ? confirmCount + 1 : Math.max(0, confirmCount - 1);
+      
+      setConfirmed(newConfirmed);
+      setConfirmCount(newCount);
+      
+      return { previousConfirmed, previousCount };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      setConfirmed(context.previousConfirmed);
+      setConfirmCount(context.previousCount);
+      toast.error("Failed to confirm report");
+    },
     onSuccess: (data) => {
+      // Update with actual server values
       setConfirmed(data.data.confirmed);
       setConfirmCount(data.data.confirmation_count);
-      queryClient.invalidateQueries({ queryKey: ['reports'] });
     },
-    onError: () => toast.error("Failed to confirm report"),
   });
 
   const severityStyle = {

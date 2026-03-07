@@ -47,8 +47,6 @@ const SideBar = ({ isOpen, onClose }) => {
 
   return (
     <div>
-      <Toaster />
-
       {/* Dark overlay on mobile when sidebar is open */}
       {isOpen && (
         <div

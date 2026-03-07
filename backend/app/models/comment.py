@@ -9,8 +9,10 @@ class Comment(Base):
     id = Column(Integer, primary_key=True, index=True)
     report_id = Column(Integer, ForeignKey("reports.id", ondelete="CASCADE"))
     user_id = Column(Integer, ForeignKey("users.id"))
+    parent_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=True)  # For threaded replies
     content = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     report = relationship("Report", back_populates="comments")
     author = relationship("User")
+    parent = relationship("Comment", remote_side=[id], backref="replies")  # Self-referential for replies

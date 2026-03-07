@@ -147,8 +147,6 @@ const ProfilePage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black">
-      <Toaster />
-
       {/* Header */}
       <div className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur-md px-4 lg:px-6 py-3 flex items-center gap-4 border-b border-gray-200 dark:border-[rgb(47,51,54)]">
         <Link to="/" className="p-2 hover:bg-gray-100 dark:hover:bg-[rgb(22,22,22)] rounded-full transition-colors">

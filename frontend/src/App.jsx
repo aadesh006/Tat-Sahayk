@@ -10,6 +10,7 @@ import SignupPage from './pages/SignupPage.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AlertsPage from './pages/AlertsPage.jsx';
 import { Loader2 } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 
 const App = () => {
   const { isLoading, authUser } = useAuthUser();
@@ -34,6 +35,60 @@ const App = () => {
 
   return (
     <div className="h-screen">
+      {/* Global Toast Configuration */}
+      <Toaster 
+        position="top-center"
+        toastOptions={{
+          duration: 6000, // Increased to 6 seconds
+          className: '',
+          style: {
+            padding: '16px 20px',
+            borderRadius: '10px',
+            fontSize: '14px',
+            fontWeight: '500',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+            maxWidth: '500px',
+            minWidth: '320px',
+            background: 'white',
+            color: '#1f2937',
+          },
+          success: {
+            duration: 4000,
+            icon: '✓',
+            style: {
+              background: 'white',
+              color: '#1f2937',
+              borderLeft: '4px solid #10b981',
+              boxShadow: '0 8px 24px rgba(16, 185, 129, 0.2)',
+            },
+          },
+          error: {
+            duration: 8000, // Increased to 8 seconds for errors
+            icon: '✕',
+            style: {
+              background: 'white',
+              color: '#1f2937',
+              borderLeft: '4px solid #ef4444',
+              boxShadow: '0 8px 24px rgba(239, 68, 68, 0.2)',
+            },
+          },
+          loading: {
+            duration: Infinity, // Loading toasts stay until dismissed
+            icon: '⏳',
+            style: {
+              background: 'white',
+              color: '#1f2937',
+              borderLeft: '4px solid #3b82f6',
+              boxShadow: '0 8px 24px rgba(59, 130, 246, 0.2)',
+            },
+          },
+        }}
+        containerStyle={{
+          top: 80,
+          zIndex: 99999,
+        }}
+      />
+      
       <Routes>
         <Route path="/"      element={<PublicOrProtected><HomePage /></PublicOrProtected>} />
         <Route path="/map"   element={<Protected><MapPage /></Protected>} />

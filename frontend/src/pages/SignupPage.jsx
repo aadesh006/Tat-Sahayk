@@ -33,7 +33,6 @@ const SignupPage = () => {
 
   const {
     mutate: signupMutation,
-    error,
     isPending,
   } = useMutation({
     mutationFn: signup,
@@ -44,8 +43,12 @@ const SignupPage = () => {
       window.location.href = "/";
     },
     onError: (err) => {
+      console.error("Signup error:", err);
       const errorMsg = err?.message || err?.response?.data?.detail || "Signup failed. Please try again.";
-      toast.error(errorMsg);
+      toast.error(errorMsg, {
+        duration: 8000,
+      });
+      // Don't reset form on error - keep the entered values
     },
   });
 
@@ -57,8 +60,11 @@ const SignupPage = () => {
       window.location.href = "/";
     },
     onError: (err) => {
+      console.error("Google signup error:", err);
       const errorMsg = err?.message || err?.response?.data?.detail || "Google signup failed";
-      toast.error(errorMsg);
+      toast.error(errorMsg, {
+        duration: 8000,
+      });
     },
   });
 
@@ -106,15 +112,7 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-black flex flex-col items-center justify-center p-4 sm:p-6 relative">
-       <Toaster position="top-center" toastOptions={{
-        duration: 4000,
-        style: {
-          background: 'rgb(var(--bg-secondary))',
-          color: 'rgb(var(--text-primary))',
-        },
-      }} />
-      
+    <div className="min-h-screen bg-slate-50 dark:bg-black flex flex-col items-center p-4 sm:p-6 py-8 sm:py-12 relative overflow-y-auto">
       {/* Top-right controls - adjusted for mobile */}
       <div className="absolute top-3 right-3 sm:top-6 sm:right-6 flex items-center gap-1.5 sm:gap-2">
         {/* Theme toggle */}

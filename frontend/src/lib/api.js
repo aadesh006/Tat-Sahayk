@@ -309,8 +309,11 @@ export const fetchComments = async (reportId) => {
   return res.data;
 };
 
-export const postComment = async ({ reportId, content }) => {
-  const res = await axiosInstance.post(`/reports/${reportId}/comments`, { content });
+export const postComment = async ({ reportId, content, parent_id }) => {
+  const res = await axiosInstance.post(`/reports/${reportId}/comments`, { 
+    content,
+    parent_id: parent_id || null
+  });
   return res.data;
 };
 

@@ -2,11 +2,23 @@
 <html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/anchor-nobg.png" />
+    <link rel="icon" type="image/png" href="/anchor-nobg.png" sizes="any" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>तट-Sahayk - Coastal Disaster Management</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0ea5e9" />
+    <meta name="description" content="Coastal Disaster Management and Reporting System" />
+    
     <!-- Google OAuth -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <style>
+      /* Ensure favicon maintains aspect ratio */
+      link[rel="icon"] {
+        object-fit: contain;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

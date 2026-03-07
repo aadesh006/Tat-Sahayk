@@ -72,8 +72,6 @@ const AlertsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black">
-      <Toaster />
-
       {/* Header */}
       <div className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur-md px-4 lg:px-6 py-3 border-b border-gray-200 dark:border-[rgb(47,51,54)]">
         <div className="max-w-5xl mx-auto flex items-center gap-4">

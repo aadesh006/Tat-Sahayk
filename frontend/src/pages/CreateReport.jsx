@@ -120,7 +120,6 @@ const CreateReport = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black p-4 md:p-6">
-      <Toaster />
       <div className="max-w-2xl mx-auto">
         <main className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl border border-gray-200 dark:border-[rgb(47,51,54)] shadow-lg overflow-hidden">
           <div className="p-6 border-b border-gray-200 dark:border-[rgb(47,51,54)] bg-white dark:bg-[rgb(22,22,22)]">

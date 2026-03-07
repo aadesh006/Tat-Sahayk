@@ -194,8 +194,6 @@ const MapPage = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-black overflow-hidden">
-      <Toaster />
-
       {/* ── Top Bar ── Always visible, doesn't hide on zoom */}
       <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-3 md:px-4 py-2 md:py-3 flex items-center gap-2 md:gap-3 shrink-0 relative z-10">
         <div className="min-w-0">
@@ -259,10 +257,10 @@ const MapPage = () => {
       </div>
 
       {/* ── Map + Sidebar layout ── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden pointer-events-none">
 
         {/* MAP */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative pointer-events-auto">
           {addMode && (
             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-yellow-400 text-yellow-900 px-4 py-2 rounded-full text-xs font-semibold shadow-lg flex items-center gap-2">
               <Crosshair size={14} />
@@ -508,7 +506,7 @@ const MapPage = () => {
 
         {/* ── Admin Right Panel ── */}
         {isAdmin && (addMode || showForcePanel) && (
-          <div className="w-80 bg-white dark:bg-[rgb(22,22,22)] border-l border-gray-200 dark:border-[rgb(47,51,54)] overflow-y-auto flex flex-col">
+          <div className="w-80 bg-white dark:bg-[rgb(22,22,22)] border-l border-gray-200 dark:border-[rgb(47,51,54)] overflow-y-auto flex flex-col pointer-events-auto">
 
             {/* Annotation form */}
             {addMode === "annotation" && (

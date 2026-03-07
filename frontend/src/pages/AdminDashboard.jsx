@@ -374,8 +374,6 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black">
-      <Toaster />
-
       {/* ── Top Header Bar ── */}
       <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-6 py-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">

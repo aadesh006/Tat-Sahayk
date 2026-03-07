@@ -321,16 +321,17 @@ def create_report(
     # Create the report
     report = crud_report.create_report(db=db, report=report_in, user_id=current_user.id)
     
-    # Stamp district using reverse geocoding
-    if report.latitude and report.longitude:
-        district = get_district_from_coords(report.latitude, report.longitude)
-        if district:
-            report.district = district
-            db.commit()
-            db.refresh(report)
-    
     # Get image URL for AI analysis
     image_url = report.media[0].file_path if report.media else None
+    
+    # Move geocoding to background task for faster response
+    if report.latitude and report.longitude:
+        background_tasks.add_task(
+            update_report_district_bg,
+            report.id,
+            report.latitude,
+            report.longitude
+        )
     
     # Schedule background AI analysis
     background_tasks.add_task(
@@ -344,6 +345,25 @@ def create_report(
     )
     
     return report
+
+
+def update_report_district_bg(report_id: int, latitude: float, longitude: float):
+    """Background task to update report district via reverse geocoding"""
+    from app.db.session import SessionLocal
+    from app.services.geocode import get_district_from_coords
+    
+    db = SessionLocal()
+    try:
+        report = db.query(Report).filter(Report.id == report_id).first()
+        if report:
+            district = get_district_from_coords(latitude, longitude)
+            if district:
+                report.district = district
+                db.commit()
+    except Exception as e:
+        logger.error(f"Failed to update district for report {report_id}: {e}")
+    finally:
+        db.close()
 
 # DYNAMIC ROUTES
 
