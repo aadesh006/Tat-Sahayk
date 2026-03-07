@@ -201,7 +201,7 @@ const { data: alerts } = useQuery({
         {!socialFeed?.length ? (
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">{t("noUpdates")} — feed runs every 15 min</p>
         ) : (
-          <div className="space-y-2 max-h-[500px] overflow-y-auto">
+          <div className="space-y-2 max-h-[500px] overflow-y-auto scrollbar-hide">
             {socialFeed.slice(0, 10).map((post) => (
               <a key={post.id} href={post.url || "#"} target="_blank" rel="noopener noreferrer"
                 className="block p-3 rounded-xl bg-gray-50 dark:bg-[rgb(38,38,38)] hover:bg-gray-100 dark:hover:bg-[rgb(47,51,54)] border border-gray-100 dark:border-[rgb(47,51,54)] transition-all group">
@@ -280,14 +280,14 @@ const { data: alerts } = useQuery({
         </button>
       </div>
 
-      <div className="lg:hidden p-3">
+      <div className="lg:hidden p-3 pb-8">
         {mobileTab === "incidents" && <IncidentsList />}
         {mobileTab === "sidebar"   && <SidebarContent />}
       </div>
 
       <div className="hidden lg:flex gap-6 p-6 max-w-7xl mx-auto h-[calc(100vh-4rem)]">
-        <section className="flex-1 min-w-0 overflow-y-auto"><IncidentsList /></section>
-        <aside className="w-80 shrink-0 overflow-y-auto"><div className="sticky top-0"><SidebarContent /></div></aside>
+        <section className="flex-1 min-w-0 overflow-y-auto pb-8 scrollbar-hide"><IncidentsList /></section>
+        <aside className="w-80 shrink-0 overflow-y-auto pb-8 scrollbar-hide"><div className="sticky top-0"><SidebarContent /></div></aside>
       </div>
 
       {/* Report Modal */}
