@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router";
 import { ClipboardList, Map, LayoutDashboard, X,
-  PlusCircle, LogOut, ShieldAlert, LogIn, Home, Bell } from 'lucide-react';
+  PlusCircle, LogOut, ShieldAlert, LogIn, Home, Bell, MapPin, User } from 'lucide-react';
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast, Toaster } from "react-hot-toast";
 import { logout } from "../lib/api.js";
@@ -31,12 +31,15 @@ const SideBar = ({ isOpen, onClose }) => {
   const navItems = [
     { to: "/",        label: "Home", icon: <Home size={20} />, public: true },
     { to: "/alerts",  label: "Alerts & Notices", icon: <Bell size={20} />, public: true },
-    ...(authUser ? [
-      { to: "/profile", label: t("myProfile"), icon: <ClipboardList size={20} /> },
+    ...(authUser && !isAdmin ? [
+      { to: "/profile", label: t("myProfile"), icon: <User size={20} /> },
       { to: "/map",     label: t("map"),        icon: <Map size={20} /> },
     ] : []),
-    // Admin Panel link only appears for admins
-    ...(isAdmin ? [{ to: "/admin", label: t("adminPanel"), icon: <ShieldAlert size={20} /> }] : []),
+    // Admin sees Map link
+    ...(isAdmin ? [
+      { to: "/map",     label: t("map"),        icon: <Map size={20} /> },
+      { to: "/admin",   label: t("adminPanel"), icon: <ShieldAlert size={20} /> }
+    ] : []),
   ];
 
   const active   = "bg-cyan-200 dark:bg-blue-900 text-blue-900 dark:text-blue-200";
@@ -67,8 +70,10 @@ const SideBar = ({ isOpen, onClose }) => {
 
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-6 shrink-0">
-          <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent hover:from-sky-600 hover:to-blue-700 transition-all">
-            तट-Sahayk
+          <Link to="/" className="hover:opacity-80 transition-opacity">
+            <span className="text-2xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
+              तट-Sahayk
+            </span>
           </Link>
           <button onClick={onClose} className="lg:hidden text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg p-2 transition-colors">
             <X size={20} />
@@ -105,7 +110,7 @@ const SideBar = ({ isOpen, onClose }) => {
           )}
         </nav>
 
-        {/* Bottom — user info + sign out/login - always visible */}
+        {/* Bottom — user info - always visible, no sign out button here */}
         <div className="p-3 shrink-0 bg-white dark:bg-black">
           {authUser ? (
             <>
@@ -115,8 +120,8 @@ const SideBar = ({ isOpen, onClose }) => {
                 </p>
                 <p className="text-xs text-gray-500 dark:text-[rgb(139,152,165)] truncate">{authUser.email}</p>
                 {isAdmin && authUser.district && (
-                  <p className="text-xs text-sky-500 dark:text-sky-400 truncate mt-1">
-                    📍 {authUser.district}, {authUser.state}
+                  <p className="text-xs text-sky-500 dark:text-sky-400 truncate mt-1 flex items-center gap-1">
+                    <MapPin size={12} /> {authUser.district}, {authUser.state}
                   </p>
                 )}
                 {isAdmin && (
@@ -125,17 +130,6 @@ const SideBar = ({ isOpen, onClose }) => {
                   </span>
                 )}
               </div>
-
-              <button
-                onClick={() => logoutMutation()}
-                disabled={isPending}
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-red-500 dark:text-red-400 font-medium text-sm hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-all"
-              >
-                <LogOut size={18} />
-                <span className="text-sm">
-                  {isPending ? "Signing out..." : t("signOut")}
-                </span>
-              </button>
             </>
           ) : (
             <Link

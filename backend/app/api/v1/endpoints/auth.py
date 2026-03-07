@@ -84,7 +84,17 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
     user = crud_user.get_user_by_email(db, email=user_in.email)
     if user:
         raise HTTPException(status_code=400, detail="Email already registered")
-    return crud_user.create_user(db, user=user_in)
+    
+    # Create user
+    new_user = crud_user.create_user(db, user=user_in)
+    
+    # Set default admin profile photo if admin
+    if new_user.role == "admin" and not new_user.profile_photo:
+        new_user.profile_photo = "/Admin DP.jpeg"
+        db.commit()
+        db.refresh(new_user)
+    
+    return new_user
 
 @router.post("/login", response_model=Token)
 def login(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
@@ -120,6 +130,12 @@ def admin_login(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestF
             detail="This portal is for government administrators only. Please use the Citizen login."
         )
     
+    # Set default admin profile photo if not set
+    if not user.profile_photo:
+        user.profile_photo = "/Admin DP.jpeg"
+        db.commit()
+        db.refresh(user)
+    
     access_token = create_access_token(
         data={"sub": user.email},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -130,13 +146,16 @@ def admin_login(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestF
 def get_me(current_user: User = Depends(deps.get_current_user)):
     return current_user
 
-@router.patch("/me", response_model=UserResponse)
-def update_me(
-    user_in: UserUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user)
-):
-    return crud_user.update_user(db, user=current_user, update=user_in)
+@router.patch("/me")
+def update_me(data: UserUpdate, db: Session = Depends(get_db), 
+              current_user: User = Depends(deps.get_current_user)):
+    if data.full_name     is not None: current_user.full_name     = data.full_name
+    if data.profile_photo is not None: current_user.profile_photo = data.profile_photo
+    if data.latitude      is not None: current_user.latitude      = data.latitude
+    if data.longitude     is not None: current_user.longitude     = data.longitude
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 @router.patch("/update-location")
 def update_user_location(

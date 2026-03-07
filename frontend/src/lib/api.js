@@ -52,7 +52,30 @@ export const adminLogin = async ({ email, password }) => {
     });
     localStorage.setItem("token", res.data.access_token);
     const userRes = await axiosInstance.get("/auth/me");
-    return { user: userRes.data };
+    const user = userRes.data;
+    
+    // Auto-save location for admins on login
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          try {
+            await axiosInstance.patch("/auth/me", {
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            });
+          } catch (err) {
+            console.error("Failed to save admin location:", err);
+            // Don't throw - location save is optional
+          }
+        },
+        (error) => {
+          console.warn("Geolocation denied or unavailable:", error);
+          // Don't throw - location is optional
+        }
+      );
+    }
+    
+    return { user };
   } catch (error) {
     // Re-throw the error with proper message
     if (error.response?.status === 401) {
@@ -163,10 +186,11 @@ const normalizeReport = (r) => ({
       : "Location unavailable",
 });
 
-export const fetchReports = async ({ status, severity } = {}) => {
+export const fetchReports = async ({ status, severity, allReports = false } = {}) => {
   const params = new URLSearchParams();
   if (status) params.append("status", status);
   if (severity) params.append("severity", severity);
+  if (allReports) params.append("all_reports", "true");
   const res = await axiosInstance.get(`/reports/?${params.toString()}`);
   return res.data.map(normalizeReport);
 };

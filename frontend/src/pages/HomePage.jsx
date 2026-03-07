@@ -26,7 +26,7 @@ const HomePage = () => {
 
   const { data: reports, isLoading: reportsLoading } = useQuery({
     queryKey: ['reports', statusFilter],
-    queryFn: () => fetchReports({ status: statusFilter || undefined }),
+    queryFn: () => fetchReports({ status: statusFilter || undefined, allReports: true }),
   });
 
   const { data: socialFeed } = useQuery({
@@ -201,8 +201,8 @@ const { data: alerts } = useQuery({
         {!socialFeed?.length ? (
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">{t("noUpdates")} — feed runs every 15 min</p>
         ) : (
-          <div className="space-y-2">
-            {socialFeed.slice(0, 4).map((post) => (
+          <div className="space-y-2 max-h-[500px] overflow-y-auto">
+            {socialFeed.slice(0, 10).map((post) => (
               <a key={post.id} href={post.url || "#"} target="_blank" rel="noopener noreferrer"
                 className="block p-3 rounded-xl bg-gray-50 dark:bg-[rgb(38,38,38)] hover:bg-gray-100 dark:hover:bg-[rgb(47,51,54)] border border-gray-100 dark:border-[rgb(47,51,54)] transition-all group">
                 <div className="flex items-center justify-between mb-1.5">
@@ -285,9 +285,9 @@ const { data: alerts } = useQuery({
         {mobileTab === "sidebar"   && <SidebarContent />}
       </div>
 
-      <div className="hidden lg:flex gap-6 p-6 max-w-7xl mx-auto">
-        <section className="flex-1 min-w-0"><IncidentsList /></section>
-        <aside className="w-80 shrink-0"><div className="sticky top-6"><SidebarContent /></div></aside>
+      <div className="hidden lg:flex gap-6 p-6 max-w-7xl mx-auto h-[calc(100vh-4rem)]">
+        <section className="flex-1 min-w-0 overflow-y-auto"><IncidentsList /></section>
+        <aside className="w-80 shrink-0 overflow-y-auto"><div className="sticky top-0"><SidebarContent /></div></aside>
       </div>
 
       {/* Report Modal */}

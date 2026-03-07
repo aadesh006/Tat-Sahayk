@@ -28,68 +28,115 @@ def fetch_media_base64(url: str):
         logger.error(f"Media fetch failed: {e}")
     return None, None
 
-def ask_forensic_vision_expert(hazard_type: str, lat: float, lon: float, b64_data: str, media_type: str) -> dict:
-    """Nova Pro analyzes the media for deepfakes, old footage, and location mismatches."""
-    if not b64_data:
-        return {"score": 0.5, "reasoning": "No media provided."}
+def ask_forensic_vision_expert(hazard_type, lat, lon, b64_data, media_type):
+    prompt = f"""You are a disaster verification expert for an Indian emergency response system.
 
-    if media_type == 'video':
-        media_block = {"video": {"format": "mp4", "source": {"bytes": b64_data}}}
-    else:
-        media_block = {"image": {"format": "jpeg", "source": {"bytes": b64_data}}}
+A citizen submitted a report claiming: "{hazard_type}" at coordinates {lat}, {lon} (India).
 
-    prompt = f"""You are a Digital Forensic Analyst for a disaster management system.
-A user reported a '{hazard_type}' at coordinates {lat}°N, {lon}°E.
-
-Analyze the attached media and check for:
-1. AI Generation: Deepfake artifacts, weird physics, inconsistent lighting.
-2. Dated Footage: Does this look like recycled/old viral footage?
-3. Location Mismatch: Does the terrain/weather contradict the coordinates ({lat}°N, {lon}°E)?
-
-Respond ONLY with a JSON object:
+Analyze the provided image/video and answer in this EXACT JSON format only:
 {{
-  "is_fake": <boolean true or false>,
-  "score": <float 0.0-1.0>,
-  "reasoning": "<1-2 sentence forensic justification>"
-}}"""
+  "is_disaster_relevant": true/false,
+  "relevance_reason": "one sentence",
+  "is_fake": true/false,
+  "fake_reason": "one sentence or null",
+  "location_plausible": true/false,
+  "location_reason": "one sentence",
+  "authenticity_score": 0.0 to 1.0,
+  "summary": "one sentence final verdict"
+}}
 
-    try:
-        response = bedrock.invoke_model(
-            modelId=NOVA_PRO_ID,
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps({
-                "messages": [{"role": "user", "content": [media_block, {"text": prompt}]}],
-                "inferenceConfig": {"maxTokens": 200, "temperature": 0.1}
-            })
-        )
-        res_text = json.loads(response["body"].read())["output"]["message"]["content"][0]["text"]
-        return json.loads(res_text.strip("```json").strip("```").strip())
-    except Exception as e:
-        logger.error(f"Forensic expert failed: {e}")
-        return {"is_fake": False, "score": 0.5, "reasoning": "Forensic analysis failed."}
+SCORING RULES — follow strictly:
+- If the image shows NO disaster (e.g. laptop, selfie, food, unrelated scene) → is_disaster_relevant: false, authenticity_score: 0.05
+- If image shows AI-generated artifacts or is clearly fake → is_fake: true, authenticity_score: 0.10
+- If disaster type doesn't match location geography (e.g. coastal flood in Rajasthan desert) → location_plausible: false, authenticity_score: 0.15
+- If image genuinely shows the claimed disaster type with realistic damage → authenticity_score: 0.75 to 0.95
+- Only score above 0.70 if image CLEARLY shows: flood water, fire, earthquake damage, storm damage, industrial accident, or similar real disaster
 
-def analyze_single_report(description: str, hazard_type: str, media_url: str, lat: float, lon: float) -> dict:
-    """Runs media forensics and text plausibility."""
-    b64_data, media_type = fetch_media_base64(media_url)
-    
-    forensic_data = ask_forensic_vision_expert(hazard_type, lat, lon, b64_data, media_type)
-    
-    final_score = forensic_data.get("score", 0.5)
-    is_fake = forensic_data.get("is_fake", False)
-    
-    if is_fake or final_score < 0.3:
-        status = "false"
-        summary = f"AUTO-REJECTED (Fake/Mismatch): {forensic_data.get('reasoning')}"
-    else:
-        status = "pending"
-        summary = f"PASSED FORENSICS [{final_score*100:.0f}%]: {forensic_data.get('reasoning')}"
-        
-    return {
-        "authenticity_score": round(final_score, 2),
-        "preliminary_summary": summary,
-        "recommended_status": status
+Respond ONLY with the JSON object. No explanation."""
+
+    body = {
+        "messages": [{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": media_type,
+                        "data": b64_data
+                    }
+                },
+                {"type": "text", "text": prompt}
+            ]
+        }],
+        "max_tokens": 500,
+        "anthropic_version": "bedrock-2023-05-31"
     }
+
+    response = bedrock.invoke_model(
+        modelId=NOVA_PRO_ID,
+        body=json.dumps(body)
+    )
+    result = json.loads(response["body"].read())
+    text = result["content"][0]["text"].strip()
+    
+    # Strip markdown fences if present
+    text = text.replace("```json", "").replace("```", "").strip()
+    return json.loads(text)
+
+def analyze_single_report(description, hazard_type, media_url, lat, lon):
+    try:
+        # If no image, do a text-only plausibility check
+        if not media_url:
+            return {
+                "authenticity_score": 0.4,
+                "preliminary_summary": "No image provided — cannot verify visually.",
+                "recommended_status": "pending"
+            }
+
+        b64_data, media_type = fetch_media_base64(media_url)
+        vision = ask_forensic_vision_expert(hazard_type, lat, lon, b64_data, media_type)
+
+        score = vision.get("authenticity_score", 0.3)
+        is_fake = vision.get("is_fake", False)
+        is_relevant = vision.get("is_disaster_relevant", True)
+        location_plausible = vision.get("location_plausible", True)
+
+        # Build human-readable summary
+        flags = []
+        if not is_relevant:
+            flags.append("image does not show a disaster")
+        if is_fake:
+            flags.append("possible AI-generated or recycled image")
+        if not location_plausible:
+            flags.append("disaster type doesn't match location geography")
+
+        if flags:
+            summary = f"FLAGGED [{int(score*100)}%]: {', '.join(flags).capitalize()}. {vision.get('summary','')}"
+        else:
+            summary = f"PASSED FORENSICS [{int(score*100)}%]: {vision.get('summary','')}"
+
+        # Determine status
+        if not is_relevant or is_fake or score < 0.25:
+            status = "false"
+        elif score < 0.50 or not location_plausible:
+            status = "pending"   # needs human review
+        else:
+            status = "pending"   # still needs admin confirm, but high confidence
+
+        return {
+            "authenticity_score": score,
+            "preliminary_summary": summary,
+            "recommended_status": status
+        }
+
+    except Exception as e:
+        print(f"AI analysis error: {e}")
+        return {
+            "authenticity_score": 0.3,
+            "preliminary_summary": "AI analysis failed — manual review required.",
+            "recommended_status": "pending"
+        }
 
 def analyze_report_cluster(reports_data: list) -> dict:
     """Analyzes a cluster of verified reports to generate a unified situation summary."""

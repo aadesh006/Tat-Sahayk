@@ -12,6 +12,7 @@ class CommentResponse(BaseModel):
     content: str
     created_at: datetime
     author_name: Optional[str] = None
+    author_profile_photo: Optional[str] = None
 
     class Config:
         from_attributes = True

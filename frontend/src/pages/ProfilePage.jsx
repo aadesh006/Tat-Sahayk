@@ -10,6 +10,8 @@ import { axiosInstance } from '../lib/axios.js';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import PhoneVerificationModal from '../components/PhoneVerificationModal.jsx';
+import ReportModal from '../components/ReportModal.jsx';
+import ReportCard from '../components/ReportCard.jsx';
 
 const STATUS_FILTERS = [
   { label: "All",             value: "" },
@@ -28,6 +30,7 @@ const ProfilePage = () => {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [phoneVerifyOpen, setPhoneVerifyOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedReport, setSelectedReport] = useState(null);
   const fileInputRef = useRef(null);
   const isAdmin = authUser?.role === "admin";
 
@@ -166,12 +169,22 @@ const ProfilePage = () => {
       <div className="max-w-7xl mx-auto px-4 lg:px-6">
       {/* Cover + Avatar */}
       <div className="h-32 md:h-48 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-[rgb(38,38,38)] dark:to-[rgb(47,51,54)] relative">
-        <div className="absolute -bottom-14 left-4 lg:left-8 p-1 bg-white dark:bg-black rounded-full">
+        {/* Banner Image */}
+        <img 
+          src="/Profile Banner.jpeg" 
+          alt="Profile Banner" 
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            // Fallback to gradient if image fails to load
+            e.target.style.display = 'none';
+          }}
+        />
+        <div className="absolute -bottom-12 md:-bottom-16 left-4 lg:left-8 p-1 bg-white dark:bg-black rounded-full z-10">
           <div className="relative group">
             {/* Profile Photo or Initial */}
-            {authUser.profile_photo ? (
+            {(authUser.profile_photo || (isAdmin && '/Admin DP.jpeg')) ? (
               <img
-                src={authUser.profile_photo}
+                src={authUser.profile_photo || '/Admin DP.jpeg'}
                 alt={authUser.full_name}
                 className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white dark:border-black object-cover shadow-lg"
               />
@@ -220,7 +233,7 @@ const ProfilePage = () => {
       </div>
 
       {/* Edit Button row */}
-      <div className="flex justify-end p-4 lg:px-8 h-16 md:h-20">
+      <div className="flex justify-end p-4 lg:px-8 h-14 md:h-20">
         {!isAdmin && (
           <button
             onClick={() => { setEditName(authUser.full_name || ""); setEditOpen(true); }}
@@ -257,8 +270,8 @@ const ProfilePage = () => {
               Government Admin
             </span>
             {authUser.district && (
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                📍 {authUser.district}, {authUser.state}
+              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <MapPin size={12} /> {authUser.district}, {authUser.state}
               </span>
             )}
             <p className="w-full text-xs text-gray-400 dark:text-gray-500 mt-2">
@@ -267,25 +280,8 @@ const ProfilePage = () => {
           </div>
         )}
 
-        {/* Phone Verification Badge - Citizens only */}
-        {!isAdmin && (
-          <div className="mt-3">
-            {authUser.phone_verified ? (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs font-semibold rounded-full border border-green-200 dark:border-green-500/20">
-                <PhoneCall size={14} />
-                Phone Verified: +91 {authUser.phone}
-              </div>
-            ) : (
-              <button
-                onClick={() => setPhoneVerifyOpen(true)}
-                className="inline-flex items-center gap-2 px-3 py-1.5 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 text-xs font-semibold rounded-full border border-yellow-200 dark:border-yellow-500/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors"
-              >
-                <AlertTriangle size={14} />
-                Verify Phone Number
-              </button>
-            )}
-          </div>
-        )}
+        {/* Phone Verification Badge - Citizens only - REMOVED */}
+        {/* Verification is automatic, no manual action needed */}
       </div>
 
       {/* Filter Bar — citizens only */}
@@ -438,45 +434,12 @@ const ProfilePage = () => {
           </div>
         ) : userReports?.length > 0 ? (
           userReports.map((report) => (
-            <article
+            <ReportCard
               key={report.id}
-              className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] overflow-hidden rounded-2xl hover:border-gray-300 dark:hover:border-[rgb(71,85,105)] transition-all"
-            >
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                      <Clock size={12} /> {report.date}
-                    </div>
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2 flex-wrap">
-                      {report.disasterType} {statusBadge(report.status)}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                      <MapPin size={12} className="text-red-500" /> {report.location}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(report.id)}
-                    className="p-2 text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
-                <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-[rgb(38,38,38)] p-3 rounded-xl border border-gray-100 dark:border-[rgb(47,51,54)]">
-                  {report.description}
-                </p>
-
-                {report.image && (
-                  <img
-                    src={report.image}
-                    alt="Report"
-                    className="mt-3 w-full max-h-64 object-contain rounded-xl border border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-50 dark:bg-[rgb(38,38,38)]"
-                    onError={(e) => { e.target.style.display = "none"; }}
-                  />
-                )}
-              </div>
-            </article>
+              report={report}
+              onDelete={handleDelete}
+              onCardClick={(r) => setSelectedReport(r)}
+            />
           ))
         ) : (
           <div className="text-center py-16 text-gray-400 dark:text-gray-500">
@@ -489,27 +452,43 @@ const ProfilePage = () => {
       {/* Danger Zone - Account Deletion (Citizens only) */}
       {!isAdmin && (
         <div className="max-w-7xl mx-auto px-4 lg:px-6 pb-8">
-          <div className="bg-red-50 dark:bg-red-900/10 border-2 border-red-200 dark:border-red-900/30 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2">
-              <AlertTriangle size={20} />
-              Danger Zone
-            </h3>
-            <p className="text-sm text-red-600 dark:text-red-400 mb-4">
-              Once you delete your account, there is no going back. This will permanently delete:
-            </p>
-            <ul className="text-sm text-red-600 dark:text-red-400 mb-4 space-y-1 ml-6 list-disc">
-              <li>All your disaster reports</li>
-              <li>All your comments</li>
-              <li>Your profile information</li>
-              <li>Your phone verification status</li>
-            </ul>
-            <button
-              onClick={() => setDeleteModalOpen(true)}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2"
-            >
-              <Trash2 size={16} />
-              Delete My Account
-            </button>
+          <div className="bg-white dark:bg-[rgb(22,22,22)] border border-red-200 dark:border-red-900/40 rounded-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/30 dark:to-orange-950/30 px-6 py-4 border-b border-red-200 dark:border-red-900/40">
+              <h3 className="text-base font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
+                <AlertTriangle size={18} />
+                Danger Zone
+              </h3>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+                Once you delete your account, there is no going back. This will permanently delete:
+              </p>
+              <ul className="text-sm text-gray-600 dark:text-gray-400 mb-5 space-y-1.5 ml-1">
+                <li className="flex items-center gap-2">
+                  <div className="w-1 h-1 rounded-full bg-red-500"></div>
+                  All your disaster reports
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1 h-1 rounded-full bg-red-500"></div>
+                  All your comments
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1 h-1 rounded-full bg-red-500"></div>
+                  Your profile information
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1 h-1 rounded-full bg-red-500"></div>
+                  Your phone verification status
+                </li>
+              </ul>
+              <button
+                onClick={() => setDeleteModalOpen(true)}
+                className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-all flex items-center gap-2 shadow-sm hover:shadow-md"
+              >
+                <Trash2 size={16} />
+                Delete My Account
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -651,6 +630,14 @@ const ProfilePage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Report Modal */}
+      {selectedReport && (
+        <ReportModal
+          report={selectedReport}
+          onClose={() => setSelectedReport(null)}
+        />
       )}
     </div>
   );

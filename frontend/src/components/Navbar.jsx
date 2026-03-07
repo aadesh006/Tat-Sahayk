@@ -123,16 +123,14 @@ const Navbar = ({ onMenuClick }) => {
         </button>
         
         {/* Logo - visible on desktop */}
-        <div className="hidden lg:flex items-center gap-2">
-          <div className="text-2xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
-            तट-Sahayk
-          </div>
+        <Link to="/" className="hidden lg:flex items-center hover:opacity-80 transition-opacity">
+          <img src="/anchor-nobg.png" alt="तट-Sahayk Logo" className="h-10 w-auto" />
           {isAdmin && (
-            <span className="px-2 py-1 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-full border border-purple-200 dark:border-purple-500/20">
+            <span className="ml-2 px-2 py-1 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-full border border-purple-200 dark:border-purple-500/20">
               ADMIN
             </span>
           )}
-        </div>
+        </Link>
       </div>
 
       {/* Right controls */}
@@ -230,14 +228,17 @@ const Navbar = ({ onMenuClick }) => {
 
                 {/* Menu items */}
                 <div className="py-1">
-                  <Link
-                    to="/profile"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors"
-                  >
-                    <User size={16} />
-                    <span>{t("myProfile")}</span>
-                  </Link>
+                  {/* Only show My Profile for citizens, not admins */}
+                  {!isAdmin && (
+                    <Link
+                      to="/profile"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors"
+                    >
+                      <User size={16} />
+                      <span>{t("myProfile")}</span>
+                    </Link>
+                  )}
                   
                   <button
                     onClick={() => {

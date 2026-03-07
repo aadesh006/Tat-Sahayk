@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.session import Base
@@ -14,6 +14,8 @@ class User(Base):
     district = Column(String, nullable=True)        # e.g. "Mumbai", "Chennai"
     state = Column(String, nullable=True)
     profile_photo = Column(String, nullable=True)   # URL to profile photo
+    latitude  = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     
     # Phone verification fields
     phone = Column(String, nullable=True)

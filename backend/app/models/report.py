@@ -25,6 +25,9 @@ class Report(Base):
     ai_authenticity_score = Column(Float,  nullable=True)
     ai_analysis_summary   = Column(String, nullable=True)
     ai_analysis_breakdown = Column(Text,   nullable=True)  # JSON string with detailed scores
+    
+    # Location metadata
+    district = Column(String, nullable=True)  # Auto-filled via reverse geocoding
 
     owner    = relationship("User",    back_populates="reports")
     media    = relationship("Media",   back_populates="report")

@@ -167,10 +167,7 @@ const ReportModal = ({ report, onClose }) => {
                 <Share2 size={18} className="group-hover:scale-110 transition-transform" /> 
                 <span>Share</span>
               </button>
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-400 dark:text-gray-500 ml-auto">
-                <ShieldCheck size={18} className={report.is_verified ? "text-emerald-500" : "text-gray-300 dark:text-gray-600"} />
-                <span className="text-xs">{report.is_verified ? t("verified") : t("pending")}</span>
-              </div>
+              {/* Removed pending/verified indicator from action bar */}
             </div>
 
             {/* Comments section */}

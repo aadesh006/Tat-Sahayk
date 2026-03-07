@@ -12,6 +12,7 @@ from app.db.session import SessionLocal, get_db
 import math
 from app.services.bedrock_ai import analyze_single_report
 from app.services.aws_services import send_disaster_alert_email
+from geoalchemy2.functions import ST_DWithin, ST_MakePoint, ST_SetSRID
 
 router = APIRouter()
 
@@ -145,9 +146,14 @@ def get_report_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    # Base query - for now, show all reports to all admins
-    # TODO: Add district/state fields to Report model for proper filtering
+    from app.models.confirmation import ReportConfirmation
+    
+    # Base query
     query = db.query(Report)
+    
+    # Filter by admin's district if admin role
+    if current_user.role == "admin" and current_user.district:
+        query = query.filter(Report.district.ilike(f"%{current_user.district}%"))
     
     # Get SOS triggers (critical severity reports)
     sos_triggers = query.filter(Report.severity == "critical").all()
@@ -166,7 +172,12 @@ def get_report_stats(
                 "latitude": r.latitude,
                 "longitude": r.longitude,
                 "created_at": r.created_at,
-                "reporter_name": r.owner.full_name if r.owner else "Anonymous"
+                "reporter_name": r.owner.full_name if r.owner else "Anonymous",
+                "reporter_profile_photo": r.owner.profile_photo if r.owner else None,
+                "user_confirmed": db.query(ReportConfirmation).filter(
+                    ReportConfirmation.report_id == r.id,
+                    ReportConfirmation.user_id == current_user.id
+                ).first() is not None
             }
             for r in sos_triggers
         ],
@@ -185,8 +196,8 @@ def get_hazard_hotspots(
     # Filter reports by admin's district if admin role
     query = db.query(Report).filter(Report.status != "false")
     if current_user.role == "admin" and current_user.district:
-        # Admin sees only reports in their district
-        query = query.join(User).filter(User.district == current_user.district)
+        # Admin sees only reports in their district (partial match)
+        query = query.filter(Report.district.ilike(f"%{current_user.district}%"))
     
     active_reports = query.all()
     if not active_reports:
@@ -206,10 +217,28 @@ def get_my_reports(
     current_user: User = Depends(deps.get_current_user),
     status: Optional[str] = Query(None)
 ):
+    from app.models.confirmation import ReportConfirmation
+    
     query = db.query(Report).filter(Report.user_id == current_user.id)
     if status:
         query = query.filter(Report.status == status)
-    return query.order_by(Report.created_at.desc()).all()
+    
+    reports = query.order_by(Report.created_at.desc()).all()
+    result = []
+    for r in reports:
+        d = ReportResponse.model_validate(r).model_dump()
+        d["reporter_name"] = r.owner.full_name if r.owner else "Anonymous"
+        d["reporter_profile_photo"] = r.owner.profile_photo if r.owner else None
+        
+        # Add user_confirmed field
+        confirmed = db.query(ReportConfirmation).filter(
+            ReportConfirmation.report_id == r.id,
+            ReportConfirmation.user_id == current_user.id
+        ).first() is not None
+        d["user_confirmed"] = confirmed
+        
+        result.append(d)
+    return result
 
 # 4. GET ALL REPORTS
 @router.get("/")
@@ -219,24 +248,39 @@ def read_reports(
     limit: int = 100,
     status: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
-    current_user: Optional[User] = Depends(deps.get_current_user_optional)
+    all_reports: bool = Query(False),  # New parameter to bypass district filtering
+    current_user: User = Depends(deps.get_current_user_optional),  # optional auth
 ):
+    from app.models.confirmation import ReportConfirmation
+    
     query = db.query(Report)
-    
-    # NOTE: Admins see ALL reports on home page (no district filtering)
-    # District filtering only applies to admin dashboard endpoints (stats, hotspots)
-    
     if status:
         query = query.filter(Report.status == status)
     if severity:
         query = query.filter(Report.severity == severity)
-    reports = query.order_by(Report.created_at.desc()).offset(skip).limit(limit).all()
 
+    # Admin sees only their district's reports UNLESS all_reports=true (for home page)
+    if current_user and current_user.role == "admin" and current_user.district and not all_reports:
+        # Use ilike for partial matching (e.g., "Mumbai" matches "Mumbai Suburban")
+        query = query.filter(Report.district.ilike(f"%{current_user.district}%"))
+
+    reports = query.order_by(Report.created_at.desc()).offset(skip).limit(limit).all()
     result = []
     for r in reports:
         d = ReportResponse.model_validate(r).model_dump()
         d["reporter_name"] = r.owner.full_name if r.owner else "Anonymous"
         d["reporter_profile_photo"] = r.owner.profile_photo if r.owner else None
+        
+        # Add user_confirmed field if user is authenticated
+        if current_user:
+            confirmed = db.query(ReportConfirmation).filter(
+                ReportConfirmation.report_id == r.id,
+                ReportConfirmation.user_id == current_user.id
+            ).first() is not None
+            d["user_confirmed"] = confirmed
+        else:
+            d["user_confirmed"] = False
+        
         result.append(d)
     return result
 
@@ -272,8 +316,18 @@ def create_report(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(deps.get_current_user)
 ):
+    from app.services.geocode import get_district_from_coords
+    
     # Create the report
     report = crud_report.create_report(db=db, report=report_in, user_id=current_user.id)
+    
+    # Stamp district using reverse geocoding
+    if report.latitude and report.longitude:
+        district = get_district_from_coords(report.latitude, report.longitude)
+        if district:
+            report.district = district
+            db.commit()
+            db.refresh(report)
     
     # Get image URL for AI analysis
     image_url = report.media[0].file_path if report.media else None
@@ -293,19 +347,41 @@ def create_report(
 
 # DYNAMIC ROUTES
 
-def serialize_report(r):
+def serialize_report(r, current_user=None):
+    from app.models.confirmation import ReportConfirmation
+    from app.db.session import SessionLocal
+    
     d = ReportResponse.model_validate(r).model_dump()
     d["reporter_name"] = r.owner.full_name if r.owner else "Anonymous"
     d["reporter_profile_photo"] = r.owner.profile_photo if r.owner else None
+    
+    # Add user_confirmed field if user is authenticated
+    if current_user:
+        db = SessionLocal()
+        try:
+            confirmed = db.query(ReportConfirmation).filter(
+                ReportConfirmation.report_id == r.id,
+                ReportConfirmation.user_id == current_user.id
+            ).first() is not None
+            d["user_confirmed"] = confirmed
+        finally:
+            db.close()
+    else:
+        d["user_confirmed"] = False
+    
     return d
 
 # 6. GET SINGLE REPORT
 @router.get("/{report_id}", response_model=ReportResponse)
-def get_report(report_id: int, db: Session = Depends(get_db)):
+def get_report(
+    report_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user_optional)
+):
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    return serialize_report(report)
+    return serialize_report(report, current_user)
 
 # 7. VERIFY REPORT (admin) - Send email alerts to nearby users
 @router.patch("/{report_id}/verify", response_model=ReportResponse)

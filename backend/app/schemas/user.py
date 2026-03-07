@@ -17,8 +17,10 @@ class UserCreate(UserBase):
     phone:    Optional[str] = None
 
 class UserUpdate(BaseModel):
-    full_name:     Optional[str] = None
-    profile_photo: Optional[str] = None
+    full_name:     Optional[str]   = None
+    profile_photo: Optional[str]   = None
+    latitude:      Optional[float] = None
+    longitude:     Optional[float] = None
 
 class UserResponse(UserBase):
     id:         int

@@ -133,10 +133,10 @@ const IssueAlertModal = ({ adminDistrict, adminState, onClose, onSuccess }) => {
                 onChange={(e) => setForm({ ...form, severity: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none text-sm font-medium"
               >
-                <option value="low">🟢 Low</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="high">🟠 High</option>
-                <option value="critical">🔴 Critical</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
               </select>
             </div>
           </div>
@@ -343,6 +343,7 @@ const AdminDashboard = () => {
       toast.success("Report updated");
       queryClient.invalidateQueries({ queryKey: ["adminReports"] });
       queryClient.invalidateQueries({ queryKey: ["reportStats"] });
+      queryClient.invalidateQueries({ queryKey: ["aiClusters"] });
     },
     onError: () => toast.error("Action failed"),
   });
@@ -356,10 +357,10 @@ const AdminDashboard = () => {
   });
 
   const statCards = [
-    { label: "SOS Triggers", value: stats?.total_sos ?? "—", icon: <AlertTriangle size={18} />, color: "text-red-500", bg: "bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800" },
-    { label: "Active Hazards", value: stats?.total_active ?? "—", icon: <Zap size={18} />, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800" },
-    { label: "Flood", value: stats?.hazard_breakdown?.Flood ?? 0, icon: <BarChart3 size={18} />, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800" },
-    { label: "Cyclone", value: stats?.hazard_breakdown?.Cyclone ?? 0, icon: <TrendingUp size={18} />, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-800" },
+    { label: "SOS TRIGGERS", value: stats?.total_sos ?? 0, icon: <AlertTriangle size={20} />, color: "bg-red-500", textColor: "text-white" },
+    { label: "ACTIVE HAZARDS", value: stats?.total_active ?? 0, icon: <Zap size={20} />, color: "bg-blue-500", textColor: "text-white" },
+    { label: "FLOOD", value: stats?.hazard_breakdown?.Flood ?? 0, icon: <BarChart3 size={20} />, color: "bg-sky-500", textColor: "text-white" },
+    { label: "CYCLONE", value: stats?.hazard_breakdown?.Cyclone ?? 0, icon: <TrendingUp size={20} />, color: "bg-purple-500", textColor: "text-white" },
   ];
 
   const FILTERS = [
@@ -399,12 +400,12 @@ const AdminDashboard = () => {
         {/* Stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
           {statCards.map((s) => (
-            <div key={s.label} className={`${s.bg} border rounded-xl p-3 flex items-center gap-3`}>
-              <div className={s.color}>{s.icon}</div>
+            <div key={s.label} className={`${s.color} rounded-xl p-4 flex items-center justify-between shadow-sm`}>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">{s.label}</p>
-                <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-white/80 mb-1">{s.label}</p>
+                <p className={`text-3xl font-black ${s.textColor}`}>{s.value}</p>
               </div>
+              <div className="text-white/80">{s.icon}</div>
             </div>
           ))}
         </div>
@@ -434,23 +435,28 @@ const AdminDashboard = () => {
 
       {activeTab === "ai" && (
   <div className="space-y-4">
-    <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl">
-      <Brain size={14} className="text-blue-500 shrink-0" />
-      <p className="text-xs text-blue-700 dark:text-blue-300">
-        AI clusters reports by location every 15 minutes. Each card = multiple reports from the same area analysed by Amazon Nova.
+    <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl">
+      <Brain size={14} className="text-gray-600 dark:text-gray-400 shrink-0" />
+      <p className="text-xs text-gray-600 dark:text-gray-400">
+        AI clusters reports by location every 15 minutes. Each card represents multiple reports from the same area.
       </p>
     </div>
 
-    {!aiClusters?.length ? (
-      <div className="text-center py-20 bg-white dark:bg-[rgb(22,22,22)] border border-dashed border-gray-300 dark:border-[rgb(47,51,54)] rounded-2xl">
-        <Brain className="mx-auto text-gray-300 mb-2" size={40} />
-        <p className="text-xs text-gray-400 uppercase tracking-widest">No clusters yet — waiting for 2+ reports near each other</p>
-      </div>
-    ) : (
-      aiClusters.map((cluster) => {
-        return (
-          <div key={cluster.cluster_id}
-            className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-5 shadow-sm">
+    {(() => {
+      // Filter out single-report clusters to reduce admin noise
+      const meaningfulClusters = aiClusters?.filter(c => c.report_count >= 2) || [];
+      
+      return !meaningfulClusters.length ? (
+        <div className="text-center py-16 px-6 bg-white dark:bg-[rgb(22,22,22)] border border-dashed border-gray-300 dark:border-[rgb(47,51,54)] rounded-2xl">
+          <Brain className="mx-auto text-gray-300 mb-3" size={48} />
+          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">No Clusters Yet</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">Waiting for 2+ reports near each other</p>
+        </div>
+      ) : (
+        meaningfulClusters.map((cluster) => {
+          return (
+            <div key={cluster.cluster_id}
+              className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-5 shadow-sm">
 
             {/* Header row */}
             <div className="flex items-start justify-between mb-3">
@@ -477,50 +483,51 @@ const AdminDashboard = () => {
             </div>
 
             {/* AI Summary */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-3 mb-3">
-              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1 flex items-center gap-1">
-                <Brain size={10} /> Amazon Nova Analysis
+            <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4 mb-3">
+              <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                <Brain size={10} /> AI Analysis
               </p>
-              <p className="text-sm text-blue-800 dark:text-blue-200">{cluster.ai_summary}</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{cluster.ai_summary}</p>
             </div>
 
             {/* Action buttons */}
             <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => setAlertModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors"
               >
-                <Bell size={13} /> Issue Alert for This Area
+                <Bell size={13} /> Issue Alert
               </button>
               <button
                 onClick={() => {
                   cluster.report_ids.forEach(id => doVerify({ id, status: "verified" }));
                   toast.success(`Verified ${cluster.report_count} reports`);
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
               >
-                <CheckCircle size={13} /> Verify All ({cluster.report_count})
+                <CheckCircle size={13} /> Verify All
               </button>
               <button
                 onClick={() => {
                   cluster.report_ids.forEach(id => doVerify({ id, status: "false" }));
                   toast.success("Marked as fake");
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-[rgb(47,51,54)] transition-colors border border-gray-200 dark:border-[rgb(47,51,54)]"
               >
-                <XCircle size={13} /> Mark All Fake
+                <XCircle size={13} /> Mark Fake
               </button>
               <button
                 onClick={() => setSelectedCluster(cluster)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-sky-500 text-white text-xs font-bold rounded-xl hover:bg-sky-600 transition-colors ml-auto"
+                className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 text-white text-xs font-semibold rounded-lg hover:bg-sky-700 transition-colors ml-auto"
               >
-                <ClipboardList size={13} /> View Individual Reports ({cluster.report_count})
+                <ClipboardList size={13} /> View Reports ({cluster.report_count})
               </button>
             </div>
           </div>
         );
       })
-    )}
+      );
+    })()}
   </div>
 )}
 

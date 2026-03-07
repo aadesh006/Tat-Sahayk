@@ -13,7 +13,7 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmed, setConfirmed] = useState(report.user_confirmed || false);
   const [confirmCount, setConfirmCount] = useState(report.confirmation_count || 0);
 
   const { mutate: toggleConfirm, isPending: confirmPending } = useMutation({
@@ -90,7 +90,7 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
                   ${report.status === "verified" ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20" :
                     report.status === "false"    ? "bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20" :
                                                    "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20"}`}>
-                  {report.status === "false" ? t("rejected") : t(report.status || "pending")}
+                  {report.status === "false" ? "Rejected" : (report.status === "verified" ? "Verified" : "Pending")}
                 </span>
               </h3>
               <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -136,14 +136,14 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
                 <button 
                   onClick={(e) => { e.stopPropagation(); toggleConfirm(); }}
                   disabled={confirmPending}
-                  className={`flex items-center gap-1.5 text-sm font-medium transition-colors group
+                  className={`flex items-center gap-1.5 text-sm font-medium transition-all group
                     ${confirmed 
                       ? "text-sky-500 dark:text-sky-400" 
                       : "text-gray-500 dark:text-gray-400 hover:text-sky-500 dark:hover:text-sky-400"}`}
                 >
-                  <Plus size={16} className={`${confirmed ? "fill-current" : ""} group-hover:scale-110 transition-transform`} />
+                  <Plus size={16} className={`${confirmed ? "fill-current rotate-45" : ""} group-hover:scale-110 transition-transform`} />
                   {confirmCount > 0 && <span className="font-semibold">{confirmCount}</span>}
-                  <span className="hidden sm:inline">Confirm</span>
+                  <span className="hidden sm:inline">{confirmed ? "Confirmed" : "Confirm"}</span>
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); setCommentsOpen((o) => !o); }}
                   className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-sky-500 dark:hover:text-sky-400 transition-colors group">

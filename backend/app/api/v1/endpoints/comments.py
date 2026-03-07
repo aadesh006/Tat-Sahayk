@@ -23,7 +23,8 @@ def get_comments(report_id: int, db: Session = Depends(get_db)):
             user_id=c.user_id,
             content=c.content,
             created_at=c.created_at,
-            author_name=c.author.full_name if c.author else "Unknown"
+            author_name=c.author.full_name if c.author else "Unknown",
+            author_profile_photo=c.author.profile_photo if c.author else None
         ))
     return result
 
@@ -52,7 +53,8 @@ def create_comment(
         user_id=comment.user_id,
         content=comment.content,
         created_at=comment.created_at,
-        author_name=current_user.full_name
+        author_name=current_user.full_name,
+        author_profile_photo=current_user.profile_photo
     )
 
 @router.delete("/{report_id}/comments/{comment_id}", status_code=204)
