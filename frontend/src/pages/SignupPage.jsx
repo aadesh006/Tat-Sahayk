@@ -76,16 +76,22 @@ const SignupPage = () => {
           client_id: GOOGLE_CLIENT_ID,
           callback: handleGoogleResponse,
         });
-        window.google.accounts.id.renderButton(
-          document.getElementById("googleSignUpButton"),
-          {
-            theme: "outline",
-            size: "large",
-            width: 320,
-            text: "signup_with",
-            shape: "pill",
-          }
-        );
+        
+        // Get container width and set button width accordingly
+        const container = document.getElementById("googleSignUpButton");
+        if (container) {
+          const containerWidth = container.offsetWidth;
+          window.google.accounts.id.renderButton(
+            container,
+            {
+              theme: "outline",
+              size: "large",
+              width: Math.min(containerWidth, 400),
+              text: "signup_with",
+              shape: "pill",
+            }
+          );
+        }
       }
     };
 
@@ -96,6 +102,28 @@ const SignupPage = () => {
       window.addEventListener("load", initializeGoogleSignIn);
       return () => window.removeEventListener("load", initializeGoogleSignIn);
     }
+    
+    // Re-render on window resize for responsiveness
+    const handleResize = () => {
+      const container = document.getElementById("googleSignUpButton");
+      if (container && window.google) {
+        container.innerHTML = ""; // Clear previous button
+        const containerWidth = container.offsetWidth;
+        window.google.accounts.id.renderButton(
+          container,
+          {
+            theme: "outline",
+            size: "large",
+            width: Math.min(containerWidth, 400),
+            text: "signup_with",
+            shape: "pill",
+          }
+        );
+      }
+    };
+    
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const handleGoogleResponse = (response) => {
@@ -234,7 +262,7 @@ const SignupPage = () => {
           </div>
 
           {/* Google Sign-Up Button */}
-          <div id="googleSignUpButton" className="flex justify-center"></div>
+          <div id="googleSignUpButton" className="flex justify-center w-full"></div>
 
           {/* Footer Navigation */}
           <div className="mt-6 text-center">

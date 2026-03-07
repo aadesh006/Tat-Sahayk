@@ -348,13 +348,46 @@ const AdminDashboard = () => {
 
   const { mutate: doVerify } = useMutation({
     mutationFn: ({ id, status }) => verifyReport(id, status),
+    onMutate: async ({ id, status }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["adminReports"] });
+      await queryClient.cancelQueries({ queryKey: ["allAdminReports"] });
+      
+      // Snapshot previous values
+      const previousReports = queryClient.getQueryData(["adminReports", filter]);
+      const previousAllReports = queryClient.getQueryData(["allAdminReports"]);
+      
+      // Optimistically update
+      if (previousReports) {
+        queryClient.setQueryData(["adminReports", filter], (old) =>
+          old?.map(r => r.id === id ? { ...r, status, is_verified: status === "verified" } : r)
+        );
+      }
+      if (previousAllReports) {
+        queryClient.setQueryData(["allAdminReports"], (old) =>
+          old?.map(r => r.id === id ? { ...r, status, is_verified: status === "verified" } : r)
+        );
+      }
+      
+      return { previousReports, previousAllReports };
+    },
     onSuccess: () => {
       toast.success("Report updated");
       queryClient.invalidateQueries({ queryKey: ["adminReports"] });
+      queryClient.invalidateQueries({ queryKey: ["allAdminReports"] });
       queryClient.invalidateQueries({ queryKey: ["reportStats"] });
       queryClient.invalidateQueries({ queryKey: ["aiClusters"] });
     },
-    onError: () => toast.error("Action failed"),
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousReports) {
+        queryClient.setQueryData(["adminReports", filter], context.previousReports);
+      }
+      if (context?.previousAllReports) {
+        queryClient.setQueryData(["allAdminReports"], context.previousAllReports);
+      }
+      toast.error("Action failed");
+    },
   });
 
   const { mutate: doDeactivate } = useMutation({
@@ -453,10 +486,11 @@ const AdminDashboard = () => {
       </div>
 
       {activeTab === "ai" && (
-  <div className="space-y-4">
-    <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl">
-      <Brain size={14} className="text-gray-600 dark:text-gray-400 shrink-0" />
-      <p className="text-xs text-gray-600 dark:text-gray-400">
+  <div className="space-y-3 sm:space-y-4">
+    {/* Info banner - improved mobile spacing */}
+    <div className="flex items-start gap-2 sm:gap-3 p-2.5 sm:p-3 bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-lg sm:rounded-xl">
+      <Brain size={14} className="text-gray-600 dark:text-gray-400 shrink-0 mt-0.5" />
+      <p className="text-[11px] sm:text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
         AI clusters reports by location every 15 minutes. Each card represents multiple reports from the same area.
       </p>
     </div>
@@ -466,8 +500,8 @@ const AdminDashboard = () => {
       const meaningfulClusters = aiClusters?.filter(c => c.report_count >= 2) || [];
       
       return !meaningfulClusters.length ? (
-        <div className="text-center py-16 px-6 bg-white dark:bg-[rgb(22,22,22)] border border-dashed border-gray-300 dark:border-[rgb(47,51,54)] rounded-2xl">
-          <Brain className="mx-auto text-gray-300 mb-3" size={48} />
+        <div className="text-center py-12 sm:py-16 px-4 sm:px-6 bg-white dark:bg-[rgb(22,22,22)] border border-dashed border-gray-300 dark:border-[rgb(47,51,54)] rounded-xl sm:rounded-2xl">
+          <Brain className="mx-auto text-gray-300 dark:text-gray-600 mb-3" size={40} />
           <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">No Clusters Yet</p>
           <p className="text-xs text-gray-400 dark:text-gray-500">Waiting for 2+ reports near each other</p>
         </div>
@@ -475,74 +509,76 @@ const AdminDashboard = () => {
         meaningfulClusters.map((cluster) => {
           return (
             <div key={cluster.cluster_id}
-              className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4">
+              className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl sm:rounded-2xl p-3 sm:p-4 space-y-3">
 
-            {/* Header row */}
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-semibold text-gray-900 dark:text-white text-base">
+            {/* Header row - improved mobile layout */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <h3 className="font-bold text-gray-900 dark:text-white text-base sm:text-lg">
                     {cluster.hazard_type}
                   </h3>
-                  <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded-md">
+                  <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-[10px] sm:text-xs font-semibold rounded-md whitespace-nowrap">
                     {cluster.report_count} reports
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
                   {cluster.center_lat.toFixed(3)}°N, {cluster.center_lon.toFixed(3)}°E · {cluster.max_severity}
                 </p>
               </div>
-              {/* AI Score */}
-              <div className="text-right shrink-0 ml-4">
-                <div className={`text-2xl font-semibold ${
+              
+              {/* AI Score - improved mobile size */}
+              <div className="text-right shrink-0">
+                <div className={`text-2xl sm:text-3xl font-black ${
                   cluster.authenticity_score >= 0.8 ? "text-emerald-500" :
                   cluster.authenticity_score >= 0.5 ? "text-yellow-500" : "text-red-500"
                 }`}>
                   {Math.round(cluster.authenticity_score * 100)}%
                 </div>
-                <div className="text-[10px] text-gray-400">AI Score</div>
+                <div className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500 font-semibold uppercase">AI Score</div>
               </div>
             </div>
 
-            {/* AI Summary */}
-            <div className="bg-gray-50 dark:bg-[rgb(30,30,30)] rounded-lg p-3 mb-3">
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
-                <Brain size={12} /> AI Analysis
+            {/* AI Summary - improved mobile padding */}
+            <div className="bg-gray-50 dark:bg-[rgb(30,30,30)] rounded-lg sm:rounded-xl p-2.5 sm:p-3 border border-gray-100 dark:border-[rgb(40,40,40)]">
+              <p className="text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1">
+                <Brain size={11} /> AI Analysis
               </p>
-              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{cluster.ai_summary}</p>
+              <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{cluster.ai_summary}</p>
             </div>
 
-            {/* Action buttons */}
-            <div className="flex gap-2 flex-wrap">
+            {/* Action buttons - improved mobile layout */}
+            <div className="flex gap-1.5 sm:gap-2 flex-wrap">
               <button
                 onClick={() => setAlertModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-600 transition-colors"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-red-500 text-white text-[10px] sm:text-xs font-semibold rounded-lg hover:bg-red-600 active:scale-95 transition-all"
               >
-                <Bell size={13} /> Issue Alert
+                <Bell size={12} className="sm:w-[13px] sm:h-[13px]" /> 
+                <span className="hidden xs:inline">Issue</span> Alert
               </button>
               <button
                 onClick={() => {
                   cluster.report_ids.forEach(id => doVerify({ id, status: "verified" }));
                   toast.success(`Verified ${cluster.report_count} reports`);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg hover:bg-emerald-600 transition-colors"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-emerald-500 text-white text-[10px] sm:text-xs font-semibold rounded-lg hover:bg-emerald-600 active:scale-95 transition-all"
               >
-                <CheckCircle size={13} /> Verify All
+                <CheckCircle size={12} className="sm:w-[13px] sm:h-[13px]" /> Verify
               </button>
               <button
                 onClick={() => {
                   cluster.report_ids.forEach(id => doVerify({ id, status: "false" }));
                   toast.success("Marked as fake");
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-[10px] sm:text-xs font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 transition-all"
               >
-                <XCircle size={13} /> Mark Fake
+                <XCircle size={12} className="sm:w-[13px] sm:h-[13px]" /> Fake
               </button>
               <button
                 onClick={() => setSelectedCluster(cluster)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 text-white text-xs font-semibold rounded-lg hover:bg-sky-600 transition-colors ml-auto"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-sky-500 text-white text-[10px] sm:text-xs font-semibold rounded-lg hover:bg-sky-600 active:scale-95 transition-all ml-auto"
               >
-                <ClipboardList size={13} /> View Reports ({cluster.report_count})
+                <ClipboardList size={12} className="sm:w-[13px] sm:h-[13px]" /> View ({cluster.report_count})
               </button>
             </div>
           </div>

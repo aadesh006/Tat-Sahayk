@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock, MapPin, ShieldCheck, MessageCircle, Share2, ChevronDown, ChevronUp, Trash2, CheckCircle, XCircle, Plus } from "lucide-react";
+import { Clock, MapPin, MessageCircle, Share2, ChevronDown, ChevronUp, Trash2, CheckCircle, XCircle, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axiosInstance } from "../lib/axios";
@@ -178,10 +178,6 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
                   <Share2 size={16} className="group-hover:scale-110 transition-transform" /> 
                   <span className="hidden sm:inline">Share</span>
                 </button>
-                <div className="flex items-center gap-1.5 text-sm font-medium text-gray-400 dark:text-gray-500 ml-auto">
-                  <ShieldCheck size={16} className={report.is_verified ? "text-emerald-500" : "text-gray-300 dark:text-gray-600"} />
-                  <span className="hidden sm:inline text-xs">{report.is_verified ? t("verified") : t("pending")}</span>
-                </div>
               </div>
             </div>
 
