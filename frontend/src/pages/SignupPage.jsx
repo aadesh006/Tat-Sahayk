@@ -17,7 +17,7 @@ import { Link, useNavigate } from "react-router";
 import toast, { Toaster } from "react-hot-toast";
 import { useTheme } from "../context/ThemeContext.jsx";
 
-const GOOGLE_CLIENT_ID = "156193308727-aq2u3kv8u5t8oh5p7v8nc7s44asb095e.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "156193308727-aq2u3kv8u5t8oh5p7v8nc7s44asb095e.apps.googleusercontent.com";
 
 const SignupPage = () => {
   const { dark, toggle } = useTheme();
