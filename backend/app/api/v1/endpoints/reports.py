@@ -255,7 +255,7 @@ def get_my_reports(
                 "confirmation_count": r.confirmation_count,
                 "district": r.district,
                 "ai_authenticity_score": r.ai_authenticity_score,
-                "user_confirmed": True,  # User's own reports are always confirmed by them
+                "user_confirmed": False,  # Users cannot confirm their own reports
                 "media": [first_media] if first_media else [],  # Only first image for thumbnail
                 "media_count": len(r.media),
             })
@@ -268,12 +268,8 @@ def get_my_reports(
         d["reporter_name"] = r.owner.full_name if r.owner else "Anonymous"
         d["reporter_profile_photo"] = r.owner.profile_photo if r.owner else None
         
-        # Add user_confirmed field
-        confirmed = db.query(ReportConfirmation).filter(
-            ReportConfirmation.report_id == r.id,
-            ReportConfirmation.user_id == current_user.id
-        ).first() is not None
-        d["user_confirmed"] = confirmed
+        # Users cannot confirm their own reports
+        d["user_confirmed"] = False
         
         result.append(d)
     return result

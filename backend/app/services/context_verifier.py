@@ -1,13 +1,13 @@
 import httpx
 import datetime
 import logging
-import os
 from typing import Dict
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
+OPENWEATHER_API_KEY = settings.OPENWEATHER_API_KEY
+TAVILY_API_KEY = settings.TAVILY_API_KEY
 
 # Map disaster types to expected weather conditions
 DISASTER_WEATHER_MAP = {

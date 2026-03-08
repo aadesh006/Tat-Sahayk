@@ -12,9 +12,61 @@ NOVA_PRO_ID = "us.amazon.nova-pro-v1:0"
 NOVA_MICRO_ID = "us.amazon.nova-micro-v1:0"
 
 def fetch_media_base64(url: str):
-    if not url: return None, None
+    """
+    Fetch media from URL and convert to base64.
+    Handles both public URLs and S3 URLs with credentials.
+    """
+    if not url: 
+        return None, None
+    
     try:
         ext = url.split('.')[-1].lower().split('?')[0]  # handle S3 query params
+        
+        # Try to download from S3 using boto3 if it's an S3 URL
+        if 's3.amazonaws.com' in url or 's3.' in url:
+            try:
+                import boto3
+                from app.core.config import settings
+                
+                # Extract bucket and key from URL
+                url_path = url.split('amazonaws.com/')[-1]
+                parts = url_path.split('/', 1)
+                
+                if len(parts) == 2:
+                    # Format: bucket.s3.amazonaws.com/key
+                    bucket = url.split('//')[1].split('.')[0]
+                    key = parts[1] if len(parts) > 1 else parts[0]
+                else:
+                    # Format: s3.amazonaws.com/bucket/key
+                    bucket = settings.S3_BUCKET
+                    key = url_path
+                
+                # Download from S3 using credentials
+                s3_client = boto3.client(
+                    's3',
+                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                    region_name=settings.AWS_REGION
+                )
+                
+                response = s3_client.get_object(Bucket=bucket, Key=key)
+                content = response['Body'].read()
+                
+                b64_data = base64.b64encode(content).decode('utf-8')
+                fmt_map = {
+                    'jpg': 'jpeg', 'jpeg': 'jpeg',
+                    'png': 'png', 'gif': 'gif', 'webp': 'webp',
+                    'mp4': 'video', 'mov': 'video', 'webm': 'video'
+                }
+                media_type = fmt_map.get(ext, 'jpeg')
+                logger.info(f"Successfully fetched media from S3: {bucket}/{key}")
+                return b64_data, media_type
+                
+            except Exception as s3_error:
+                logger.warning(f"S3 download failed, trying public URL: {s3_error}")
+                # Fall through to try public URL
+        
+        # Try as public URL
         resp = requests.get(url, timeout=10)
         if resp.status_code == 200:
             b64_data = base64.b64encode(resp.content).decode('utf-8')
@@ -24,9 +76,14 @@ def fetch_media_base64(url: str):
                 'mp4': 'video', 'mov': 'video', 'webm': 'video'
             }
             media_type = fmt_map.get(ext, 'jpeg')
+            logger.info(f"Successfully fetched media from public URL")
             return b64_data, media_type
+        else:
+            logger.error(f"HTTP {resp.status_code} when fetching {url}")
+            
     except Exception as e:
-        logger.error(f"Media fetch failed: {e}")
+        logger.error(f"Media fetch failed for {url}: {e}")
+    
     return None, None
 
 def ask_forensic_vision_expert(hazard_type, lat, lon, b64_data, media_type):
