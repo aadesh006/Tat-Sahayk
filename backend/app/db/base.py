@@ -8,3 +8,4 @@ from app.models.social import SocialPost
 from app.models.comment import Comment
 from app.models.alert import Alert
 from app.models.map_annotation import MapAnnotation, DeployedForce
+from app.models.rescue_deployment import RescueDeployment, Shelter

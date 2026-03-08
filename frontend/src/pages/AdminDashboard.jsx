@@ -8,11 +8,12 @@ import useAuthUser from '../hooks/useAuthUser.js';
 import { ClipboardList, CheckCircle, XCircle, Clock, MapPin,
   Loader2, AlertTriangle, Bell, BellOff, Plus,
   X, Shield, TrendingUp, Users, Zap, ChevronDown,
-  Filter, Brain, MessageSquare, BarChart3 } from 'lucide-react';
+  Filter, Brain, MessageSquare, BarChart3, Map } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import ImageLightbox from '../components/ImageLightbox.jsx';
 import ClusterReportsModal from '../components/ClusterReportsModal.jsx';
+import MapResourcesAdmin from '../components/MapResourcesAdmin.jsx';
 import { fetchAIClusters } from '../lib/api.js';
 
 const SEVERITY_COLORS = {
@@ -310,7 +311,7 @@ const AdminDashboard = () => {
   const { authUser }   = useAuthUser();
   const [filter,    setFilter]    = useState("pending");
   const [alertModal, setAlertModal] = useState(false);
-  const [activeTab, setActiveTab]  = useState("sos"); // sos | alerts | ai | reports
+  const [activeTab, setActiveTab]  = useState("sos"); // sos | alerts | ai | reports | map
   const [selectedCluster, setSelectedCluster] = useState(null); // For cluster reports modal
 
   const { data: stats } = useQuery({
@@ -470,6 +471,7 @@ const AdminDashboard = () => {
           { key: "reports", label: "All Reports", icon: <ClipboardList size={14} /> },
           { key: "alerts",  label: "Issued Alerts", icon: <Bell size={15} /> },
           { key: "ai", label: "AI Intelligence", icon: <Brain size={15} /> },
+          { key: "map", label: "Map Resources", icon: <Map size={15} /> },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -773,6 +775,11 @@ const AdminDashboard = () => {
               })
             )}
           </div>
+        )}
+
+        {/* ── Map Resources Tab ── */}
+        {activeTab === "map" && (
+          <MapResourcesAdmin />
         )}
       </div>
 

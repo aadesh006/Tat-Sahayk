@@ -35,10 +35,12 @@ app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",
-        "https://tatsahayk.in",
-        "https://www.tatsahayk.in"
-    ],
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://54.89.190.236.nip.io",
+    "https://tatsahayk.in",
+    "https://www.tatsahayk.in"
+],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

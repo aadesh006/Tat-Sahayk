@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, reports, media, social, comments, alerts, map_admin, ai_analysis
+from app.api.v1.endpoints import auth, reports, media, social, comments, alerts, map_admin, ai_analysis, map_resources, map_data
 
 api_router = APIRouter()
 
@@ -26,3 +26,9 @@ api_router.include_router(ai_analysis.router, prefix="/ai", tags=["ai"])
 
 #Map Admin
 api_router.include_router(map_admin.router, prefix="/map", tags=["map"])
+
+#Map Resources (Deployments & Shelters)
+api_router.include_router(map_resources.router, prefix="/map", tags=["map-resources"])
+
+#Map Data (Optimized for map view)
+api_router.include_router(map_data.router, prefix="/map", tags=["map-data"])

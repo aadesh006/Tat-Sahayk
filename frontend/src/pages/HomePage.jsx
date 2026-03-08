@@ -26,7 +26,7 @@ const HomePage = () => {
 
   const { data: reports, isLoading: reportsLoading } = useQuery({
     queryKey: ['reports', statusFilter],
-    queryFn: () => fetchReports({ status: statusFilter || undefined, allReports: true }),
+    queryFn: () => fetchReports({ status: statusFilter || undefined, allReports: true, minimal: true }),
   });
 
   const { data: socialFeed } = useQuery({

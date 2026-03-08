@@ -214,11 +214,12 @@ def get_hazard_hotspots(
     }
 
 # 3. GET MY REPORTS (logged-in user)
-@router.get("/my", response_model=List[ReportResponse])
+@router.get("/my")
 def get_my_reports(
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
-    status: Optional[str] = Query(None)
+    status: Optional[str] = Query(None),
+    minimal: bool = Query(False)
 ):
     from app.models.confirmation import ReportConfirmation
     
@@ -227,6 +228,40 @@ def get_my_reports(
         query = query.filter(Report.status == status)
     
     reports = query.order_by(Report.created_at.desc()).all()
+    
+    # If minimal=true, return lightweight data without media
+    if minimal:
+        result = []
+        for r in reports:
+            # Include first media item for thumbnail
+            first_media = None
+            if r.media and len(r.media) > 0:
+                first_media = {
+                    "file_path": r.media[0].file_path,
+                    "file_type": r.media[0].file_type
+                }
+            
+            result.append({
+                "id": r.id,
+                "hazard_type": r.hazard_type,
+                "description": r.description,
+                "severity": r.severity,
+                "latitude": r.latitude,
+                "longitude": r.longitude,
+                "status": r.status,
+                "created_at": r.created_at.isoformat(),
+                "reporter_name": r.owner.full_name if r.owner else "Anonymous",
+                "reporter_profile_photo": r.owner.profile_photo if r.owner else None,
+                "confirmation_count": r.confirmation_count,
+                "district": r.district,
+                "ai_authenticity_score": r.ai_authenticity_score,
+                "user_confirmed": True,  # User's own reports are always confirmed by them
+                "media": [first_media] if first_media else [],  # Only first image for thumbnail
+                "media_count": len(r.media),
+            })
+        return result
+    
+    # Full data with media
     result = []
     for r in reports:
         d = ReportResponse.model_validate(r).model_dump()
@@ -252,6 +287,7 @@ def read_reports(
     status: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
     all_reports: bool = Query(False),  # Bypass district filtering - used for citizen home page to show nationwide reports
+    minimal: bool = Query(False),  # Return minimal data without media for faster loading
     current_user: User = Depends(deps.get_current_user_optional),  # optional auth
 ):
     from app.models.confirmation import ReportConfirmation
@@ -268,6 +304,43 @@ def read_reports(
         query = query.filter(Report.district.ilike(f"%{current_user.district}%"))
 
     reports = query.order_by(Report.created_at.desc()).offset(skip).limit(limit).all()
+    
+    # If minimal=true, return lightweight data without media
+    if minimal:
+        result = []
+        for r in reports:
+            # Include first media item for thumbnail
+            first_media = None
+            if r.media and len(r.media) > 0:
+                first_media = {
+                    "file_path": r.media[0].file_path,
+                    "file_type": r.media[0].file_type
+                }
+            
+            result.append({
+                "id": r.id,
+                "hazard_type": r.hazard_type,
+                "description": r.description,
+                "severity": r.severity,
+                "latitude": r.latitude,
+                "longitude": r.longitude,
+                "status": r.status,
+                "created_at": r.created_at.isoformat(),
+                "reporter_name": r.owner.full_name if r.owner else "Anonymous",
+                "reporter_profile_photo": r.owner.profile_photo if r.owner else None,
+                "confirmation_count": r.confirmation_count,
+                "district": r.district,
+                "ai_authenticity_score": r.ai_authenticity_score,
+                "user_confirmed": db.query(ReportConfirmation).filter(
+                    ReportConfirmation.report_id == r.id,
+                    ReportConfirmation.user_id == current_user.id
+                ).first() is not None if current_user else False,
+                "media": [first_media] if first_media else [],  # Only first image for thumbnail
+                "media_count": len(r.media),
+            })
+        return result
+    
+    # Full data with media
     result = []
     for r in reports:
         d = ReportResponse.model_validate(r).model_dump()

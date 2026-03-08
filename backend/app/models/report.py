@@ -33,6 +33,7 @@ class Report(Base):
     media    = relationship("Media",   back_populates="report")
     comments = relationship("Comment", back_populates="report", cascade="all, delete")
     confirmations = relationship("ReportConfirmation", back_populates="report", cascade="all, delete-orphan", lazy="dynamic")
+    rescue_deployments = relationship("RescueDeployment", back_populates="report", cascade="all, delete")
 
     @property
     def latitude(self):

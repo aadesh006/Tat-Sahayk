@@ -186,18 +186,20 @@ const normalizeReport = (r) => ({
       : "Location unavailable",
 });
 
-export const fetchReports = async ({ status, severity, allReports = false } = {}) => {
+export const fetchReports = async ({ status, severity, allReports = false, minimal = false } = {}) => {
   const params = new URLSearchParams();
   if (status) params.append("status", status);
   if (severity) params.append("severity", severity);
   if (allReports) params.append("all_reports", "true");
+  if (minimal) params.append("minimal", "true");
   const res = await axiosInstance.get(`/reports/?${params.toString()}`);
   return res.data.map(normalizeReport);
 };
 
-export const fetchUserReports = async ({ status } = {}) => {
+export const fetchUserReports = async ({ status, minimal = false } = {}) => {
   const params = new URLSearchParams();
   if (status) params.append("status", status);
+  if (minimal) params.append("minimal", "true");
   const res = await axiosInstance.get(`/reports/my?${params.toString()}`);
   return res.data.map(normalizeReport);
 };

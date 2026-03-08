@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
@@ -8,6 +8,7 @@ from app.models.user           import User
 from app.models.map_annotation import MapAnnotation, DeployedForce
 from app.models.report         import Report
 from geoalchemy2.shape         import to_shape
+from app.models.map_annotation import DeployedForce
 
 router = APIRouter()
 

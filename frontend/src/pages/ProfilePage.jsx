@@ -36,7 +36,7 @@ const ProfilePage = () => {
 
   const { data: userReports, isLoading } = useQuery({
     queryKey: ['user_reports', statusFilter],
-    queryFn:  () => fetchUserReports({ status: statusFilter || undefined }),
+    queryFn:  () => fetchUserReports({ status: statusFilter || undefined, minimal: true }),
     enabled:  !!authUser,
   });
 
