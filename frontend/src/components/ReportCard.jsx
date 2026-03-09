@@ -181,32 +181,50 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
               </div>
             </div>
 
-            {/* Multi-Image Grid */}
+            {/* Multi-Image/Video Grid */}
             {images.length > 0 && (
               <div className="md:w-52 shrink-0" onClick={(e) => e.stopPropagation()}>
                 <div className={`grid gap-1.5 rounded-xl overflow-hidden border border-gray-200 dark:border-[rgb(47,51,54)]
                   ${images.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
-                  {images.slice(0, 4).map((img, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => openLightbox(idx)}
-                      className={`relative cursor-zoom-in group/img bg-gray-100 dark:bg-[rgb(38,38,38)]
-                        ${images.length === 1 ? "h-36" : "h-24"}
-                        ${images.length === 3 && idx === 0 ? "col-span-2" : ""}`}
-                    >
-                      <img
-                        src={img}
-                        alt={`Incident ${idx + 1}`}
-                        className="w-full h-full object-cover group-hover/img:scale-105 transition-all duration-300"
-                        onError={(e) => { e.target.style.display = "none"; }}
-                      />
-                      {images.length > 4 && idx === 3 && (
-                        <div className="absolute inset-0 bg-black/70 flex items-center justify-center text-white font-semibold text-lg backdrop-blur-sm">
-                          +{images.length - 4}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  {images.slice(0, 4).map((img, idx) => {
+                    const isVideo = typeof img === 'string' && (img.includes('.mp4') || img.includes('.mov') || img.includes('.webm'));
+                    
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => !isVideo && openLightbox(idx)}
+                        className={`relative ${!isVideo ? 'cursor-zoom-in' : ''} group/img bg-gray-100 dark:bg-[rgb(38,38,38)]
+                          ${images.length === 1 ? "h-36" : "h-24"}
+                          ${images.length === 3 && idx === 0 ? "col-span-2" : ""}`}
+                      >
+                        {isVideo ? (
+                          <>
+                            <video
+                              src={img}
+                              className="w-full h-full object-cover"
+                              controls
+                              preload="metadata"
+                            />
+                            <div className="absolute top-2 left-2 px-2 py-1 bg-black/70 text-white text-xs rounded-md">
+                              Video
+                            </div>
+                          </>
+                        ) : (
+                          <img
+                            src={img}
+                            alt={`Incident ${idx + 1}`}
+                            className="w-full h-full object-cover group-hover/img:scale-105 transition-all duration-300"
+                            onError={(e) => { e.target.style.display = "none"; }}
+                          />
+                        )}
+                        {images.length > 4 && idx === 3 && (
+                          <div className="absolute inset-0 bg-black/70 flex items-center justify-center text-white font-semibold text-lg backdrop-blur-sm">
+                            +{images.length - 4}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -260,9 +260,50 @@ const AdminReportCard = ({ report, onVerify }) => {
             </div>
           )}
 
-          {/* Image + actions row */}
+          {/* Media + actions row */}
           <div className="mt-3 ml-4 flex items-center gap-3 flex-wrap">
-            {report.image && (
+            {/* Display all media (images and videos) */}
+            {report.images && report.images.length > 0 && (
+              <div className="flex gap-2">
+                {report.images.slice(0, 3).map((media, idx) => {
+                  const isVideo = typeof media === 'string' && (media.includes('.mp4') || media.includes('.mov') || media.includes('.webm'));
+                  
+                  return (
+                    <div key={idx} className="relative">
+                      {isVideo ? (
+                        <video
+                          src={media}
+                          className="w-20 h-14 object-cover rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)]"
+                          controls
+                          preload="metadata"
+                        />
+                      ) : (
+                        <button onClick={() => setLightbox(true)}>
+                          <img 
+                            src={media} 
+                            alt={`Media ${idx + 1}`}
+                            className="w-20 h-14 object-cover rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] hover:opacity-80 transition-opacity cursor-zoom-in"
+                            onError={(e) => { e.target.style.display = "none"; }} 
+                          />
+                        </button>
+                      )}
+                      {isVideo && (
+                        <div className="absolute bottom-1 left-1 px-1 py-0.5 bg-black/70 text-white text-[8px] rounded">
+                          Video
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {report.images.length > 3 && (
+                  <div className="w-20 h-14 rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-400">
+                    +{report.images.length - 3}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Fallback for old single image format */}
+            {!report.images && report.image && (
               <button onClick={() => setLightbox(true)}>
                 <img src={report.image} alt="Report"
                   className="w-20 h-14 object-cover rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] hover:opacity-80 transition-opacity cursor-zoom-in"
@@ -298,8 +339,11 @@ const AdminReportCard = ({ report, onVerify }) => {
         </div>
       </div>
 
-      {lightboxOpen && report.image && (
-        <ImageLightbox images={[report.image]} onClose={() => setLightbox(false)} />
+      {lightboxOpen && (report.images || report.image) && (
+        <ImageLightbox 
+          images={report.images || [report.image]} 
+          onClose={() => setLightbox(false)} 
+        />
       )}
     </>
   );

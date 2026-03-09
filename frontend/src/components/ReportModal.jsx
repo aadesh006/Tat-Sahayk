@@ -147,26 +147,44 @@ const ReportModal = ({ report, onClose }) => {
               </p>
             </div>
 
-            {/* Images */}
+            {/* Images/Videos */}
             {images.length > 0 && (
               <div className={`grid gap-2 rounded-xl overflow-hidden border border-gray-200 dark:border-[rgb(47,51,54)]
                 ${images.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
-                {images.map((img, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => openLightbox(idx)}
-                    className={`relative cursor-zoom-in group bg-gray-100 dark:bg-[rgb(38,38,38)]
-                      ${images.length === 1 ? "aspect-video" : "aspect-square"}
-                      ${images.length === 3 && idx === 0 ? "col-span-2" : ""}`}
-                  >
-                    <img
-                      src={img}
-                      alt={`Incident ${idx + 1}`}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
-                      onError={(e) => { e.target.style.display = "none"; }}
-                    />
-                  </div>
-                ))}
+                {images.map((img, idx) => {
+                  const isVideo = typeof img === 'string' && (img.includes('.mp4') || img.includes('.mov') || img.includes('.webm'));
+                  
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => !isVideo && openLightbox(idx)}
+                      className={`relative ${!isVideo ? 'cursor-zoom-in' : ''} group bg-gray-100 dark:bg-[rgb(38,38,38)]
+                        ${images.length === 1 ? "aspect-video" : "aspect-square"}
+                        ${images.length === 3 && idx === 0 ? "col-span-2" : ""}`}
+                    >
+                      {isVideo ? (
+                        <>
+                          <video
+                            src={img}
+                            className="w-full h-full object-cover"
+                            controls
+                            preload="metadata"
+                          />
+                          <div className="absolute top-2 left-2 px-2 py-1 bg-black/70 text-white text-xs rounded-md z-10">
+                            Video
+                          </div>
+                        </>
+                      ) : (
+                        <img
+                          src={img}
+                          alt={`Incident ${idx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                          onError={(e) => { e.target.style.display = "none"; }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 

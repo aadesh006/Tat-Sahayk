@@ -78,12 +78,18 @@ const CreateReport = () => {
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     if (previews.length + files.length > 5) {
-      return toast.error("Maximum 5 images allowed");
+      return toast.error("Maximum 5 media files allowed");
     }
-    const newPreviews = files.map((file) => ({
-      url: URL.createObjectURL(file),
-      file,
-    }));
+    
+    const newPreviews = files.map((file) => {
+      const isVideo = file.type.startsWith('video/');
+      return {
+        url: URL.createObjectURL(file),
+        file,
+        isVideo,
+      };
+    });
+    
     setPreviews((prev) => [...prev, ...newPreviews]);
   };
 
@@ -93,7 +99,7 @@ const CreateReport = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (previews.length === 0) return toast.error("Please upload at least one photo");
+    if (previews.length === 0) return toast.error("Please upload at least one photo or video");
     if (useManualLocation && (!manualLocation.district || !manualLocation.state)) {
       return toast.error("Please enter district and state");
     }
@@ -159,14 +165,32 @@ const CreateReport = () => {
                 <div className="grid grid-cols-3 gap-3 mb-2">
                   {previews.map((p, i) => (
                     <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-[rgb(47,51,54)] group">
-                      <img src={p.url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                      {p.isVideo ? (
+                        <video 
+                          src={p.url} 
+                          className="w-full h-full object-cover"
+                          controls
+                          muted
+                        />
+                      ) : (
+                        <img 
+                          src={p.url} 
+                          alt="" 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" 
+                        />
+                      )}
                       <button
                         type="button"
                         onClick={() => removeImage(i)}
-                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg transition-all active:scale-90"
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg transition-all active:scale-90 z-10"
                       >
                         <X size={14} />
                       </button>
+                      {p.isVideo && (
+                        <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/70 text-white text-xs rounded-md">
+                          Video
+                        </div>
+                      )}
                     </div>
                   ))}
                   {/* Add more buttons */}
