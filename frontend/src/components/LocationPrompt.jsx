@@ -48,7 +48,7 @@ const LocationPrompt = ({ user, onClose }) => {
 
             if (district && state) {
               // Update user location in backend
-              await axiosInstance.patch(`/auth/update-location?district=${encodeURIComponent(district)}&state=${encodeURIComponent(state)}`);
+              await axiosInstance.patch('/auth/update-location', { district, state });
               toast.success(`Location set to ${district}, ${state}`);
               onClose();
             } else {
@@ -83,7 +83,10 @@ const LocationPrompt = ({ user, onClose }) => {
 
     setLoading(true);
     try {
-      await axiosInstance.patch(`/auth/update-location?district=${encodeURIComponent(location.district)}&state=${encodeURIComponent(location.state)}`);
+      await axiosInstance.patch('/auth/update-location', { 
+      district: location.district, 
+      state: location.state 
+    });
       toast.success(`Location set to ${location.district}, ${location.state}`);
       onClose();
     } catch (err) {
