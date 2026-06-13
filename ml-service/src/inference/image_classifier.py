@@ -9,28 +9,25 @@ logger = logging.getLogger(__name__)
 
 class ImageHazardClassifier:
     """
-    Classifies ocean hazard images using CLIP zero-shot learning
-    
-    Categories:
-    - tsunami
-    - high_waves
-    - storm_surge
-    - coastal_flooding
-    - coastal_erosion
-    - cyclone
-    - normal (no hazard)
+    Classifies ocean hazard images using CLIP zero-shot learning.
+    Model is loaded once on first instantiation (~600 MB download).
     """
-    
+
     def __init__(self):
-        """Initialize CLIP model for zero-shot classification"""
+        """Initialize CLIP model for zero-shot classification."""
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        logger.info(f" Using device: {self.device}")
-        
-        logger.info(" Loading CLIP model...")
-        self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-        self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-        self.model.to(self.device)
-        logger.info(" CLIP model loaded successfully")
+        logger.info(f"🖼️  Image Classifier using device: {self.device}")
+
+        logger.info("🖼️  Loading CLIP model (openai/clip-vit-base-patch32)...")
+        try:
+            self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+            self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+            self.model.to(self.device)
+            self.model.eval()
+            logger.info("✅ CLIP model loaded successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to load CLIP model: {e}")
+            raise
         
         self.categories = [
             "a photo of a tsunami with massive ocean waves flooding the coast",

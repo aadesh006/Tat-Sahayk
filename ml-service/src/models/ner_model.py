@@ -15,14 +15,25 @@ class NamedEntityRecognizer(BaseModel):
     
     def __init__(self, model_name: str = 'en_core_web_sm'):
         super().__init__(model_name)
+        logger.info(f"Initializing NamedEntityRecognizer with model: {model_name}")
+        
+        # Load spaCy model (auto-download if missing)
         try:
             self.nlp = spacy.load(model_name)
-            logger.info(f"Loaded spaCy model: {model_name}")
+            logger.info(f"✅ Loaded spaCy model: {model_name}")
         except OSError:
-            logger.warning(f"Model {model_name} not found. Downloading...")
-            import os
-            os.system(f'python -m spacy download {model_name}')
-            self.nlp = spacy.load(model_name)
+            logger.info(f"📥 Downloading spaCy model: {model_name}...")
+            try:
+                from spacy.cli import download as spacy_download
+                spacy_download(model_name)
+                self.nlp = spacy.load(model_name)
+                logger.info(f"✅ Downloaded and loaded spaCy model: {model_name}")
+            except Exception as e2:
+                logger.error(f"❌ Failed to download spaCy model: {e2}")
+                raise RuntimeError(
+                    f"spaCy model '{model_name}' not found and auto-download failed. "
+                    f"Install manually: python -m spacy download {model_name}"
+                )
         
         self.entity_categories = {
             'locations': ['GPE', 'LOC', 'FAC'],  
@@ -35,12 +46,13 @@ class NamedEntityRecognizer(BaseModel):
         }
         
         self.is_trained = True  # Pre-trained model
-        logger.info("NamedEntityRecognizer initialized")
+        logger.info(f"✅ NamedEntityRecognizer initialized successfully")
     
     def extract_entities(self, text: str) -> Dict[str, List]:
         if not isinstance(text, str) or not text.strip():
             return self._empty_result()
         
+        # NER is properly initialized, use it
         doc = self.nlp(text)
         
         entities = {

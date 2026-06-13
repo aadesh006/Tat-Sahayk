@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 
 class Entity(BaseModel):
@@ -17,7 +17,7 @@ class HealthResponse(BaseModel):
 class TextAnalysisResponse(BaseModel):
     text: str
     hazard_detection: Dict[str, Any]
-    sentiment: Optional[Dict[str, Any]] = None
+    sentiment: Optional[Union[str, Dict[str, Any]]] = None
     entities: Optional[Dict[str, Any]] = None
     credibility_score: Optional[float] = None
     processing_time_ms: float
@@ -30,7 +30,7 @@ class BatchTextResponse(BaseModel):
 class ReportAnalysisResponse(BaseModel):
     report_id: str
     hazard_detection: Dict[str, Any]
-    sentiment: Dict[str, Any]
+    sentiment: Union[str, Dict[str, Any]]
     entities: Dict[str, Any]
     credibility_score: float
     location: Dict[str, float]
@@ -58,6 +58,8 @@ class ErrorResponse(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now)
 
 class ModelInfoResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     model_name: str
     model_type: str
     status: str

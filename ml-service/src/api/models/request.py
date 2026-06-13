@@ -43,7 +43,7 @@ class HotspotDetectionRequest(BaseModel):
     radius_km: float = Field(5.0, ge=1.0, le=50.0)
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "reports": [
                     {

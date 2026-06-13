@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 try:
     nltk.data.find('sentiment/vader_lexicon.zip')
 except LookupError:
-    logger.info("Downloading VADER lexicon...")
     nltk.download('vader_lexicon', quiet=True)
 
 class SentimentAnalyzer(BaseModel):

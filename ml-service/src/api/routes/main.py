@@ -1,14 +1,21 @@
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Request
+"""
+Tat-Sahayk ML Service — Main FastAPI Application
+Provides text analysis, image classification, hotspot detection,
+real-data verification, and credibility scoring.
+"""
+from fastapi import (
+    FastAPI, HTTPException, WebSocket, WebSocketDisconnect,
+    UploadFile, File, Form, Request,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
 from datetime import datetime, date
 import time
 import logging
 import sys
 import traceback
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import pandas as pd
 import numpy as np
 import shutil
@@ -16,6 +23,7 @@ import os
 import uuid
 import hashlib
 
+# Fix path so we can import from project root
 sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 from config.settings import settings
@@ -24,7 +32,6 @@ from src.api.models.request import (
     BatchTextRequest,
     ReportAnalysisRequest,
     HotspotDetectionRequest,
-    NearbyReportsRequest
 )
 from src.api.models.response import (
     HealthResponse,
@@ -34,18 +41,16 @@ from src.api.models.response import (
     HotspotDetectionResponse,
     HotspotResponse,
     ErrorResponse,
-    ModelInfoResponse
+    ModelInfoResponse,
 )
 from src.inference.text_predictor import get_predictor
-from src.analytics.hotspot_generator import HotspotGenerator
-from src.analytics.credibility_scorer import CredibilityScorer
-from src.analytics.geospatial_analysis import GeospatialAnalyzer
-from src.inference.image_classifier import ImageHazardClassifier
-from src.external.ocean_data_client import OceanDataClient
 
 logger = logging.getLogger(__name__)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  JSON Serialisation helper
+# ═══════════════════════════════════════════════════════════════════════════════
 def serialize_for_json(obj: Any) -> Any:
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
@@ -57,192 +62,161 @@ def serialize_for_json(obj: Any) -> Any:
         return obj.tolist()
     if isinstance(obj, np.bool_):
         return bool(obj)
-    
-    try:
-        import pandas as pd
-        if isinstance(obj, pd.Timestamp):
-            return obj.isoformat()
-        if isinstance(obj, pd.Series):
-            return obj.to_dict()
-        if isinstance(obj, pd.DataFrame):
-            return obj.to_dict(orient='records')
-    except ImportError:
-        pass
-    
+    if isinstance(obj, pd.Timestamp):
+        return obj.isoformat()
+    if isinstance(obj, pd.Series):
+        return obj.to_dict()
+    if isinstance(obj, pd.DataFrame):
+        return obj.to_dict(orient="records")
     if isinstance(obj, dict):
         return {k: serialize_for_json(v) for k, v in obj.items()}
-    
     if isinstance(obj, (list, tuple)):
         return [serialize_for_json(item) for item in obj]
-    
     return obj
 
 
-
-class MonitoringMiddleware(BaseHTTPMiddleware):
-    
-    async def dispatch(self, request: Request, call_next):
-        start_time = time.time()
-        
-        try:
-            response = await call_next(request)
-            process_time = time.time() - start_time
-            
-            logger.info(
-                f"{request.method} {request.url.path} "
-                f"- Status: {response.status_code} "
-                f"- Time: {process_time:.3f}s"
-            )
-            
-            response.headers["X-Process-Time"] = str(process_time)
-            return response
-            
-        except Exception as e:
-            process_time = time.time() - start_time
-            logger.error(
-                f"{request.method} {request.url.path} "
-                f"- ERROR after {process_time:.3f}s: {e}",
-                exc_info=True
-            )
-            raise
-
-
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Application
+# ═══════════════════════════════════════════════════════════════════════════════
 app = FastAPI(
     title="Tat-Sahayk ML Service",
     description="Ocean Hazard Detection and Analysis API",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5000", "*"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.add_middleware(MonitoringMiddleware)
 
-predictor = None
-hotspot_generator = None
-credibility_scorer = None
-geo_analyzer = None
-image_classifier = None
-ocean_client = None
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Lazy-loaded global services
+# ═══════════════════════════════════════════════════════════════════════════════
+_predictor = None
+_hotspot_generator = None
+_credibility_scorer = None
+_geo_analyzer = None
+_image_classifier = None
+_ocean_client = None
 
 
-def get_services():
-    global predictor, hotspot_generator, credibility_scorer, geo_analyzer, image_classifier, ocean_client
-    
-    if predictor is None:
-        logger.info("Initializing services...")
-        
-        predictor = get_predictor()
-        hotspot_generator = HotspotGenerator()
-        credibility_scorer = CredibilityScorer()
-        geo_analyzer = GeospatialAnalyzer(use_kdtree=True)  # Use optimized KD-Tree
-        image_classifier = ImageHazardClassifier()
-        ocean_client = OceanDataClient(
+def _get_predictor():
+    global _predictor
+    if _predictor is None:
+        _predictor = get_predictor()
+    return _predictor
+
+
+def _get_hotspot_generator():
+    global _hotspot_generator
+    if _hotspot_generator is None:
+        from src.analytics.hotspot_generator import HotspotGenerator
+        _hotspot_generator = HotspotGenerator()
+    return _hotspot_generator
+
+
+def _get_credibility_scorer():
+    global _credibility_scorer
+    if _credibility_scorer is None:
+        from src.analytics.credibility_scorer import CredibilityScorer
+        _credibility_scorer = CredibilityScorer()
+    return _credibility_scorer
+
+
+def _get_geo_analyzer():
+    global _geo_analyzer
+    if _geo_analyzer is None:
+        from src.analytics.geospatial_analysis import GeospatialAnalyzer
+        _geo_analyzer = GeospatialAnalyzer(use_kdtree=True)
+    return _geo_analyzer
+
+
+def _get_image_classifier():
+    """Lazy-load CLIP image classifier (downloads ~600 MB on first call)."""
+    global _image_classifier
+    if _image_classifier is None:
+        from src.inference.image_classifier import ImageHazardClassifier
+        _image_classifier = ImageHazardClassifier()
+    return _image_classifier
+
+
+def _get_ocean_client():
+    """Lazy-load ocean data client for real-data verification."""
+    global _ocean_client
+    if _ocean_client is None:
+        from src.external.ocean_data_client import OceanDataClient
+        _ocean_client = OceanDataClient(
             openweather_api_key=os.getenv("OPENWEATHER_API_KEY")
         )
-        
-        logger.info(" All services initialized")
-    
-    return predictor, hotspot_generator, credibility_scorer, geo_analyzer
+    return _ocean_client
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  WebSocket manager
+# ═══════════════════════════════════════════════════════════════════════════════
 class ConnectionManager:
-    
     def __init__(self):
         self.active_connections: List[WebSocket] = []
-    
+
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        logger.info(f"WebSocket connected. Total: {len(self.active_connections)}")
-    
+
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-        logger.info(f"WebSocket disconnected. Total: {len(self.active_connections)}")
-    
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
     async def broadcast(self, message: dict):
         message = serialize_for_json(message)
-        
-        for connection in self.active_connections:
+        for conn in self.active_connections:
             try:
-                await connection.send_json(message)
-            except Exception as e:
-                logger.error(f"Error broadcasting to WebSocket: {e}")
+                await conn.send_json(message)
+            except Exception:
+                pass
 
 
 manager = ConnectionManager()
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Exception handlers
+# ═══════════════════════════════════════════════════════════════════════════════
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    try:
-        error_content = {
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=serialize_for_json({
             "error": str(exc.detail),
             "status_code": exc.status_code,
-            "timestamp": datetime.now().isoformat(),  
+            "timestamp": datetime.now().isoformat(),
             "path": str(request.url.path),
-            "method": request.method
-        }
-        error_content = serialize_for_json(error_content)
-        
-        return JSONResponse(
-            status_code=exc.status_code,
-            content=error_content
-        )
-        
-    except Exception as e:
-        logger.error(f"Error in HTTP exception handler: {e}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "Error handler failed",
-                "detail": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
-        )
+        }),
+    )
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
-    try:
-        logger.error(
-            f"Unhandled exception: {type(exc).__name__}: {exc}",
-            exc_info=True
-        )
-        error_content = {
-            "error": "Internal server error",
-            "type": type(exc).__name__,
-            "detail": str(exc),
-            "timestamp": datetime.now().isoformat(),
-            "path": str(request.url.path),
-            "method": request.method
-        }
-        if settings.DEBUG:
-            error_content["traceback"] = traceback.format_exc()
+    logger.error(f"Unhandled exception: {type(exc).__name__}: {exc}", exc_info=True)
+    content = {
+        "error": "Internal server error",
+        "detail": str(exc),
+        "timestamp": datetime.now().isoformat(),
+        "path": str(request.url.path),
+    }
+    if settings.DEBUG:
+        content["traceback"] = traceback.format_exc()
+    return JSONResponse(status_code=500, content=serialize_for_json(content))
 
-        error_content = serialize_for_json(error_content)
-        
-        return JSONResponse(
-            status_code=500,
-            content=error_content
-        )
-        
-    except Exception as e:
-        logger.critical(f"Critical error in exception handler: {e}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "Critical server error",
-                "timestamp": datetime.now().isoformat()
-            }
-        )
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Root / Health
+# ═══════════════════════════════════════════════════════════════════════════════
 @app.get("/", tags=["Root"])
 async def root():
     return {
@@ -250,422 +224,467 @@ async def root():
         "status": "operational",
         "version": "1.0.0",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
     }
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
-    """Health check endpoint"""
     return HealthResponse(
         status="healthy",
         timestamp=datetime.now().isoformat(),
-        version="1.0.0"
+        version="1.0.0",
     )
 
 
-@app.post(
-    "/api/v1/analyze/text",
-    response_model=TextAnalysisResponse,
-    tags=["Analysis"]
-)
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Text Analysis
+# ═══════════════════════════════════════════════════════════════════════════════
+@app.post("/api/v1/analyze/text", response_model=TextAnalysisResponse, tags=["Analysis"])
 async def analyze_text(request: TextAnalysisRequest):
     try:
-        pred, _, cred_scorer, _ = get_services()
-        
+        pred = _get_predictor()
+        cred = _get_credibility_scorer()
+
         start_time = time.time()
         result = pred.predict(
             request.text,
             include_sentiment=request.include_sentiment,
-            include_entities=request.include_entities
+            include_entities=request.include_entities,
         )
+
+        raw_sent = result.get("sentiment", "neutral")
+        sent_label = raw_sent if isinstance(raw_sent, str) else (
+            raw_sent.get("sentiment", "neutral") if isinstance(raw_sent, dict) else "neutral"
+        )
+
         report_data = pd.Series({
-            'text': request.text,
-            'has_location': False,
-            'has_media': False,
-            'word_count': len(request.text.split()),
-            'is_hazard': result['hazard_detection']['is_hazard'],
-            'sentiment': result.get('sentiment', {}).get('sentiment', 'neutral'),
-            'has_urgency_words': result.get('sentiment', {}).get('panic_word_count', 0) > 0
+            "text": request.text,
+            "has_location": False,
+            "has_media": False,
+            "word_count": len(request.text.split()),
+            "is_hazard": result["hazard_detection"]["is_hazard"],
+            "sentiment": sent_label,
+            "has_urgency_words": False,
         })
-        credibility = cred_scorer.score_report(report_data)
-        
+        credibility = cred.score_report(report_data)
         processing_time = (time.time() - start_time) * 1000
-        
+
         return TextAnalysisResponse(
             text=request.text,
-            hazard_detection=result['hazard_detection'],
-            sentiment=result.get('sentiment'),
-            entities=result.get('entities'),
+            hazard_detection=result["hazard_detection"],
+            sentiment=result.get("sentiment"),
+            entities=result.get("entities"),
             credibility_score=float(credibility),
-            processing_time_ms=processing_time
+            processing_time_ms=processing_time,
         )
-    
     except Exception as e:
         logger.error(f"Error in analyze_text: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post(
-    "/api/v1/analyze/batch",
-    response_model=BatchTextResponse,
-    tags=["Analysis"]
-)
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Batch Analysis
+# ═══════════════════════════════════════════════════════════════════════════════
+@app.post("/api/v1/analyze/batch", response_model=BatchTextResponse, tags=["Analysis"])
 async def analyze_batch(request: BatchTextRequest):
     try:
-        pred, _, cred_scorer, _ = get_services()
-        
+        pred = _get_predictor()
+        cred = _get_credibility_scorer()
+
         start_time = time.time()
         results = []
-        
+
         for text in request.texts:
             result = pred.predict(
                 text,
                 include_sentiment=request.include_sentiment,
-                include_entities=request.include_entities
+                include_entities=request.include_entities,
+            )
+            raw_sent = result.get("sentiment", "neutral")
+            sent_label = raw_sent if isinstance(raw_sent, str) else (
+                raw_sent.get("sentiment", "neutral") if isinstance(raw_sent, dict) else "neutral"
             )
             report_data = pd.Series({
-                'text': text,
-                'has_location': False,
-                'has_media': False,
-                'word_count': len(text.split()),
-                'is_hazard': result['hazard_detection']['is_hazard'],
-                'sentiment': result.get('sentiment', {}).get('sentiment', 'neutral'),
-                'has_urgency_words': result.get('sentiment', {}).get('panic_word_count', 0) > 0
+                "text": text,
+                "has_location": False,
+                "has_media": False,
+                "word_count": len(text.split()),
+                "is_hazard": result["hazard_detection"]["is_hazard"],
+                "sentiment": sent_label,
+                "has_urgency_words": False,
             })
-            credibility = cred_scorer.score_report(report_data)
-            
+            credibility = cred.score_report(report_data)
+
             results.append(TextAnalysisResponse(
                 text=text,
-                hazard_detection=result['hazard_detection'],
-                sentiment=result.get('sentiment'),
-                entities=result.get('entities'),
+                hazard_detection=result["hazard_detection"],
+                sentiment=result.get("sentiment"),
+                entities=result.get("entities"),
                 credibility_score=float(credibility),
-                processing_time_ms=result['processing_time_ms']
+                processing_time_ms=result["processing_time_ms"],
             ))
-        
+
         processing_time = (time.time() - start_time) * 1000
-        
         return BatchTextResponse(
             results=results,
             total_count=len(results),
-            processing_time_ms=processing_time
+            processing_time_ms=processing_time,
         )
-    
     except Exception as e:
         logger.error(f"Error in analyze_batch: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post(
-    "/api/v1/analyze/report",
-    response_model=ReportAnalysisResponse,
-    tags=["Analysis"]
-)
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Report Analysis  (backend calls this)
+# ═══════════════════════════════════════════════════════════════════════════════
+@app.post("/api/v1/analyze/report", response_model=ReportAnalysisResponse, tags=["Analysis"])
 async def analyze_report(request: ReportAnalysisRequest):
     try:
-        pred, _, cred_scorer, _ = get_services()
-        
+        pred = _get_predictor()
+        cred = _get_credibility_scorer()
+
         start_time = time.time()
         text_result = pred.predict(request.text)
+
+        raw_sentiment = text_result.get("sentiment", {})
+        if isinstance(raw_sentiment, str):
+            sentiment_label = raw_sentiment
+            panic_count = 0
+        elif isinstance(raw_sentiment, dict):
+            sentiment_label = raw_sentiment.get("sentiment", "neutral")
+            panic_count = raw_sentiment.get("panic_word_count", 0)
+        else:
+            sentiment_label = "neutral"
+            panic_count = 0
+
         report_data = pd.Series({
-            'text': request.text,
-            'has_location': True,
-            'has_media': request.has_media,
-            'media_count': request.media_count,
-            'author_followers': request.author_followers,
-            'word_count': len(request.text.split()),
-            'is_hazard': text_result['hazard_detection']['is_hazard'],
-            'sentiment': text_result['sentiment']['sentiment'],
-            'has_urgency_words': text_result['sentiment']['panic_word_count'] > 0,
-            'total_engagement': 0
+            "text": request.text,
+            "has_location": True,
+            "has_media": request.has_media,
+            "media_count": request.media_count,
+            "author_followers": request.author_followers,
+            "word_count": len(request.text.split()),
+            "is_hazard": text_result["hazard_detection"]["is_hazard"],
+            "sentiment": sentiment_label,
+            "has_urgency_words": panic_count > 0,
+            "total_engagement": 0,
         })
-        credibility = cred_scorer.score_report(report_data)
-        
+        credibility = cred.score_report(report_data)
         processing_time = (time.time() - start_time) * 1000
 
         report_id = hashlib.md5(
             f"{request.text}{request.timestamp}".encode()
         ).hexdigest()[:16]
-        
+
+        resp_sentiment = (
+            raw_sentiment if isinstance(raw_sentiment, dict)
+            else {"sentiment": raw_sentiment}
+        )
+        raw_entities = text_result.get("entities", {})
+        resp_entities = raw_entities if isinstance(raw_entities, dict) else {}
+
         response = ReportAnalysisResponse(
             report_id=f"RPT_{report_id}",
-            hazard_detection=text_result['hazard_detection'],
-            sentiment=text_result['sentiment'],
-            entities=text_result['entities'],
+            hazard_detection=text_result["hazard_detection"],
+            sentiment=resp_sentiment,
+            entities=resp_entities,
             credibility_score=float(credibility),
-            location={
-                'latitude': request.latitude,
-                'longitude': request.longitude
-            },
+            location={"latitude": request.latitude, "longitude": request.longitude},
             metadata={
-                'has_media': request.has_media,
-                'media_count': request.media_count,
-                'author_followers': request.author_followers,
-                'timestamp': request.timestamp.isoformat(),
-                'processing_time_ms': processing_time
-            }
+                "has_media": request.has_media,
+                "media_count": request.media_count,
+                "author_followers": request.author_followers,
+                "timestamp": request.timestamp.isoformat(),
+                "processing_time_ms": processing_time,
+            },
         )
+
         await manager.broadcast({
-            'type': 'new_report',
-            'data': serialize_for_json(response.dict())
+            "type": "new_report",
+            "data": serialize_for_json(response.dict()),
         })
-        
         return response
-    
     except Exception as e:
         logger.error(f"Error in analyze_report: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post(
-    "/api/v1/hotspots/detect",
-    response_model=HotspotDetectionResponse,
-    tags=["Hotspots"]
-)
-async def detect_hotspots(request: HotspotDetectionRequest):
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Image Analysis (CLIP zero-shot)
+# ═══════════════════════════════════════════════════════════════════════════════
+@app.post("/api/v1/analyze/image", tags=["Analysis"])
+async def analyze_image_only(image: UploadFile = File(...)):
+    """Classify an uploaded image using CLIP zero-shot classification."""
     try:
-        _, hotspot_gen, _, _ = get_services()
-        
-        start_time = time.time()
-        df = pd.DataFrame(request.reports)
-        
-        if 'latitude' not in df.columns or 'longitude' not in df.columns:
-            raise HTTPException(
-                status_code=400,
-                detail="Reports must include 'latitude' and 'longitude'"
-            )
-        hotspot_gen.min_reports = request.min_reports
-        hotspot_gen.radius_km = request.radius_km
-        hotspots = hotspot_gen.generate_hotspots(df)
-        
-        processing_time = (time.time() - start_time) * 1000
-        hotspot_responses = [
-            HotspotResponse(**serialize_for_json(hotspot))
-            for hotspot in hotspots
-        ]
-        
-        response = HotspotDetectionResponse(
-            hotspots=hotspot_responses,
-            total_count=len(hotspot_responses),
-            processing_time_ms=processing_time
+        classifier = _get_image_classifier()
+    except Exception as e:
+        logger.error(f"Image classifier not available: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Image classification service is loading, try again shortly.",
         )
-        await manager.broadcast({
-            'type': 'hotspots_detected',
-            'data': {
-                'count': len(hotspot_responses),
-                'hotspots': serialize_for_json([h.dict() for h in hotspot_responses])
-            }
-        })
-        
-        return response
-    
-    except Exception as e:
-        logger.error(f"Error in detect_hotspots: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.get(
-    "/api/v1/models/info",
-    response_model=Dict[str, ModelInfoResponse],
-    tags=["Models"]
-)
-async def get_model_info():
+    temp_filename = f"/tmp/{uuid.uuid4()}_{image.filename}"
     try:
-        pred, _, _, _ = get_services()
-        
-        return {
-            "text_classifier": ModelInfoResponse(
-                model_name="DistilBERT",
-                model_type="transformer",
-                status="loaded",
-                loaded=True,
-                metadata={
-                    "num_labels": len(pred.id2label),
-                    "labels": list(pred.id2label.values())
-                }
-            ),
-            "sentiment_analyzer": ModelInfoResponse(
-                model_name="VADER",
-                model_type="rule_based",
-                status="loaded",
-                loaded=True,
-                metadata={
-                    "type": "sentiment + panic detection"
-                }
-            ),
-            "ner": ModelInfoResponse(
-                model_name="spaCy",
-                model_type="transformer",
-                status="loaded",
-                loaded=True,
-                metadata={
-                    "entities": ["locations", "organizations", "dates", "times"]
-                }
-            )
-        }
-    
+        with open(temp_filename, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
+        result = classifier.classify_image(temp_filename)
+        return serialize_for_json(result)
     except Exception as e:
-        logger.error(f"Error in get_model_info: {e}", exc_info=True)
+        logger.error(f"Error in analyze_image: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Multimodal Analysis (text + image + real data)
+# ═══════════════════════════════════════════════════════════════════════════════
 @app.post("/api/v1/analyze/multimodal", tags=["Analysis"])
 async def analyze_multimodal(
     text: str = Form(...),
     latitude: float = Form(...),
     longitude: float = Form(...),
-    image: UploadFile = File(None)
+    image: UploadFile = File(None),
 ):
     try:
         results = {}
+
+        # 1) Text analysis
         text_request = TextAnalysisRequest(
-            text=text,
-            include_entities=True,
-            include_sentiment=True
+            text=text, include_entities=True, include_sentiment=True
         )
         text_result = await analyze_text(text_request)
         results["text_analysis"] = serialize_for_json(text_result.dict())
+
+        # 2) Image analysis (optional)
         image_result = None
         if image:
-            temp_filename = f"/tmp/{uuid.uuid4()}_{image.filename}"
-            
             try:
-                with open(temp_filename, "wb") as buffer:
-                    shutil.copyfileobj(image.file, buffer)
-                image_result = image_classifier.classify_image(temp_filename)
-                results["image_analysis"] = serialize_for_json(image_result)
-                consistency = image_classifier.verify_consistency(
-                    image_path=temp_filename,
-                    text_prediction=text_result.hazard_detection['hazard_type']
-                )
-                results["consistency_check"] = serialize_for_json(consistency)
-                
-            finally:
-                if os.path.exists(temp_filename):
-                    os.remove(temp_filename)
+                classifier = _get_image_classifier()
+                temp_filename = f"/tmp/{uuid.uuid4()}_{image.filename}"
+                try:
+                    with open(temp_filename, "wb") as buffer:
+                        shutil.copyfileobj(image.file, buffer)
+                    image_result = classifier.classify_image(temp_filename)
+                    results["image_analysis"] = serialize_for_json(image_result)
+                    consistency = classifier.verify_consistency(
+                        image_path=temp_filename,
+                        text_prediction=text_result.hazard_detection["hazard_type"],
+                    )
+                    results["consistency_check"] = serialize_for_json(consistency)
+                finally:
+                    if os.path.exists(temp_filename):
+                        os.remove(temp_filename)
+            except Exception as img_err:
+                logger.warning(f"Image analysis skipped: {img_err}")
+                results["image_analysis"] = None
+                results["consistency_check"] = None
         else:
             results["image_analysis"] = None
             results["consistency_check"] = None
 
-        verification = await ocean_client.verify_hazard_report(
-            hazard_type=text_result.hazard_detection['hazard_type'],
-            latitude=latitude,
-            longitude=longitude
-        )
-        results["real_data_verification"] = serialize_for_json(verification)
-        final = integrate_predictions(
-            text_result.dict(),
-            image_result,
-            verification
-        )
+        # 3) Real-data verification (optional, never blocks)
+        try:
+            ocean = _get_ocean_client()
+            verification = await ocean.verify_hazard_report(
+                hazard_type=text_result.hazard_detection["hazard_type"],
+                latitude=latitude,
+                longitude=longitude,
+            )
+            results["real_data_verification"] = serialize_for_json(verification)
+        except Exception as ver_err:
+            logger.warning(f"Real-data verification skipped: {ver_err}")
+            results["real_data_verification"] = {
+                "verified": False,
+                "confidence": 0.0,
+                "explanation": "Verification service unavailable",
+            }
+
+        # 4) Final integrated prediction
+        final = _integrate_predictions(text_result.dict(), image_result, results.get("real_data_verification", {}))
         results["final_prediction"] = serialize_for_json(final)
-        
         return results
-        
+
     except Exception as e:
         logger.error(f"Error in analyze_multimodal: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/v1/analyze/image", tags=["Analysis"])
-async def analyze_image_only(image: UploadFile = File(...)):
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Hotspot Detection
+# ═══════════════════════════════════════════════════════════════════════════════
+@app.post("/api/v1/hotspots/detect", response_model=HotspotDetectionResponse, tags=["Hotspots"])
+async def detect_hotspots(request: HotspotDetectionRequest):
     try:
-        temp_filename = f"/tmp/{uuid.uuid4()}_{image.filename}"
-        
-        try:
-            with open(temp_filename, "wb") as buffer:
-                shutil.copyfileobj(image.file, buffer)
-            
-            result = image_classifier.classify_image(temp_filename)
-            return serialize_for_json(result)
-            
-        finally:
-            if os.path.exists(temp_filename):
-                os.remove(temp_filename)
-                
+        hotspot_gen = _get_hotspot_generator()
+
+        start_time = time.time()
+        df = pd.DataFrame(request.reports)
+
+        if "latitude" not in df.columns or "longitude" not in df.columns:
+            raise HTTPException(
+                status_code=400,
+                detail="Reports must include 'latitude' and 'longitude'",
+            )
+
+        hotspot_gen.min_reports = request.min_reports
+        hotspot_gen.radius_km = request.radius_km
+        hotspots = hotspot_gen.generate_hotspots(df)
+
+        processing_time = (time.time() - start_time) * 1000
+        hotspot_responses = [
+            HotspotResponse(**serialize_for_json(hotspot)) for hotspot in hotspots
+        ]
+
+        response = HotspotDetectionResponse(
+            hotspots=hotspot_responses,
+            total_count=len(hotspot_responses),
+            processing_time_ms=processing_time,
+        )
+        await manager.broadcast({
+            "type": "hotspots_detected",
+            "data": {
+                "count": len(hotspot_responses),
+                "hotspots": serialize_for_json([h.dict() for h in hotspot_responses]),
+            },
+        })
+        return response
     except Exception as e:
-        logger.error(f"Error in analyze_image: {e}", exc_info=True)
+        logger.error(f"Error in detect_hotspots: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Verification against real ocean data
+# ═══════════════════════════════════════════════════════════════════════════════
 @app.post("/api/v1/verify/report", tags=["Verification"])
-async def verify_report_only(
-    hazard_type: str,
-    latitude: float,
-    longitude: float
-):
+async def verify_report_only(hazard_type: str, latitude: float, longitude: float):
     try:
-        result = await ocean_client.verify_hazard_report(
+        ocean = _get_ocean_client()
+        result = await ocean.verify_hazard_report(
             hazard_type=hazard_type,
             latitude=latitude,
-            longitude=longitude
+            longitude=longitude,
         )
         return serialize_for_json(result)
-        
     except Exception as e:
-        logger.error(f"Error in verify_report: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning(f"Verification failed (non-critical): {e}")
+        return {
+            "verified": False,
+            "confidence": 0.0,
+            "explanation": f"Verification unavailable: {str(e)}",
+            "hazard_type": hazard_type,
+        }
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Model Info
+# ═══════════════════════════════════════════════════════════════════════════════
+@app.get("/api/v1/models/info", response_model=Dict[str, ModelInfoResponse], tags=["Models"])
+async def get_model_info():
+    pred = _get_predictor()
+    return {
+        "text_classifier": ModelInfoResponse(
+            model_name="Keyword Hazard Classifier",
+            model_type="rule_based",
+            status="loaded",
+            loaded=True,
+            metadata={
+                "num_labels": len(pred.id2label),
+                "labels": list(pred.id2label.values()),
+            },
+        ),
+        "sentiment_analyzer": ModelInfoResponse(
+            model_name="VADER",
+            model_type="rule_based",
+            status="loaded",
+            loaded=True,
+            metadata={"type": "sentiment + panic detection"},
+        ),
+        "ner": ModelInfoResponse(
+            model_name="spaCy en_core_web_sm",
+            model_type="statistical",
+            status="loaded",
+            loaded=True,
+            metadata={"entities": ["locations", "organizations", "dates", "times"]},
+        ),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  WebSocket
+# ═══════════════════════════════════════════════════════════════════════════════
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
-    
     try:
         while True:
             data = await websocket.receive_text()
-            
             if data == "ping":
                 await websocket.send_text("pong")
-    
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+    except Exception:
         manager.disconnect(websocket)
 
 
-def integrate_predictions(text_result: dict, image_result: dict, verification: dict) -> dict:
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Helpers
+# ═══════════════════════════════════════════════════════════════════════════════
+def _integrate_predictions(text_result: dict, image_result: dict | None, verification: dict) -> dict:
     hazard_type = text_result["hazard_detection"]["hazard_type"]
     confidence = text_result["hazard_detection"]["confidence"]
-    
+
     if image_result and image_result.get("hazard_type") == hazard_type:
         confidence = min(confidence * 1.3, 1.0)
-
     if verification.get("verified"):
         confidence = min(confidence * 1.5, 1.0)
-
     if image_result and image_result.get("hazard_type") != hazard_type:
         confidence *= 0.7
-    
+
     return {
         "hazard_type": hazard_type,
-        "confidence": float(confidence),
+        "confidence": float(round(confidence, 4)),
         "verified_by_real_data": verification.get("verified", False),
         "has_visual_confirmation": image_result is not None,
-        "credibility_score": text_result.get("credibility_score", 0.5)
+        "credibility_score": text_result.get("credibility_score", 0.5),
     }
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Startup / Shutdown
+# ═══════════════════════════════════════════════════════════════════════════════
 @app.on_event("startup")
 async def startup_event():
-    logger.info("="*80)
-    logger.info("Starting Tat-Sahayk ML Service")
-    logger.info("="*80)
-    get_services()  
-    logger.info(" Service started successfully")
-    logger.info("="*80)
+    logger.info("=" * 60)
+    logger.info("  Starting Tat-Sahayk ML Service")
+    logger.info("=" * 60)
+
+    # Pre-load lightweight services (text predictor, credibility scorer)
+    try:
+        _get_predictor()
+        logger.info("✅ Text Predictor ready")
+    except Exception as e:
+        logger.warning(f"⚠️  Text Predictor deferred: {e}")
+
+    try:
+        _get_credibility_scorer()
+        logger.info("✅ Credibility Scorer ready")
+    except Exception as e:
+        logger.warning(f"⚠️  Credibility Scorer deferred: {e}")
+
+    # Image classifier and ocean client are loaded lazily on first request
+    logger.info("ℹ️  Image Classifier will load on first image request")
+    logger.info("ℹ️  Ocean Data Client will load on first verification request")
+    logger.info("=" * 60)
+    logger.info("✅ ML Service is READY")
+    logger.info("=" * 60)
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down Tat-Sahayk ML Service")
-
-if __name__ == "__main__":
-    import uvicorn
-    
-    uvicorn.run(
-        "main:app",
-        host=settings.API_HOST,
-        port=settings.API_PORT,
-        reload=settings.DEBUG,
-        log_level="info"
-    )
