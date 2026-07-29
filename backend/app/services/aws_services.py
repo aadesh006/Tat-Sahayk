@@ -1,156 +1,170 @@
-"""Optional AWS integrations for SNS SMS and SES email."""
-
-from __future__ import annotations
-
-import logging
-from typing import Any
-
+"""AWS Services for SMS (SNS) and Email (SES)"""
 import boto3
-
+import random
+from datetime import datetime, timedelta
 from app.core.config import settings
 
+# Initialize AWS clients
+sns_client = boto3.client(
+    'sns',
+    region_name='us-east-1',
+    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+)
 
-logger = logging.getLogger(__name__)
+ses_client = boto3.client(
+    'ses',
+    region_name='us-east-1',
+    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+)
 
-
-def get_aws_client(service_name: str) -> Any:
-    """Create an AWS client lazily so local mode never contacts AWS."""
-    if not settings.AWS_ENABLED:
-        raise RuntimeError("AWS integrations are disabled")
-
-    options: dict[str, str] = {
-        "region_name": settings.AWS_REGION,
-    }
-
-    if (
-        settings.AWS_ACCESS_KEY_ID
-        and settings.AWS_SECRET_ACCESS_KEY
-    ):
-        options.update(
-            {
-                "aws_access_key_id": (
-                    settings.AWS_ACCESS_KEY_ID
-                ),
-                "aws_secret_access_key": (
-                    settings.AWS_SECRET_ACCESS_KEY
-                ),
-            }
-        )
-
-    return boto3.client(service_name, **options)
-
+def generate_otp() -> str:
+    """Generate a 6-digit OTP"""
+    return str(random.randint(100000, 999999))
 
 def send_otp_sms(phone: str, otp: str) -> bool:
-    """Send a transactional OTP through AWS SNS."""
-    if not settings.AWS_ENABLED:
-        logger.warning(
-            "Skipping SNS OTP because AWS is disabled"
-        )
-        return False
-
+    """Send OTP via AWS SNS SMS"""
     try:
-        response = get_aws_client("sns").publish(
+        # Format phone number for international format (add +91 for India if not present)
+        if not phone.startswith('+'):
+            phone = f'+91{phone}'
+        
+        message = f"Your तट-Sahayk verification code is: {otp}\n\nThis code expires in 10 minutes.\n\nDo not share this code with anyone."
+        
+        response = sns_client.publish(
             PhoneNumber=phone,
-            Message=(
-                "Your Tat-Sahayk verification code is: "
-                f"{otp}\n\n"
-                "This code expires soon. Do not share it."
-            ),
+            Message=message,
             MessageAttributes={
-                "AWS.SNS.SMS.SenderID": {
-                    "DataType": "String",
-                    "StringValue": "TatSahayk",
+                'AWS.SNS.SMS.SenderID': {
+                    'DataType': 'String',
+                    'StringValue': 'TatSahayk'
                 },
-                "AWS.SNS.SMS.SMSType": {
-                    "DataType": "String",
-                    "StringValue": "Transactional",
-                },
-            },
+                'AWS.SNS.SMS.SMSType': {
+                    'DataType': 'String',
+                    'StringValue': 'Transactional'
+                }
+            }
         )
-
-        return (
-            response.get("ResponseMetadata", {}).get(
-                "HTTPStatusCode"
-            )
-            == 200
-        )
-    except Exception:
-        logger.exception("SNS OTP delivery failed")
+        return response['ResponseMetadata']['HTTPStatusCode'] == 200
+    except Exception as e:
+        print(f"SMS Error: {e}")
         return False
 
-
-def send_disaster_alert_email(
-    to_email: str,
-    user_name: str,
-    disaster_type: str,
-    location: str,
-    severity: str,
-    description: str,
-) -> bool:
-    """Send a disaster notification through AWS SES when configured."""
-    if not settings.AWS_ENABLED or not settings.SES_SOURCE_EMAIL:
-        logger.info(
-            "Skipping SES alert because SES is not configured"
-        )
-        return False
-
-    subject = (
-        f"{severity.upper()} alert: {disaster_type} "
-        "near your location"
-    )
-    text_body = (
-        f"Hello {user_name},\n\n"
-        "A verified coastal-hazard report was registered "
-        "near your location.\n\n"
-        f"Type: {disaster_type}\n"
-        f"Severity: {severity.upper()}\n"
-        f"Location: {location}\n"
-        f"Details: {description}\n\n"
-        "Follow official guidance and local emergency services."
-    )
-    html_body = (
-        "<html><body>"
-        f"<p>Hello {user_name},</p>"
-        "<p>A verified coastal-hazard report was registered "
-        "near your location.</p>"
-        "<ul>"
-        f"<li><strong>Type:</strong> {disaster_type}</li>"
-        f"<li><strong>Severity:</strong> {severity.upper()}</li>"
-        f"<li><strong>Location:</strong> {location}</li>"
-        f"<li><strong>Details:</strong> {description}</li>"
-        "</ul>"
-        "<p>Follow official guidance and local emergency services.</p>"
-        "</body></html>"
-    )
-
+def send_disaster_alert_email(to_email: str, user_name: str, disaster_type: str, 
+                               location: str, severity: str, description: str) -> bool:
+    """Send disaster alert email via AWS SES"""
     try:
-        response = get_aws_client("ses").send_email(
-            Source=settings.SES_SOURCE_EMAIL,
-            Destination={"ToAddresses": [to_email]},
+        subject = f"⚠️ {severity.upper()} Alert: {disaster_type} near your location"
+        
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); 
+                          color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+                .content {{ background: #f8fafc; padding: 30px; border-radius: 0 0 10px 10px; }}
+                .alert-box {{ background: white; border-left: 4px solid #ef4444; 
+                             padding: 20px; margin: 20px 0; border-radius: 5px; }}
+                .severity-critical {{ border-left-color: #dc2626; }}
+                .severity-high {{ border-left-color: #f97316; }}
+                .severity-medium {{ border-left-color: #eab308; }}
+                .severity-low {{ border-left-color: #22c55e; }}
+                .button {{ display: inline-block; background: #0ea5e9; color: white; 
+                          padding: 12px 30px; text-decoration: none; border-radius: 5px; 
+                          margin: 20px 0; }}
+                .footer {{ text-align: center; color: #64748b; font-size: 12px; margin-top: 30px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="margin: 0; font-size: 28px;">तट-Sahayk</h1>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Disaster Alert System</p>
+                </div>
+                <div class="content">
+                    <h2 style="color: #1e293b; margin-top: 0;">Hello {user_name},</h2>
+                    <p>A verified disaster report has been registered near your location. Please take necessary precautions.</p>
+                    
+                    <div class="alert-box severity-{severity.lower()}">
+                        <h3 style="margin-top: 0; color: #1e293b;">🚨 {disaster_type}</h3>
+                        <p><strong>Severity:</strong> <span style="color: #ef4444; font-weight: bold;">{severity.upper()}</span></p>
+                        <p><strong>Location:</strong> {location}</p>
+                        <p><strong>Details:</strong> {description}</p>
+                    </div>
+                    
+                    <h3 style="color: #1e293b;">Recommended Actions:</h3>
+                    <ul style="color: #475569;">
+                        <li>Stay alert and follow official instructions</li>
+                        <li>Keep emergency contacts handy</li>
+                        <li>Prepare emergency supplies if needed</li>
+                        <li>Monitor updates on तट-Sahayk platform</li>
+                    </ul>
+                    
+                    <div style="text-align: center;">
+                        <a href="https://tat-sahayk.com" class="button">View on तट-Sahayk</a>
+                    </div>
+                    
+                    <div style="background: #fef3c7; border: 1px solid #fbbf24; padding: 15px; 
+                               border-radius: 5px; margin-top: 20px;">
+                        <p style="margin: 0; color: #92400e; font-size: 14px;">
+                            <strong>Emergency Helplines:</strong><br>
+                            Disaster Management: 1077 | Police: 100 | Medical: 102
+                        </p>
+                    </div>
+                </div>
+                <div class="footer">
+                    <p>This is an automated alert from तट-Sahayk Disaster Management System</p>
+                    <p>You received this because a disaster was reported near your registered location</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_body = f"""
+        तट-Sahayk Disaster Alert
+        
+        Hello {user_name},
+        
+        A verified disaster report has been registered near your location.
+        
+        Type: {disaster_type}
+        Severity: {severity.upper()}
+        Location: {location}
+        Details: {description}
+        
+        Recommended Actions:
+        - Stay alert and follow official instructions
+        - Keep emergency contacts handy
+        - Prepare emergency supplies if needed
+        - Monitor updates on तट-Sahayk platform
+        
+        Emergency Helplines:
+        Disaster Management: 1077
+        Police: 100
+        Medical: 102
+        
+        Visit: https://tat-sahayk.com
+        
+        This is an automated alert from तट-Sahayk Disaster Management System.
+        """
+        
+        response = ses_client.send_email(
+            Source='noreply@tat-sahayk.com',  # Must be verified in SES
+            Destination={'ToAddresses': [to_email]},
             Message={
-                "Subject": {
-                    "Data": subject,
-                    "Charset": "UTF-8",
-                },
-                "Body": {
-                    "Text": {
-                        "Data": text_body,
-                        "Charset": "UTF-8",
-                    },
-                    "Html": {
-                        "Data": html_body,
-                        "Charset": "UTF-8",
-                    },
-                },
-            },
+                'Subject': {'Data': subject, 'Charset': 'UTF-8'},
+                'Body': {
+                    'Text': {'Data': text_body, 'Charset': 'UTF-8'},
+                    'Html': {'Data': html_body, 'Charset': 'UTF-8'}
+                }
+            }
         )
-
-        return (
-            response.get("ResponseMetadata", {}).get(
-                "HTTPStatusCode"
-            )
-            == 200
-        )
-    except Exception:
-        logger.exception("SES alert delivery failed")
+        return response['ResponseMetadata']['HTTPStatusCode'] == 200
+    except Exception as e:
+        print(f"Email Error: {e}")
         return False

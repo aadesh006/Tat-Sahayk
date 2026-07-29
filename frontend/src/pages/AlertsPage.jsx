@@ -22,6 +22,7 @@ const AlertsPage = () => {
   const { data: alerts, isLoading } = useQuery({
     queryKey: ['alerts'],
     queryFn: fetchAlerts,
+    refetchInterval: 60000, // Refresh every minute
   });
 
   const filteredAlerts = alerts?.filter(alert => 

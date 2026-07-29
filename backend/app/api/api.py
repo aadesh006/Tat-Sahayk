@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, reports, media, social, comments, alerts, map_admin, ai_analysis, map_resources, map_data, ws
+from app.api.v1.endpoints import auth, reports, media, social, comments, alerts, map_admin, ai_analysis, map_resources, map_data
 
 api_router = APIRouter()
 
@@ -32,6 +32,3 @@ api_router.include_router(map_resources.router, prefix="/map", tags=["map-resour
 
 #Map Data (Optimized for map view)
 api_router.include_router(map_data.router, prefix="/map", tags=["map-data"])
-
-# WebSockets
-api_router.include_router(ws.router, prefix="/ws", tags=["websocket"])

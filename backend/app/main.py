@@ -1,137 +1,53 @@
-import logging
-import threading
-from contextlib import asynccontextmanager
-from typing import Optional
-import app.db.base  # noqa: F401
-
-from fastapi.staticfiles import StaticFiles
-from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from apscheduler.schedulers.background import BackgroundScheduler
+import threading
 
-from app.api.api import api_router
-from app.api.health import router as health_router
 from app.core.config import settings
-
-
-logging.basicConfig(
-    level=logging.DEBUG if settings.DEBUG else logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-)
-
-logger = logging.getLogger(__name__)
-
+from app.api.api import api_router
+from app.db.session import engine
+from app.db.base import Base
+from scripts.harvest_social import harvest
+from app.services.cluster_analyzer import run_cluster_analysis
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scheduler: Optional[BackgroundScheduler] = None
+    Base.metadata.create_all(bind=engine)
 
-    if settings.ENABLE_SOCIAL_HARVESTER or settings.ENABLE_CLUSTER_ANALYSIS:
-        scheduler = BackgroundScheduler(timezone="UTC")
+    # Start scheduler with both jobs
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(harvest, "interval", minutes=15, id="social_harvester")
+    scheduler.add_job(run_cluster_analysis, "interval", minutes=15, id="bedrock_cluster_analysis")
+    scheduler.start()
+    print("Social Harvester Scheduler Started")
+    print("Bedrock Cluster Analyzer Started")
 
-        if settings.ENABLE_SOCIAL_HARVESTER:
-            from scripts.harvest_social import harvest
-
-            scheduler.add_job(
-                harvest,
-                trigger="interval",
-                minutes=settings.SOCIAL_HARVEST_INTERVAL_MINUTES,
-                id="social_harvester",
-                replace_existing=True,
-            )
-            logger.info("Social harvester scheduled")
-
-        if settings.ENABLE_CLUSTER_ANALYSIS:
-            from app.services.cluster_analyzer import run_cluster_analysis
-
-            scheduler.add_job(
-                run_cluster_analysis,
-                trigger="interval",
-                minutes=settings.CLUSTER_ANALYSIS_INTERVAL_MINUTES,
-                id="cluster_analysis",
-                replace_existing=True,
-            )
-            logger.info("Cluster analysis scheduled")
-
-        scheduler.start()
-
-        if settings.ENABLE_SOCIAL_HARVESTER:
-            from scripts.harvest_social import harvest
-            threading.Thread(
-                target=harvest,
-                name="initial-social-harvest",
-                daemon=True,
-            ).start()
-
-        if settings.ENABLE_CLUSTER_ANALYSIS:
-            threading.Thread(
-                target=run_cluster_analysis,
-                name="initial-cluster-analysis",
-                daemon=True,
-            ).start()
-
-    logger.info(
-        "Tat-Sahayk backend started with AI provider '%s'",
-        settings.AI_PROVIDER,
-    )
+    # Run cluster analysis once immediately on startup
+    threading.Thread(target=run_cluster_analysis, daemon=True).start()
 
     yield
 
-    if scheduler and scheduler.running:
-        scheduler.shutdown(wait=False)
+    scheduler.shutdown()
 
-    logger.info("Tat-Sahayk backend stopped")
-
-
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    debug=settings.DEBUG,
-    lifespan=lifespan,
-)
-
-local_media_directory = settings.local_media_directory
-local_media_directory.mkdir(
-    parents=True,
-    exist_ok=True,
-)
-
-app.mount(
-    settings.local_media_url,
-    StaticFiles(
-        directory=str(local_media_directory),
-    ),
-    name="local-media",
-)
-
-logger.info(
-    "Media storage provider: '%s'",
-    settings.MEDIA_STORAGE_PROVIDER,
-)
+app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=[
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://54.89.190.236.nip.io",
+    "https://tatsahayk.in",
+    "https://www.tatsahayk.in"
+],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(health_router)
+app.include_router(api_router, prefix="/api/v1")
 
-app.include_router(
-    api_router,
-    prefix=settings.API_V1_PREFIX,
-)
-
-
-@app.get("/", tags=["system"])
+@app.get("/")
 def read_root():
-    return {
-        "service": settings.PROJECT_NAME,
-        "status": "running",
-        "environment": settings.ENVIRONMENT,
-        "ai_provider": settings.AI_PROVIDER,
-        "docs": "/docs",
-        "health": "/health/ready",
-        "media_storage_provider": settings.MEDIA_STORAGE_PROVIDER,
-    }
+    return {"status": "Tat-Sahayk Backend is Running"}

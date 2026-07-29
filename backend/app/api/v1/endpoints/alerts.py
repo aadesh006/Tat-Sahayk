@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -8,7 +8,6 @@ from app.api import deps
 from app.models.user  import User
 from app.models.alert import Alert
 from app.schemas.alert import AlertCreate, AlertResponse
-from app.api.v1.endpoints.ws import manager
 
 router = APIRouter()
 
@@ -62,7 +61,6 @@ def get_alerts(
 @router.post("/", response_model=AlertResponse)
 def create_alert(
     alert_in: AlertCreate,
-    background_tasks: BackgroundTasks,
     db:       Session = Depends(get_db),
     admin:    User    = Depends(require_admin)
 ):
@@ -100,9 +98,6 @@ def create_alert(
     db.add(alert)
     db.commit()
     db.refresh(alert)
-    
-    # Broadcast new alert to connected clients
-    background_tasks.add_task(manager.broadcast, {"type": "new_alert", "id": alert.id})
 
     return AlertResponse(
         id=alert.id, admin_id=alert.admin_id, title=alert.title,

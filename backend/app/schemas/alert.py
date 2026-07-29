@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
@@ -25,4 +25,5 @@ class AlertResponse(BaseModel):
     expires_at:  Optional[datetime]
     admin_name:  Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True

@@ -1,423 +1,265 @@
-import logging
-import math
-import re
-from typing import Any, Dict, Optional
-
-import numpy as np
 import pandas as pd
+import numpy as np
+from typing import Dict, List, Optional
+import logging
+from pathlib import Path
+import sys
 
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-
 class CredibilityScorer:
-    """
-    Evidence-based credibility scoring.
-
-    Citizen reports and social-media posts use separate profiles because
-    followers and engagement should not determine a citizen report's
-    credibility.
-    """
-
-    CITIZEN_WEIGHTS = {
-        "location": 0.20,
-        "media": 0.15,
-        "text_quality": 0.20,
-        "report_details": 0.10,
-        "hazard_evidence": 0.25,
-        "consistency": 0.10,
-    }
-
-    SOCIAL_WEIGHTS = {
-        "location": 0.15,
-        "location_specificity": 0.10,
-        "media": 0.15,
-        "media_count": 0.05,
-        "engagement": 0.10,
-        "share_ratio": 0.05,
-        "author": 0.10,
-        "verified_account": 0.05,
-        "text_quality": 0.10,
-        "report_details": 0.05,
-        "consistency": 0.10,
-    }
-
-    def __init__(self) -> None:
-        self.high_credibility_threshold = 0.70
-        self.medium_credibility_threshold = 0.50
+    
+    def __init__(self):
+        self.weights = {
+            'has_location': 0.15,
+            'location_specificity': 0.10,
+            'has_media': 0.15,
+            'media_count': 0.05,
+            'engagement_score': 0.10,
+            'share_ratio': 0.05,
+            'author_followers': 0.10,
+            'is_verified_account': 0.05,
+            'text_quality': 0.10,
+            'has_details': 0.05,
+            'hazard_sentiment_match': 0.05,
+            'urgency_consistency': 0.05
+        }
+        self.high_credibility_threshold = 0.7
+        self.medium_credibility_threshold = 0.5
+        
         logger.info("CredibilityScorer initialized")
+    
+    def score_location(self, report: pd.Series) -> float:
+        score = 0.0
+        
+        if 'has_location_entity' in report:
+            if report['has_location_entity']:
+                score += self.weights['has_location']
+        elif 'latitude' in report and 'longitude' in report:
+            if pd.notna(report['latitude']) and pd.notna(report['longitude']):
+                score += self.weights['has_location']
+        
+        if 'location_count' in report:
+            if report['location_count'] > 0:
+                score += self.weights['location_specificity']
+        elif 'extracted_locations' in report:
+            if pd.notna(report['extracted_locations']) and report['extracted_locations']:
+                score += self.weights['location_specificity']
+        
+        return score
+    
+    def score_media(self, report: pd.Series) -> float:
+        score = 0.0
+        if 'has_media' in report:
+            if report['has_media']:
+                score += self.weights['has_media']
 
-    @staticmethod
-    def _value(report: pd.Series, key: str, default: Any = None) -> Any:
-        value = report.get(key, default)
-
-        if value is None:
-            return default
-
-        try:
-            missing = pd.isna(value)
-        except (TypeError, ValueError):
-            return value
-
-        # Collections produce an array of booleans from pd.isna().
-        # Only scalar missing-value results should be evaluated here.
-        if isinstance(missing, (bool, np.bool_)) and missing:
-            return default
-
-        return value
-
-    @classmethod
-    def _bool(cls, report: pd.Series, key: str) -> bool:
-        value = cls._value(report, key, False)
-
-        if isinstance(value, str):
-            return value.strip().lower() in {
-                "true",
-                "1",
-                "yes",
-                "y",
-            }
-
-        return bool(value)
-
-    @staticmethod
-    def _clamp(value: Any, default: float = 0.0) -> float:
-        try:
-            numeric = float(value)
-
-            if not math.isfinite(numeric):
-                return default
-
-            return max(0.0, min(1.0, numeric))
-        except (TypeError, ValueError):
-            return default
-
-    @classmethod
-    def _has_coordinates(cls, report: pd.Series) -> bool:
-        latitude = cls._value(report, "latitude")
-        longitude = cls._value(report, "longitude")
-
-        if latitude is None or longitude is None:
-            return False
-
-        try:
-            latitude = float(latitude)
-            longitude = float(longitude)
-        except (TypeError, ValueError):
-            return False
-
-        return (
-            math.isfinite(latitude)
-            and math.isfinite(longitude)
-            and -90 <= latitude <= 90
-            and -180 <= longitude <= 180
-        )
-
-    @classmethod
-    def _location_evidence(cls, report: pd.Series) -> float:
-        if cls._bool(report, "has_location"):
-            return 1.0
-
-        if cls._bool(report, "has_location_entity"):
-            return 1.0
-
-        if cls._has_coordinates(report):
-            return 1.0
-
-        locations = cls._value(report, "extracted_locations", [])
-        return 1.0 if locations else 0.0
-
-    @classmethod
-    def _media_evidence(cls, report: pd.Series) -> float:
-        has_media = cls._bool(report, "has_media")
-        media_count = max(
-            0,
-            int(cls._value(report, "media_count", 0) or 0),
-        )
-
-        if not has_media and media_count == 0:
-            return 0.0
-
-        # One attachment establishes media evidence. Additional attachments
-        # increase it slightly without allowing quantity to dominate.
-        return min(1.0, 0.75 + min(media_count, 3) * 0.0833)
-
-    @classmethod
-    def _text_quality(cls, report: pd.Series) -> float:
-        text = str(cls._value(report, "text", "") or "").strip()
-        word_count = cls._value(report, "word_count")
-
-        if word_count is None:
-            word_count = len(text.split())
-
-        try:
-            word_count = max(0, int(word_count))
-        except (TypeError, ValueError):
-            word_count = 0
-
-        if word_count == 0:
-            return 0.0
-
-        if word_count < 12:
-            return word_count / 12
-
-        if word_count <= 180:
-            return 1.0
-
-        # Very long reports remain useful, but may contain irrelevant text.
-        return max(0.60, 1.0 - ((word_count - 180) / 600))
-
-    @classmethod
-    def _detail_evidence(cls, report: pd.Series) -> float:
-        text = str(cls._value(report, "text", "") or "")
-
-        has_number = cls._bool(report, "has_numbers") or bool(
-            re.search(r"\d", text)
-        )
-        has_date = (
-            float(cls._value(report, "date_count", 0) or 0) > 0
-            or bool(
-                re.search(
-                    r"\b(?:today|tonight|tomorrow|yesterday)\b",
-                    text,
-                    flags=re.IGNORECASE,
-                )
-            )
-        )
-        has_time = (
-            float(cls._value(report, "time_count", 0) or 0) > 0
-            or bool(
-                re.search(
-                    r"\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b",
-                    text,
-                    flags=re.IGNORECASE,
-                )
-            )
-        )
-
-        detail_signals = sum((has_number, has_date, has_time))
-        return detail_signals / 3
-
-    @classmethod
-    def _hazard_evidence(cls, report: pd.Series) -> float:
-        is_hazard = cls._bool(report, "is_hazard")
-        confidence = cls._clamp(
-            cls._value(report, "hazard_confidence"),
-            default=1.0 if is_hazard else 0.0,
-        )
-
-        return confidence if is_hazard else 0.0
-
-    @classmethod
-    def _consistency(cls, report: pd.Series) -> float:
-        is_hazard = cls._bool(report, "is_hazard")
-        sentiment = str(
-            cls._value(report, "sentiment", "neutral")
-        ).strip().lower()
-
-        has_urgency = cls._bool(report, "has_urgency_words")
-        panic_level = str(
-            cls._value(report, "predicted_panic_level", "")
-        ).strip().lower()
-
-        if not is_hazard:
-            sentiment_score = 0.50
-        elif sentiment in {"negative", "fear", "urgent"}:
-            sentiment_score = 1.0
-        elif sentiment in {"neutral", "unknown", ""}:
-            sentiment_score = 0.75
-        else:
-            # Sentiment models can classify calm, factual hazard reports as
-            # positive. Do not treat that alone as evidence of fabrication.
-            sentiment_score = 0.50
-
-        if not panic_level:
-            urgency_score = 0.50
-        elif has_urgency and panic_level in {"high", "critical"}:
-            urgency_score = 1.0
-        elif not has_urgency and panic_level in {"low", "medium"}:
-            urgency_score = 1.0
-        else:
-            urgency_score = 0.25
-
-        return (sentiment_score + urgency_score) / 2
-
-    def _citizen_breakdown(
-        self,
-        report: pd.Series,
-    ) -> Dict[str, float]:
-        raw_scores = {
-            "location": self._location_evidence(report),
-            "media": self._media_evidence(report),
-            "text_quality": self._text_quality(report),
-            "report_details": self._detail_evidence(report),
-            "hazard_evidence": self._hazard_evidence(report),
-            "consistency": self._consistency(report),
-        }
-
-        weighted = {
-            key: raw_scores[key] * self.CITIZEN_WEIGHTS[key]
-            for key in self.CITIZEN_WEIGHTS
-        }
-
-        return {
-            **{key: round(value, 4) for key, value in weighted.items()},
-            "total": round(
-                self._clamp(sum(weighted.values())),
-                4,
-            ),
-        }
-
-    def _social_breakdown(
-        self,
-        report: pd.Series,
-    ) -> Dict[str, float]:
-        location = self._location_evidence(report)
-        location_count = max(
-            0.0,
-            float(self._value(report, "location_count", 0) or 0),
-        )
-        media = self._media_evidence(report)
-
-        total_engagement = max(
-            0.0,
-            float(self._value(report, "total_engagement", 0) or 0),
-        )
-        engagement = min(
-            np.log1p(total_engagement) / np.log1p(1000),
-            1.0,
-        )
-
-        shares = max(
-            0.0,
-            float(self._value(report, "shares", 0) or 0),
-        )
-        share_ratio = self._value(report, "share_ratio")
-
-        if share_ratio is None:
-            share_ratio = (
-                shares / total_engagement
-                if total_engagement > 0
-                else 0.0
-            )
-
-        followers = max(
-            0.0,
-            float(self._value(report, "author_followers", 0) or 0),
-        )
-        author = min(
-            np.log1p(followers) / np.log1p(10000),
-            1.0,
-        )
-
-        raw_scores = {
-            "location": location,
-            "location_specificity": min(location_count, 1.0),
-            "media": media,
-            "media_count": min(
-                float(self._value(report, "media_count", 0) or 0) / 3,
-                1.0,
-            ),
-            "engagement": engagement,
-            "share_ratio": self._clamp(share_ratio),
-            "author": author,
-            "verified_account": float(
-                self._bool(report, "is_verified_account")
-                or self._bool(report, "is_verified")
-            ),
-            "text_quality": self._text_quality(report),
-            "report_details": self._detail_evidence(report),
-            "consistency": self._consistency(report),
-        }
-
-        weighted = {
-            key: raw_scores[key] * self.SOCIAL_WEIGHTS[key]
-            for key in self.SOCIAL_WEIGHTS
-        }
-
-        return {
-            **{key: round(value, 4) for key, value in weighted.items()},
-            "total": round(
-                self._clamp(sum(weighted.values())),
-                4,
-            ),
-        }
-
-    def get_score_breakdown(
-        self,
-        report: pd.Series,
-        profile: Optional[str] = None,
-    ) -> Dict[str, float]:
-        selected_profile = (
-            profile
-            or str(self._value(report, "source_type", "social"))
-        ).strip().lower()
-
-        if selected_profile == "citizen":
-            return self._citizen_breakdown(report)
-
-        return self._social_breakdown(report)
-
-    def score_report(
-        self,
-        report: pd.Series,
-        profile: Optional[str] = None,
-    ) -> float:
-        return self.get_score_breakdown(
-            report,
-            profile=profile,
-        )["total"]
-
+        if 'media_count' in report:
+            media_score = min(report['media_count'] / 3, 1.0)
+            score += self.weights['media_count'] * media_score
+        
+        return score
+    
+    def score_engagement(self, report: pd.Series) -> float:
+        score = 0.0
+        if 'total_engagement' in report:
+            eng_score = min(np.log1p(report['total_engagement']) / np.log1p(1000), 1.0)
+            score += self.weights['engagement_score'] * eng_score
+        if 'share_ratio' in report:
+            score += self.weights['share_ratio'] * report['share_ratio']
+        elif all(col in report for col in ['shares', 'total_engagement']):
+            if report['total_engagement'] > 0:
+                share_ratio = report['shares'] / report['total_engagement']
+                score += self.weights['share_ratio'] * share_ratio
+        
+        return score
+    
+    def score_author(self, report: pd.Series) -> float:
+        score = 0.0
+        
+        if 'author_followers' in report:
+            follower_score = min(np.log1p(report['author_followers']) / np.log1p(10000), 1.0)
+            score += self.weights['author_followers'] * follower_score
+        
+        if 'is_verified_account' in report:
+            if report['is_verified_account']:
+                score += self.weights['is_verified_account']
+        elif 'is_verified' in report:
+            if report['is_verified']:
+                score += self.weights['is_verified_account']
+        
+        return score
+    
+    def score_text_quality(self, report: pd.Series) -> float:
+        score = 0.0
+        
+        if 'word_count' in report:
+            word_count = report['word_count']
+            if 10 <= word_count <= 100:  
+                text_score = 1.0
+            elif word_count < 10:  
+                text_score = word_count / 10
+            else:  # Too long
+                text_score = max(0.5, 1.0 - (word_count - 100) / 200)
+            
+            score += self.weights['text_quality'] * text_score
+        
+        detail_score = 0.0
+        if 'date_count' in report and report['date_count'] > 0:
+            detail_score += 0.33
+        if 'time_count' in report and report['time_count'] > 0:
+            detail_score += 0.33
+        if 'has_numbers' in report and report['has_numbers']:
+            detail_score += 0.34
+        
+        score += self.weights['has_details'] * detail_score
+        
+        return score
+    
+    def score_consistency(self, report: pd.Series) -> float:
+        score = 0.0
+        
+        if all(col in report for col in ['is_hazard', 'sentiment']):
+            if report['is_hazard'] and report['sentiment'] == 'negative':
+                score += self.weights['hazard_sentiment_match']
+            elif not report['is_hazard'] and report['sentiment'] != 'negative':
+                score += self.weights['hazard_sentiment_match'] * 0.5
+        
+        # Urgency matches panic level
+        if all(col in report for col in ['has_urgency_words', 'predicted_panic_level']):
+            if report['has_urgency_words'] and report['predicted_panic_level'] in ['high', 'critical']:
+                score += self.weights['urgency_consistency']
+            elif not report['has_urgency_words'] and report['predicted_panic_level'] in ['low', 'medium']:
+                score += self.weights['urgency_consistency'] * 0.5
+        elif all(col in report for col in ['urgency_score', 'panic_score']):
+            correlation = abs(report['urgency_score'] - report['panic_score']) < 0.3
+            if correlation:
+                score += self.weights['urgency_consistency']
+        
+        return score
+    
+    def score_report(self, report: pd.Series) -> float:
+        total_score = 0.0
+        
+        total_score += self.score_location(report)
+        total_score += self.score_media(report)
+        total_score += self.score_engagement(report)
+        total_score += self.score_author(report)
+        total_score += self.score_text_quality(report)
+        total_score += self.score_consistency(report)
+        total_score = max(0.0, min(1.0, total_score))
+        
+        return total_score
+    
     def categorize_credibility(self, score: float) -> str:
         if score >= self.high_credibility_threshold:
-            return "high"
-
-        if score >= self.medium_credibility_threshold:
-            return "medium"
-
-        return "low"
-
+            return 'high'
+        elif score >= self.medium_credibility_threshold:
+            return 'medium'
+        else:
+            return 'low'
+    
     def score_batch(
         self,
         df: pd.DataFrame,
-        add_category: bool = True,
-        profile: Optional[str] = None,
+        add_category: bool = True
     ) -> pd.DataFrame:
-        logger.info("Scoring credibility for %s reports", len(df))
-
-        scored = df.copy()
-        scored["credibility_score"] = scored.apply(
-            lambda report: self.score_report(
-                report,
-                profile=profile,
-            ),
-            axis=1,
-        )
+        logger.info(f"Scoring credibility for {len(df)} reports...")
+        
+        df = df.copy()
+        df['credibility_score'] = df.apply(self.score_report, axis=1)
 
         if add_category:
-            scored["credibility_category"] = scored[
-                "credibility_score"
-            ].apply(self.categorize_credibility)
+            df['credibility_category'] = df['credibility_score'].apply(
+                self.categorize_credibility
+            )
+        
+        logger.info(" Credibility scoring complete")
+        logger.info(f"  Mean score: {df['credibility_score'].mean():.3f}")
+        logger.info(f"  Median score: {df['credibility_score'].median():.3f}")
+        
+        if add_category:
+            logger.info("\nCredibility distribution:")
+            for category, count in df['credibility_category'].value_counts().items():
+                logger.info(f"  {category}: {count} ({count/len(df)*100:.1f}%)")
+        
+        return df
+    
+    def score_posts(self, df: pd.DataFrame, add_category: bool = True) -> pd.DataFrame:
+        return self.score_batch(df, add_category=add_category)
+    
+    def calculate_credibility(self, df: pd.DataFrame, add_category: bool = True) -> pd.DataFrame:
+        return self.score_batch(df, add_category=add_category)
 
-        return scored
+    
+    def get_score_breakdown(self, report: pd.Series) -> Dict[str, float]:
+        breakdown = {
+            'location': self.score_location(report),
+            'media': self.score_media(report),
+            'engagement': self.score_engagement(report),
+            'author': self.score_author(report),
+            'text_quality': self.score_text_quality(report),
+            'consistency': self.score_consistency(report)
+        }
+        
+        breakdown['total'] = sum(breakdown.values())
+        
+        return breakdown
 
-    def score_posts(
-        self,
-        df: pd.DataFrame,
-        add_category: bool = True,
-    ) -> pd.DataFrame:
-        return self.score_batch(
-            df,
-            add_category=add_category,
-            profile="social",
-        )
 
-    def calculate_credibility(
-        self,
-        df: pd.DataFrame,
-        add_category: bool = True,
-    ) -> pd.DataFrame:
-        return self.score_batch(
-            df,
-            add_category=add_category,
-        )
+
+if __name__ == "__main__":
+    from config.settings import settings
+    df = pd.read_csv(settings.PROCESSED_DATA_DIR / 'social_media_test_enhanced.csv')
+    
+    print(f"\n")
+    print("CREDIBILITY SCORING TEST")
+    print(f"\n")
+    print(f"\nScoring {len(df)} reports...")
+    scorer = CredibilityScorer()
+    df_scored = scorer.score_batch(df)
+    
+    print(f"\n")
+    print("CREDIBILITY STATISTICS")
+    print(f"\n")
+    print(df_scored['credibility_score'].describe())
+    
+    print(f"\n")
+    print("CREDIBILITY DISTRIBUTION")
+    print(f"\n")
+    print(df_scored['credibility_category'].value_counts())
+    
+    # Show top 5 most credible reports
+    print(f"\n")
+    print("TOP 5 MOST CREDIBLE REPORTS")
+    print(f"\n")
+    
+    top_reports = df_scored.nlargest(5, 'credibility_score')
+    
+    for idx in top_reports.index:
+        report = df_scored.loc[idx]
+        breakdown = scorer.get_score_breakdown(report)
+        
+        print(f"\nReport: {report['text'][:80]}...")
+        print(f"Credibility Score: {report['credibility_score']:.3f} ({report['credibility_category']})")
+        print(f"Breakdown:")
+        for component, score in breakdown.items():
+            if component != 'total':
+                print(f"  {component:15s}: {score:.3f}")
+    
+    print(f"\n")
+    print("BOTTOM 5 LEAST CREDIBLE REPORTS")
+    print(f"\n")
+    
+    bottom_reports = df_scored.nsmallest(5, 'credibility_score')
+    
+    for idx in bottom_reports.index:
+        report = df_scored.loc[idx]
+        print(f"\nReport: {report['text'][:80]}...")
+        print(f"Credibility Score: {report['credibility_score']:.3f} ({report['credibility_category']})")
+    output_path = settings.DATA_DIR / 'credibility_scored.csv'
+    df_scored.to_csv(output_path, index=False)
+    print(f"\n Saved scored data to {output_path}")

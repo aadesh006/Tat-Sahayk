@@ -1,643 +1,288 @@
-import logging
-from datetime import datetime, timedelta, timezone
-
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from google.auth.transport import requests as google_requests
-from google.oauth2 import id_token
-from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-
-from app.api import deps
-from app.core.config import settings
-from app.core.security import (
-    create_access_token,
-    get_password_hash,
-    verify_password,
-)
 from app.crud import user as crud_user
+from app.schemas.user import UserCreate, UserResponse, Token, UserUpdate
 from app.db.session import get_db
+from app.core.security import verify_password, create_access_token
+from app.core.config import settings
 from app.models.user import User
-from app.schemas.user import (
-    Token,
-    UserCreate,
-    UserResponse,
-    UserSignup,
-    UserUpdate,
-)
-from app.services.authentication import (
-    generate_unusable_password,
-    uses_legacy_google_password,
-)
-from app.services.phone_otp import (
-    PhoneOTPError,
-    deliver_otp,
-    generate_otp,
-    normalize_indian_phone_number,
-)
-
+from app.api import deps
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from app.services.aws_services import send_otp_sms, generate_otp
+from datetime import datetime, timedelta, timezone
+from pydantic import BaseModel
+from app.core.config import settings
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
-
-
-class GoogleLoginRequest(BaseModel):
-    credential: str
-
 
 class OTPRequest(BaseModel):
-    phone: str = Field(
-        min_length=10,
-        max_length=20,
-    )
-
+    phone: str
 
 class OTPVerify(BaseModel):
-    phone: str = Field(
-        min_length=10,
-        max_length=20,
-    )
-    otp: str = Field(
-        pattern=r"^\d{6}$",
-    )
-
-
-def issue_access_token(user: User) -> dict[str, str]:
-    access_token = create_access_token(
-        data={"sub": user.email},
-        expires_delta=timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        ),
-    )
-
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-    }
-
-
-def raise_invalid_credentials() -> None:
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Incorrect email or password",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def normalize_timestamp(timestamp: datetime) -> datetime:
-    if timestamp.tzinfo is None:
-        return timestamp.replace(tzinfo=timezone.utc)
-
-    return timestamp.astimezone(timezone.utc)
-
-
-def clear_otp_state(
-    user: User,
-    *,
-    reset_attempts: bool,
-) -> None:
-    user.otp_code = None
-    user.otp_expires_at = None
-
-    if reset_attempts:
-        user.otp_attempt_count = 0
-
+    phone: str
+    otp: str
 
 @router.post("/google", response_model=Token)
-def google_login(
-    payload: GoogleLoginRequest,
-    db: Session = Depends(get_db),
-):
-    """Verify a Google ID token and sign in a citizen account."""
-    if not settings.GOOGLE_CLIENT_ID:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Google login is not configured",
-        )
-
+def google_login(payload: dict, db: Session = Depends(get_db)):
+    """
+    Google OAuth login endpoint - CITIZENS ONLY
+    Accepts Google ID token, verifies it, and creates/logs in user
+    """
+    credential = payload.get("credential")
+    if not credential:
+        raise HTTPException(status_code=400, detail="Missing credential")
+    
     try:
+        # Verify the Google token
         idinfo = id_token.verify_oauth2_token(
-            payload.credential,
+            credential,
             google_requests.Request(),
-            settings.GOOGLE_CLIENT_ID,
+            settings.GOOGLE_CLIENT_ID
         )
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Google token",
-        ) from exc
-
-    raw_email = idinfo.get("email")
-
-    if (
-        not raw_email
-        or idinfo.get("email_verified") is not True
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google email is not verified",
-        )
-
-    email = raw_email.strip().lower()
-    name = (
-        idinfo.get("name")
-        or email.split("@", 1)[0]
-    )
-
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+    
+    email = idinfo.get("email")
+    name = idinfo.get("name", email.split("@")[0])
+    
+    # Prevent admin accounts from using Google OAuth
     if email.endswith("@tatsahayk.gov.in"):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "Government accounts cannot use Google login. "
-                "Please use the administrator portal."
-            ),
+            status_code=403, 
+            detail="Government accounts cannot use Google login. Please use the Admin portal."
         )
-
-    user = crud_user.get_user_by_email(
-        db,
-        email=email,
-    )
-
+    
+    # Find or create user
+    user = crud_user.get_user_by_email(db, email=email)
     if not user:
-        user = crud_user.create_user(
-            db,
-            user=UserCreate(
-                email=email,
-                full_name=name,
-                password=generate_unusable_password(),
-                role="citizen",
-            ),
-        )
-
+        user = crud_user.create_user(db, user=UserCreate(
+            email=email,
+            full_name=name,
+            password="google_oauth_no_password",  # placeholder - user won't use password login
+        ))
+    
+    # Double-check user is not an admin
     if user.role == "admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "Administrator accounts cannot use Google "
-                "login. Please use the administrator portal."
-            ),
+            status_code=403, 
+            detail="Admin accounts cannot use Google login. Please use the Admin portal."
         )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive",
-        )
-
-    if uses_legacy_google_password(
-        user.hashed_password
-    ):
-        user.hashed_password = get_password_hash(
-            generate_unusable_password()
-        )
-        db.commit()
-        db.refresh(user)
-
-    return issue_access_token(user)
-
-
-@router.post(
-    "/signup",
-    response_model=UserResponse,
-)
-def create_user(
-    user_in: UserSignup,
-    db: Session = Depends(get_db),
-):
-    user = crud_user.get_user_by_email(
-        db,
-        email=user_in.email,
+    
+    # Issue JWT token - same as normal login
+    access_token = create_access_token(
+        data={"sub": user.email},
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
+    return {"access_token": access_token, "token_type": "bearer"}
 
+@router.post("/signup", response_model=UserResponse)
+def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
+    user = crud_user.get_user_by_email(db, email=user_in.email)
     if user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
-        )
-
-    citizen = UserCreate(
-        email=user_in.email,
-        full_name=user_in.full_name,
-        password=user_in.password,
-        role="citizen",
-    )
-
-    return crud_user.create_user(
-        db,
-        user=citizen,
-    )
-
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create user
+    new_user = crud_user.create_user(db, user=user_in)
+    
+    # Set default admin profile photo if admin
+    if new_user.role == "admin" and not new_user.profile_photo:
+        new_user.profile_photo = "/Admin DP.jpeg"
+        db.commit()
+        db.refresh(new_user)
+    
+    return new_user
 
 @router.post("/login", response_model=Token)
-def login(
-    db: Session = Depends(get_db),
-    form_data: OAuth2PasswordRequestForm = Depends(),
-):
-    user = crud_user.get_user_by_email(
-        db,
-        email=form_data.username,
-    )
-
-    if (
-        not user
-        or uses_legacy_google_password(
-            user.hashed_password
-        )
-        or not verify_password(
-            form_data.password,
-            user.hashed_password,
-        )
-    ):
-        raise_invalid_credentials()
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive",
-        )
-
+def login(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+    user = crud_user.get_user_by_email(db, email=form_data.username)
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
+    
+    # Check if admin is trying to login through citizen portal
+    # Admin emails typically end with @tatsahayk.gov.in or have role="admin"
     if user.role == "admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "Administrator accounts cannot use the "
-                "citizen login."
-            ),
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Admin accounts cannot login through citizen portal. Please use the Admin login."
         )
-
-    return issue_access_token(user)
-
+    
+    access_token = create_access_token(
+        data={"sub": user.email},
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/admin-login", response_model=Token)
-def admin_login(
-    db: Session = Depends(get_db),
-    form_data: OAuth2PasswordRequestForm = Depends(),
-):
-    """Authenticate an active administrator account."""
-    user = crud_user.get_user_by_email(
-        db,
-        email=form_data.username,
-    )
-
-    if (
-        not user
-        or uses_legacy_google_password(
-            user.hashed_password
-        )
-        or not verify_password(
-            form_data.password,
-            user.hashed_password,
-        )
-    ):
-        raise_invalid_credentials()
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive",
-        )
-
+def admin_login(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+    """Admin-only login endpoint"""
+    user = crud_user.get_user_by_email(db, email=form_data.username)
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
+    
+    # Check if user is actually an admin
     if user.role != "admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "This portal is for government administrators "
-                "only. Please use the citizen login."
-            ),
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="This portal is for government administrators only. Please use the Citizen login."
         )
-
+    
+    # Set default admin profile photo if not set
     if not user.profile_photo:
         user.profile_photo = "/Admin DP.jpeg"
         db.commit()
         db.refresh(user)
-
-    return issue_access_token(user)
-
+    
+    access_token = create_access_token(
+        data={"sub": user.email},
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=UserResponse)
-def get_me(
-    current_user: User = Depends(
-        deps.get_current_user
-    ),
-):
+def get_me(current_user: User = Depends(deps.get_current_user)):
     return current_user
 
-
-@router.patch("/me", response_model=UserResponse)
-def update_me(
-    data: UserUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(
-        deps.get_current_user
-    ),
-):
-    update_data = data.model_dump(
-        exclude_unset=True
-    )
-
-    for field, value in update_data.items():
-        setattr(current_user, field, value)
-
+@router.patch("/me")
+def update_me(data: UserUpdate, db: Session = Depends(get_db), 
+              current_user: User = Depends(deps.get_current_user)):
+    if data.full_name     is not None: current_user.full_name     = data.full_name
+    if data.profile_photo is not None: current_user.profile_photo = data.profile_photo
+    if data.latitude      is not None: current_user.latitude      = data.latitude
+    if data.longitude     is not None: current_user.longitude     = data.longitude
     db.commit()
     db.refresh(current_user)
-
     return current_user
-
 
 @router.patch("/update-location")
 def update_user_location(
     location_data: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        deps.get_current_user
-    ),
+    current_user: User = Depends(deps.get_current_user)
 ):
-    """Update district and state for location-based alerts."""
+    """Update user's location (district and state) for location-based alerts"""
     district = location_data.get("district")
-    state_name = location_data.get("state")
-
-    if not district or not state_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Both district and state are required",
-        )
-
+    state = location_data.get("state")
+    
+    if not district or not state:
+        raise HTTPException(status_code=400, detail="Both district and state are required")
+    
     current_user.district = district
-    current_user.state = state_name
+    current_user.state = state
     db.commit()
     db.refresh(current_user)
+    return {"message": "Location updated successfully", "district": district, "state": state}
 
-    return {
-        "message": "Location updated successfully",
-        "district": district,
-        "state": state_name,
-    }
-
+# ── Phone Verification Endpoints ─────────────────────────────────────────────
 
 @router.post("/send-otp")
 def send_otp(
     request: OTPRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        deps.get_current_user
-    ),
+    current_user: User = Depends(deps.get_current_user)
 ):
-    """Deliver and persist a short-lived, hashed phone OTP."""
-    try:
-        phone = normalize_indian_phone_number(
-            request.phone
-        )
-    except PhoneOTPError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-
-    now = utc_now()
-    last_sent_at = current_user.otp_last_sent_at
-
-    if last_sent_at:
-        elapsed_seconds = (
-            now
-            - normalize_timestamp(last_sent_at)
-        ).total_seconds()
-        remaining_seconds = (
-            settings.PHONE_OTP_RESEND_SECONDS
-            - elapsed_seconds
-        )
-
-        if remaining_seconds > 0:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=(
-                    "Please wait "
-                    f"{int(remaining_seconds) + 1} seconds "
-                    "before requesting another code"
-                ),
-            )
-
+    """Send OTP to user's phone number"""
+    # Generate OTP
     otp = generate_otp()
-
-    try:
-        delivery = deliver_otp(phone, otp)
-    except PhoneOTPError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
-
-    current_user.phone = phone
+    
+    # Set expiry (10 minutes from now)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    
+    # Save OTP to database
+    current_user.phone = request.phone
+    current_user.otp_code = otp
+    current_user.otp_expires_at = expires_at
     current_user.phone_verified = False
-    current_user.otp_code = get_password_hash(otp)
-    current_user.otp_expires_at = (
-        now
-        + timedelta(
-            minutes=settings.PHONE_OTP_TTL_MINUTES
-        )
-    )
-    current_user.otp_attempt_count = 0
-    current_user.otp_last_sent_at = now
     db.commit()
-    db.refresh(current_user)
-
-    response: dict[str, str | int] = {
-        "message": "OTP sent successfully",
-        "provider": delivery.provider,
-        "expires_in_minutes": (
-            settings.PHONE_OTP_TTL_MINUTES
-        ),
-    }
-
-    if delivery.development_otp:
-        response["development_otp"] = (
-            delivery.development_otp
-        )
-
-    return response
-
+    
+    # Send SMS via AWS SNS
+    success = send_otp_sms(request.phone, otp)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
+    
+    return {"message": "OTP sent successfully", "expires_in_minutes": 10}
 
 @router.post("/verify-otp")
 def verify_otp(
     request: OTPVerify,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        deps.get_current_user
-    ),
+    current_user: User = Depends(deps.get_current_user)
 ):
-    """Verify the current OTP and mark the phone as verified."""
-    try:
-        phone = normalize_indian_phone_number(
-            request.phone
-        )
-    except PhoneOTPError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-
-    if current_user.phone != phone:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Phone number mismatch",
-        )
-
-    if (
-        not current_user.otp_code
-        or not current_user.otp_expires_at
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "No active OTP. Please request a new one."
-            ),
-        )
-
-    if (
-        normalize_timestamp(
-            current_user.otp_expires_at
-        )
-        < utc_now()
-    ):
-        clear_otp_state(
-            current_user,
-            reset_attempts=True,
-        )
-        db.commit()
-
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "OTP has expired. Please request a new one."
-            ),
-        )
-
-    if (
-        current_user.otp_attempt_count
-        >= settings.PHONE_OTP_MAX_ATTEMPTS
-    ):
-        clear_otp_state(
-            current_user,
-            reset_attempts=False,
-        )
-        db.commit()
-
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=(
-                "Too many verification attempts. "
-                "Please request a new code."
-            ),
-        )
-
-    try:
-        otp_is_valid = verify_password(
-            request.otp,
-            current_user.otp_code,
-        )
-    except (TypeError, ValueError):
-        otp_is_valid = False
-
-    if not otp_is_valid:
-        current_user.otp_attempt_count += 1
-        attempts_exhausted = (
-            current_user.otp_attempt_count
-            >= settings.PHONE_OTP_MAX_ATTEMPTS
-        )
-
-        if attempts_exhausted:
-            clear_otp_state(
-                current_user,
-                reset_attempts=False,
-            )
-
-        db.commit()
-
-        if attempts_exhausted:
-            raise HTTPException(
-                status_code=(
-                    status.HTTP_429_TOO_MANY_REQUESTS
-                ),
-                detail=(
-                    "Too many verification attempts. "
-                    "Please request a new code."
-                ),
-            )
-
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid OTP",
-        )
-
+    """Verify OTP and mark phone as verified"""
+    # Check if OTP exists and matches
+    if not current_user.otp_code or current_user.otp_code != request.otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+    
+    # Check if OTP is expired
+    if not current_user.otp_expires_at or current_user.otp_expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+    
+    # Check if phone matches
+    if current_user.phone != request.phone:
+        raise HTTPException(status_code=400, detail="Phone number mismatch")
+    
+    # Mark phone as verified
     current_user.phone_verified = True
-    clear_otp_state(
-        current_user,
-        reset_attempts=True,
-    )
+    current_user.otp_code = None  # Clear OTP
+    current_user.otp_expires_at = None
     db.commit()
     db.refresh(current_user)
+    
+    return {"message": "Phone verified successfully", "phone_verified": True}
 
-    return {
-        "message": "Phone verified successfully",
-        "phone_verified": True,
-    }
-
+# ── Account Deletion ──────────────────────────────────────────────────────────
 
 @router.delete("/me")
 def delete_account(
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        deps.get_current_user
-    ),
+    current_user: User = Depends(deps.get_current_user)
 ):
-    """Permanently delete a citizen and their owned content."""
-    from app.models.comment import Comment
-    from app.models.confirmation import (
-        ReportConfirmation,
-    )
+    """
+    Delete user account permanently
+    - Deletes all user reports
+    - Deletes all user comments
+    - Deletes all user confirmations
+    - Deletes user account
+    - Cannot be undone
+    """
     from app.models.report import Report
-
+    from app.models.comment import Comment
+    from app.models.confirmation import ReportConfirmation
+    
+    # Prevent admin account deletion through this endpoint
     if current_user.role == "admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "Administrator accounts cannot be deleted "
-                "through this endpoint."
-            ),
+            status_code=403,
+            detail="Admin accounts cannot be deleted through this endpoint. Contact system administrator."
         )
-
+    
     try:
+        # Delete all user's report confirmations
         db.query(ReportConfirmation).filter(
-            ReportConfirmation.user_id
-            == current_user.id
+            ReportConfirmation.user_id == current_user.id
         ).delete(synchronize_session=False)
-
+        
+        # Delete all user's comments
         db.query(Comment).filter(
             Comment.user_id == current_user.id
         ).delete(synchronize_session=False)
-
+        
+        # Delete all user's reports (cascade will handle media)
         db.query(Report).filter(
             Report.user_id == current_user.id
         ).delete(synchronize_session=False)
-
+        
+        # Delete the user account
         db.delete(current_user)
         db.commit()
-
-        return {
-            "message": "Account deleted successfully"
-        }
-    except Exception as exc:
+        
+        return {"message": "Account deleted successfully"}
+    except Exception as e:
         db.rollback()
-        logger.exception(
-            "Failed to delete user account"
-        )
-
         raise HTTPException(
-            status_code=(
-                status.HTTP_500_INTERNAL_SERVER_ERROR
-            ),
-            detail="Failed to delete account",
-        ) from exc
+            status_code=500,
+            detail=f"Failed to delete account: {str(e)}"
+        )

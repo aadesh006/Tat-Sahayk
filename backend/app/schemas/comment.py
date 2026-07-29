@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 
@@ -17,4 +17,5 @@ class CommentResponse(BaseModel):
     author_profile_photo: Optional[str] = None
     author_role: Optional[str] = None  # For showing admin badge
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
