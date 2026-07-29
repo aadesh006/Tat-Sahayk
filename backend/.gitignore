@@ -1,17 +1,36 @@
-#Python Virtual Environment
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
 venv/
 .venv/
 env/
-__pycache__/
-*.pyc
 
-#Environment Variables
+# Environment variables
 .env
-.DS_Store
-backend/.env
-__pycache__/
-.env.example
+.env.*
+!.env.example
 
-#Database Data
+# Local database/runtime data
+*.db
+*.sqlite
+*.sqlite3
 postgres_data/
 redis_data/
+
+# Uploaded files
+uploads/*
+!uploads/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# OS and editor files
+.DS_Store
+.vscode/
+.idea/

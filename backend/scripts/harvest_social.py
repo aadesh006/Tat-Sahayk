@@ -6,8 +6,10 @@ from time import mktime
 
 sys.path.append(os.getcwd())
 
+import asyncio
 from app.db.session import SessionLocal
 from app.models.social import SocialPost
+from app.api.v1.endpoints.ws import manager
 
 # --- CONFIGURATION ---
 # Only fetch disaster-related news specifically about India's coastal regions
@@ -116,6 +118,14 @@ def harvest():
     
     db.commit()
     db.close()
+    
+    if count > 0:
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(manager.broadcast({"type": "new_social_post"}))
+        except RuntimeError:
+            asyncio.run(manager.broadcast({"type": "new_social_post"}))
+            
     print(f"Harvest Complete. Added {count} new posts. Filtered out {filtered_count} irrelevant posts.")
 
 if __name__ == "__main__":

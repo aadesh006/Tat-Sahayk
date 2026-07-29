@@ -1,6 +1,5 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
-import httpx
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.api import deps
@@ -11,8 +10,8 @@ from app.models.user import User
 from app.db.session import SessionLocal, get_db
 import math
 import logging
-from app.services.bedrock_ai import analyze_single_report
 from app.services.aws_services import send_disaster_alert_email
+from app.api.v1.endpoints.ws import manager
 from geoalchemy2.functions import ST_DWithin, ST_MakePoint, ST_SetSRID
 
 router = APIRouter()
@@ -52,23 +51,18 @@ def send_disaster_alerts_to_nearby_users(
         # Find users within radius
         alerted_count = 0
         for user in users:
-            # Skip if user doesn't have location set
-            if not user.district or not user.state:
+            # Skip if user doesn't have coordinates set
+            if user.latitude is None or user.longitude is None:
                 continue
             
-            # For now, send to all users in the same state
-            # TODO: Implement proper distance calculation based on user's exact location
-            # For MVP, we'll use state-level filtering
+            # Calculate distance using Haversine formula
+            dist = calculate_distance(
+                report_lat, report_lon,
+                user.latitude, user.longitude
+            )
             
-            # Get report owner's state (if available)
-            report = db.query(Report).filter(Report.id == report_id).first()
-            if not report or not report.owner:
-                continue
-                
-            report_state = report.owner.state
-            
-            # Send email if user is in the same state
-            if user.state == report_state:
+            # Send email if user is within radius
+            if dist <= radius_km:
                 location_str = f"{report_lat:.4f}°N, {report_lon:.4f}°E"
                 success = send_disaster_alert_email(
                     to_email=user.email,
@@ -81,9 +75,9 @@ def send_disaster_alerts_to_nearby_users(
                 if success:
                     alerted_count += 1
         
-        print(f"✓ Sent {alerted_count} disaster alert emails")
+        logger.info(f"Sent {alerted_count} disaster alert emails for report {report_id}")
     except Exception as e:
-        print(f"Error sending disaster alerts: {e}")
+        logger.exception(f"Error sending disaster alerts for report {report_id}")
     finally:
         db.close()
 
@@ -120,26 +114,7 @@ def cluster_reports(reports, max_distance_km=80.0):
         clusters.append(cluster)
     return clusters
 
-def analyze_report_with_ai(report_id: int, text: str, image_url: str):
-    db = SessionLocal()
-    try:
-        ml_api_url = "http://ml-service:8000/api/v1/analyze/report"
-        with httpx.Client() as client:
-            response = client.post(ml_api_url, json={
-                "text": text,
-                "image_url": image_url
-            }, timeout=30.0)
-            if response.status_code == 200:
-                ai_data = response.json()
-                report = db.query(Report).filter(Report.id == report_id).first()
-                if report:
-                    report.ai_authenticity_score = ai_data.get("credibility_score", 0.0)
-                    report.ai_analysis_summary = ai_data.get("hazard_detected", "Analysis complete")
-                    db.commit()
-    except Exception as e:
-        print(f"ML Service error: {e}")
-    finally:
-        db.close()
+
 
 # ROUTES
 
@@ -356,29 +331,108 @@ def read_reports(
         result.append(d)
     return result
 
-def score_single_report_bg(report_id: int, description: str, hazard_type: str, image_url: str, lat: float, lon: float, state: str = None):
-    from app.db.session import SessionLocal
-    from app.services.bedrock_ai import analyze_single_report
+def score_single_report_bg(
+    report_id: int,
+    description: str,
+    hazard_type: str,
+    image_url: str,
+    lat: float,
+    lon: float,
+    state: str = None,
+):
+    import json
+
+    from app.services.ai import AIAnalysisRequest, get_ai_service
+
     db = SessionLocal()
+    report = None
+
     try:
-        # Run the deep forensic analysis with contextual verification
-        result = analyze_single_report(description, hazard_type, image_url, lat, lon, state)
-        
-        report = db.query(Report).filter(Report.id == report_id).first()
+        report = db.query(Report).filter(
+            Report.id == report_id
+        ).first()
+
+        if not report:
+            logger.warning(
+                "Skipping AI analysis because report %s no longer exists",
+                report_id,
+            )
+            return
+
+        analysis_request = AIAnalysisRequest(
+            report_id=report_id,
+            description=description or "",
+            hazard_type=hazard_type,
+            media_url=image_url,
+            media_count=1 if image_url else 0,
+            latitude=lat,
+            longitude=lon,
+            state=state,
+        )
+
+        result = get_ai_service().analyze(analysis_request)
+
+        report.ai_authenticity_score = result.authenticity_score
+        report.ai_analysis_summary = result.summary
+        report.ai_analysis_breakdown = json.dumps(
+            result.to_dict(),
+            default=str,
+        )
+
+        # Do not automatically modify report.status here.
+        # The recommendation is stored in ai_analysis_breakdown,
+        # while an administrator remains responsible for verification.
+
+        db.commit()
+
+        logger.info(
+            "AI analysis completed for report %s using provider %s",
+            report_id,
+            result.provider,
+        )
+
+    except Exception as exc:
+        logger.exception(
+            "Background AI analysis failed for report %s",
+            report_id,
+        )
+
         if report:
-            report.ai_authenticity_score = result.get("authenticity_score", 0.5)
-            report.ai_analysis_summary = result.get("preliminary_summary", "Analysis failed.")
-            
-            if result.get("recommended_status") == "false":
-                report.status = "false"
-                report.is_verified = False
-                
-            db.commit()
-    except Exception as e:
-        logger.error(f"Background AI scoring failed: {e}")
+            report.ai_analysis_summary = (
+                "AI analysis is temporarily unavailable. "
+                "Manual administrator review is required."
+            )
+            report.ai_analysis_breakdown = json.dumps(
+                {
+                    "provider": "unavailable",
+                    "recommended_status": "pending",
+                    "error_type": type(exc).__name__,
+                }
+            )
+
+            db.rollback()
+
+            # Reapply the safe failure information after rollback.
+            report = db.query(Report).filter(
+                Report.id == report_id
+            ).first()
+
+            if report:
+                report.ai_analysis_summary = (
+                    "AI analysis is temporarily unavailable. "
+                    "Manual administrator review is required."
+                )
+                report.ai_analysis_breakdown = json.dumps(
+                    {
+                        "provider": "unavailable",
+                        "recommended_status": "pending",
+                        "error_type": type(exc).__name__,
+                    }
+                )
+                db.commit()
+
     finally:
         db.close()
-
 # 5. CREATE REPORT
 @router.post("/", response_model=ReportResponse)
 def create_report(
@@ -416,6 +470,9 @@ def create_report(
         report.longitude,
         current_user.state if hasattr(current_user, 'state') else None
     )
+    
+    # Broadcast new report to connected clients
+    background_tasks.add_task(manager.broadcast, {"type": "new_report", "id": report.id})
     
     return report
 
@@ -505,6 +562,9 @@ def verify_report(
             report.severity,
             report.description or "No description provided"
         )
+        
+        # Broadcast report verification to connected clients
+        background_tasks.add_task(manager.broadcast, {"type": "report_verified", "id": report.id})
     
     return report
 

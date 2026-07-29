@@ -1,86 +1,163 @@
-# import cloudinary
-# import cloudinary.uploader
-# from fastapi import APIRouter, UploadFile, File, HTTPException
-# from typing import List
-# from app.core.config import settings
-
-# router = APIRouter()
-
-# if settings.CLOUDINARY_CLOUD_NAME:
-#     cloudinary.config(
-#         cloud_name=settings.CLOUDINARY_CLOUD_NAME,
-#         api_key=settings.CLOUDINARY_API_KEY,
-#         api_secret=settings.CLOUDINARY_API_SECRET,
-#         secure=True
-#     )
-
-# # Single upload
-# @router.post("/upload")
-# async def upload_file(file: UploadFile = File(...)):
-#     try:
-#         result = cloudinary.uploader.upload(file.file, folder="tat_sahayk_reports")
-#         return {"filename": file.filename, "file_path": result.get("secure_url")}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail="Image upload failed")
-
-# # Multi upload
-# @router.post("/upload-many")
-# async def upload_many(files: List[UploadFile] = File(...)):
-#     if len(files) > 5:
-#         raise HTTPException(status_code=400, detail="Maximum 5 images allowed")
-#     urls = []
-#     for file in files:
-#         try:
-#             result = cloudinary.uploader.upload(file.file, folder="tat_sahayk_reports")
-#             urls.append(result.get("secure_url"))
-#         except Exception as e:
-#             raise HTTPException(status_code=500, detail=f"Failed to upload {file.filename}")
-#     return {"file_paths": urls}
-
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from typing import List
-from app.services.s3_upload import upload_image
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
+import logging
+from dataclasses import dataclass
+from typing import Sequence
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    UploadFile,
+    status,
+)
+
+from app.api import deps
+from app.core.config import settings
+from app.models.user import User
+from app.services.media_storage import (
+    MediaStorageError,
+    get_media_storage,
+)
+
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
-# Thread pool for concurrent S3 uploads
-executor = ThreadPoolExecutor(max_workers=5)
+MAX_FILES_PER_REQUEST = 5
+
+
+@dataclass(frozen=True)
+class ValidatedUpload:
+    content: bytes
+    filename: str
+    content_type: str
+
+
+async def validate_upload(
+    file: UploadFile,
+) -> ValidatedUpload:
+    content_type = (
+        file.content_type or ""
+    ).strip().lower()
+
+    if (
+        content_type
+        not in settings.media_allowed_content_types
+    ):
+        raise HTTPException(
+            status_code=(
+                status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+            ),
+            detail=(
+                "Unsupported media type. Allowed types: "
+                + ", ".join(
+                    sorted(
+                        settings.media_allowed_content_types
+                    )
+                )
+            ),
+        )
+
+    content = await file.read(
+        settings.media_max_file_size_bytes + 1
+    )
+
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty",
+        )
+
+    if len(content) > settings.media_max_file_size_bytes:
+        raise HTTPException(
+            status_code=(
+                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+            ),
+            detail=(
+                "File exceeds the maximum size of "
+                f"{settings.MEDIA_MAX_FILE_SIZE_MB} MB"
+            ),
+        )
+
+    return ValidatedUpload(
+        content=content,
+        filename=file.filename or "upload",
+        content_type=content_type,
+    )
+
+
+async def store_uploads(
+    uploads: Sequence[ValidatedUpload],
+) -> list[str]:
+    try:
+        storage = get_media_storage()
+
+        tasks = [
+            asyncio.to_thread(
+                storage.save,
+                upload.content,
+                upload.filename,
+                upload.content_type,
+            )
+            for upload in uploads
+        ]
+
+        return list(await asyncio.gather(*tasks))
+    except MediaStorageError as exc:
+        logger.exception("Media storage operation failed")
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Media storage is temporarily unavailable",
+        ) from exc
+
 
 @router.post("/upload")
-async def upload_single(file: UploadFile = File(...)):
-    content = await file.read()
-    # Run S3 upload in thread pool to avoid blocking
-    loop = asyncio.get_running_loop()
-    url = await loop.run_in_executor(
-        executor,
-        upload_image,
-        content,
-        file.filename,
-        file.content_type or "image/jpeg"
-    )
-    return {"filename": file.filename, "file_path": url}
+async def upload_single(
+    file: UploadFile = File(...),
+    _current_user: User = Depends(
+        deps.get_current_user
+    ),
+):
+    validated = await validate_upload(file)
+    urls = await store_uploads([validated])
+
+    return {
+        "filename": validated.filename,
+        "file_path": urls[0],
+    }
+
 
 @router.post("/upload-many")
-async def upload_many(files: List[UploadFile] = File(...)):
-    if len(files) > 5:
-        raise HTTPException(status_code=400, detail="Maximum 5 images")
-    
-    # Read all files first
-    file_data = []
-    for f in files:
-        content = await f.read()
-        file_data.append((content, f.filename, f.content_type or "image/jpeg"))
-    
-    # Upload all files concurrently using thread pool
-    loop = asyncio.get_running_loop()
-    upload_tasks = [
-        loop.run_in_executor(executor, upload_image, content, filename, content_type)
-        for content, filename, content_type in file_data
+async def upload_many(
+    files: list[UploadFile] = File(...),
+    _current_user: User = Depends(
+        deps.get_current_user
+    ),
+):
+    if not files:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one file is required",
+        )
+
+    if len(files) > MAX_FILES_PER_REQUEST:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Maximum {MAX_FILES_PER_REQUEST} files "
+                "are allowed"
+            ),
+        )
+
+    validated_uploads = [
+        await validate_upload(file)
+        for file in files
     ]
-    
-    # Wait for all uploads to complete
-    urls = await asyncio.gather(*upload_tasks)
-    
-    return {"file_paths": list(urls)}
+
+    urls = await store_uploads(validated_uploads)
+
+    return {
+        "file_paths": urls,
+    }

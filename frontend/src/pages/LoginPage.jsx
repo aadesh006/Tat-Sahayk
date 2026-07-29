@@ -1,13 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { login, adminLogin, googleLogin } from "../lib/api.js";
 import { Lock, Mail, Loader2, ShieldAlert, Home, Sun, Moon, Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../context/ThemeContext.jsx";
-
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "122233319245-p0goes7q96dtltp1dof60vlb4uakr6dd.apps.googleusercontent.com";
+import { GoogleLogin } from "@react-oauth/google";
 
 const LoginPage = () => {
   const { t } = useTranslation();
@@ -50,79 +49,18 @@ const LoginPage = () => {
     },
   });
 
-  // Initialize Google Sign-In
-  useEffect(() => {
-    if (isAdmin) return; // Don't show Google login for admin
-
-    const initializeGoogleSignIn = () => {
-      if (window.google) {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleResponse,
-        });
-        
-        // Get container width and set button width accordingly
-        const container = document.getElementById("googleSignInButton");
-        if (container) {
-          const containerWidth = container.offsetWidth;
-          window.google.accounts.id.renderButton(
-            container,
-            {
-              theme: "outline",
-              size: "large",
-              width: Math.min(containerWidth, 400),
-              text: "continue_with",
-              shape: "pill",
-            }
-          );
-        }
-      }
-    };
-
-    // Wait for Google script to load
-    if (window.google) {
-      initializeGoogleSignIn();
-    } else {
-      window.addEventListener("load", initializeGoogleSignIn);
-      return () => window.removeEventListener("load", initializeGoogleSignIn);
-    }
-    
-    // Re-render on window resize for responsiveness
-    const handleResize = () => {
-      const container = document.getElementById("googleSignInButton");
-      if (container && window.google) {
-        container.innerHTML = ""; // Clear previous button
-        const containerWidth = container.offsetWidth;
-        window.google.accounts.id.renderButton(
-          container,
-          {
-            theme: "outline",
-            size: "large",
-            width: Math.min(containerWidth, 400),
-            text: "continue_with",
-            shape: "pill",
-          }
-        );
-      }
-    };
-    
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [isAdmin]);
-
-  const handleGoogleResponse = (response) => {
-    googleLoginMutation(response.credential);
-  };
-
   const handleLogin = (e) => {
     e.preventDefault();
     loginMutation(loginData);
   };
 
-  // Pre-fill admin credentials hint
+  // Switch modes without populating credentials
   const switchToAdmin = () => {
     setIsAdmin(true);
-    setLoginData({ email: "admin.mumbai@tatsahayk.gov.in", password: "MUMBAI_ADMIN_123" });
+    setLoginData({
+      email: "",
+      password: "",
+    });
   };
 
   const switchToCitizen = () => {
@@ -196,17 +134,16 @@ const LoginPage = () => {
           </div>
 
           {isAdmin && (
-            <div className="mb-6 p-4 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 rounded-xl space-y-2">
-              <p className="text-xs text-purple-600 dark:text-purple-400 font-semibold flex items-center gap-1.5">
+            <div className="mb-6 p-4 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 rounded-xl">
+              <p className="text-xs text-purple-700 dark:text-purple-300 font-semibold flex items-center gap-1.5">
                 <ShieldAlert size={13} />
-                Demo Credentials (Pre-filled)
+                Restricted administrator access
               </p>
-              <div className="text-xs text-purple-700 dark:text-purple-300 space-y-1 pl-5">
-                <p><span className="font-medium">Email:</span> admin.mumbai@tatsahayk.gov.in</p>
-                <p><span className="font-medium">Password:</span> MUMBAI_ADMIN_123</p>
-              </div>
-              <p className="text-[10px] text-purple-600 dark:text-purple-400 italic pl-5">
-                Other admins: admin.chennai / admin.national (follow same pattern: CITY_ADMIN_123)
+
+              <p className="mt-2 text-xs text-purple-600 dark:text-purple-400">
+                Use an administrator account provisioned by
+                the platform operator. Public registration
+                cannot create administrator accounts.
               </p>
             </div>
           )}
@@ -221,7 +158,7 @@ const LoginPage = () => {
                 <input
                   type="email"
                   required
-                  placeholder={isAdmin ? "admin.mumbai@tatsahayk.gov.in" : "name@email.com"}
+                  placeholder={isAdmin ? "admin@agency.gov.in" : "name@email.com"}
                   value={loginData.email}
                   onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-[rgb(38,38,38)] dark:text-white border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
@@ -282,7 +219,35 @@ const LoginPage = () => {
               </div>
 
               {/* Google Sign-In Button */}
-              <div id="googleSignInButton" className="flex justify-center w-full"></div>
+              <div
+                className={`flex justify-center w-full ${
+                  isGooglePending
+                    ? "pointer-events-none opacity-60"
+                    : ""
+                }`}
+              >
+                <GoogleLogin
+                  onSuccess={(credentialResponse) => {
+                    if (!credentialResponse.credential) {
+                      toast.error(
+                        "Google did not return a login credential."
+                      );
+                      return;
+                    }
+
+                    googleLoginMutation(credentialResponse.credential);
+                  }}
+                  onError={() => {
+                    toast.error(
+                      "Google sign-in was cancelled or is unavailable."
+                    );
+                  }}
+                  theme={dark ? "filled_black" : "outline"}
+                  size="large"
+                  shape="pill"
+                  text="continue_with"
+                />
+              </div>
 
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-500 dark:text-gray-400">

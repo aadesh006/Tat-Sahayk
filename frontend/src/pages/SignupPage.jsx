@@ -1,23 +1,24 @@
+import { GoogleLogin } from "@react-oauth/google";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
-import { signup, googleLogin } from "../lib/api.js";
-import { 
-  Lock, 
-  Mail, 
-  User, 
-  Loader2, 
+import {
   ArrowRight,
-  Home,
-  Sun,
-  Moon,
   Eye,
-  EyeOff
-} from "lucide-react"; 
-import { Link, useNavigate } from "react-router";
-import toast, { Toaster } from "react-hot-toast";
-import { useTheme } from "../context/ThemeContext.jsx";
+  EyeOff,
+  Home,
+  Loader2,
+  Lock,
+  Mail,
+  Moon,
+  Sun,
+  User,
+} from "lucide-react";
+import { useState } from "react";
+import toast from "react-hot-toast";
+import { Link } from "react-router";
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "122233319245-p0goes7q96dtltp1dof60vlb4uakr6dd.apps.googleusercontent.com";
+import { useTheme } from "../context/ThemeContext.jsx";
+import { googleLogin, signup } from "../lib/api.js";
+
 
 const SignupPage = () => {
   const { dark, toggle } = useTheme();
@@ -29,7 +30,6 @@ const SignupPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   const {
     mutate: signupMutation,
@@ -67,68 +67,6 @@ const SignupPage = () => {
       });
     },
   });
-
-  // Initialize Google Sign-In
-  useEffect(() => {
-    const initializeGoogleSignIn = () => {
-      if (window.google) {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleResponse,
-        });
-        
-        // Get container width and set button width accordingly
-        const container = document.getElementById("googleSignUpButton");
-        if (container) {
-          const containerWidth = container.offsetWidth;
-          window.google.accounts.id.renderButton(
-            container,
-            {
-              theme: "outline",
-              size: "large",
-              width: Math.min(containerWidth, 400),
-              text: "signup_with",
-              shape: "pill",
-            }
-          );
-        }
-      }
-    };
-
-    // Wait for Google script to load
-    if (window.google) {
-      initializeGoogleSignIn();
-    } else {
-      window.addEventListener("load", initializeGoogleSignIn);
-      return () => window.removeEventListener("load", initializeGoogleSignIn);
-    }
-    
-    // Re-render on window resize for responsiveness
-    const handleResize = () => {
-      const container = document.getElementById("googleSignUpButton");
-      if (container && window.google) {
-        container.innerHTML = ""; // Clear previous button
-        const containerWidth = container.offsetWidth;
-        window.google.accounts.id.renderButton(
-          container,
-          {
-            theme: "outline",
-            size: "large",
-            width: Math.min(containerWidth, 400),
-            text: "signup_with",
-            shape: "pill",
-          }
-        );
-      }
-    };
-    
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const handleGoogleResponse = (response) => {
-    googleLoginMutation(response.credential);
-  };
 
   const handleSignup = (e) => {
     e.preventDefault();
@@ -262,7 +200,35 @@ const SignupPage = () => {
           </div>
 
           {/* Google Sign-Up Button */}
-          <div id="googleSignUpButton" className="flex justify-center w-full"></div>
+          <div
+            className={`flex justify-center w-full ${
+              isGooglePending
+                ? "pointer-events-none opacity-60"
+                : ""
+            }`}
+          >
+            <GoogleLogin
+              onSuccess={(credentialResponse) => {
+                if (!credentialResponse.credential) {
+                  toast.error(
+                    "Google did not return a signup credential."
+                  );
+                  return;
+                }
+
+                googleLoginMutation(credentialResponse.credential);
+              }}
+              onError={() => {
+                toast.error(
+                  "Google signup was cancelled or is unavailable."
+                );
+              }}
+              theme={dark ? "filled_black" : "outline"}
+              size="large"
+              shape="pill"
+              text="signup_with"
+            />
+          </div>
 
           {/* Footer Navigation */}
           <div className="mt-6 text-center">

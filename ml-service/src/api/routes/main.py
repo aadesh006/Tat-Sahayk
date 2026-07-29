@@ -359,19 +359,31 @@ async def analyze_report(request: ReportAnalysisRequest):
             sentiment_label = "neutral"
             panic_count = 0
 
+        hazard_detection = text_result["hazard_detection"]
+
         report_data = pd.Series({
+            "source_type": "citizen",
             "text": request.text,
+            "latitude": request.latitude,
+            "longitude": request.longitude,
             "has_location": True,
             "has_media": request.has_media,
             "media_count": request.media_count,
             "author_followers": request.author_followers,
             "word_count": len(request.text.split()),
-            "is_hazard": text_result["hazard_detection"]["is_hazard"],
+            "is_hazard": hazard_detection["is_hazard"],
+            "hazard_confidence": hazard_detection.get(
+                "confidence",
+                0.0,
+            ),
             "sentiment": sentiment_label,
             "has_urgency_words": panic_count > 0,
-            "total_engagement": 0,
         })
-        credibility = cred.score_report(report_data)
+        credibility_breakdown = cred.get_score_breakdown(
+            report_data,
+            profile="citizen",
+        )
+        credibility = credibility_breakdown["total"]
         processing_time = (time.time() - start_time) * 1000
 
         report_id = hashlib.md5(
@@ -398,6 +410,8 @@ async def analyze_report(request: ReportAnalysisRequest):
                 "author_followers": request.author_followers,
                 "timestamp": request.timestamp.isoformat(),
                 "processing_time_ms": processing_time,
+                "credibility_profile": "citizen",
+                "credibility_breakdown": credibility_breakdown,
             },
         )
 

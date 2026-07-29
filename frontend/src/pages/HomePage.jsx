@@ -37,7 +37,6 @@ const HomePage = () => {
 const { data: alerts } = useQuery({
   queryKey: ["alerts"],
   queryFn:  () => fetchAlerts(),
-  refetchInterval: 60000,
 });
 
   // Handle shared report link - open modal for specific report

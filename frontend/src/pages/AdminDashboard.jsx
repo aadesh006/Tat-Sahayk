@@ -361,26 +361,22 @@ const AdminDashboard = () => {
   const { data: stats } = useQuery({
     queryKey: ["reportStats"],
     queryFn:  fetchReportStats,
-    refetchInterval: 30000,
   });
 
   const { data: aiClusters } = useQuery({
   queryKey: ["aiClusters"],
   queryFn:  fetchAIClusters,
-  refetchInterval: 60000,
 });
 
   const { data: reports, isLoading } = useQuery({
     queryKey: ["adminReports", filter],
     queryFn:  () => fetchAdminReports({ status: filter || undefined }),
-    refetchInterval: 30000,
   });
 
   // Fetch ALL reports for cluster modal (not filtered by status)
   const { data: allReports } = useQuery({
     queryKey: ["allAdminReports"],
     queryFn:  () => fetchAdminReports({}),
-    refetchInterval: 30000,
   });
 
   const { data: myAlerts } = useQuery({

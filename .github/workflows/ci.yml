@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests and migrations
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: tat_sahayk_test
+          POSTGRES_USER: tat_sahayk
+          POSTGRES_PASSWORD: tat_sahayk_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd
+          "pg_isready -U tat_sahayk -d tat_sahayk_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      PROJECT_NAME: Tat-Sahayk Test API
+      ENVIRONMENT: test
+      DEBUG: "false"
+      SECRET_KEY: ci-only-secret-key
+      DATABASE_URL: postgresql+psycopg2://tat_sahayk:tat_sahayk_test_password@localhost:5432/tat_sahayk_test
+      DATABASE_SSL_MODE: disable
+      AI_PROVIDER: local
+      AI_FALLBACK_ENABLED: "false"
+      ML_SERVICE_URL: http://localhost:8000
+      ENABLE_SOCIAL_HARVESTER: "false"
+      ENABLE_CLUSTER_ANALYSIS: "false"
+      AWS_ENABLED: "false"
+      PHONE_OTP_PROVIDER: "console"
+      PHONE_OTP_TTL_MINUTES: "10"
+      PHONE_OTP_RESEND_SECONDS: "60"
+      PHONE_OTP_MAX_ATTEMPTS: "5"
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Compile backend
+        run: python -m compileall -q app alembic scripts tests
+
+      - name: Apply migrations
+        run: alembic upgrade head
+
+      - name: Check migration drift
+        run: alembic check
+
+      - name: Run backend tests
+        run: >
+          python -m pytest
+          --cov=app.services.ai
+          --cov=app.services.authentication
+          --cov=app.services.phone_otp
+          --cov=app.api.v1.endpoints.auth
+          --cov=app.api.health
+          --cov-report=term-missing
+          -q
+
+  ml-service:
+    name: ML scoring tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ml-service
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: ml-service/requirements-test.txt
+
+      - name: Install lightweight test dependencies
+        run: python -m pip install -r requirements-test.txt
+
+      - name: Run ML scoring tests
+        run: python -m pytest -q tests/test_credibility_scorer.py
+
+  frontend:
+    name: Frontend lint and build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.22.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Build frontend
+        run: npm run build
+
+  production-compose:
+    name: Production Compose policy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Show Docker Compose version
+        run: docker compose version
+
+      - name: Validate production deployment policy
+        run: >
+          python scripts/validate_production_compose.py
+          --env-file .env.production.example
+          --allow-example-secrets
