@@ -198,48 +198,42 @@ def _check_news_tavily(hazard_type: str, state: str = None) -> Dict:
 
 
 def _check_news_google_rss(hazard_type: str, state: str = None) -> Dict:
-    """
-    Check news using Google News RSS feed (free fallback).
-    Checks for news about this disaster type in India in the last 2 days.
-    """
     try:
-        # Build search query
-        location = state if state else "India"
-        query = f"{hazard_type.lower()} {location}"
+        location = state or "India"
         
-        # Google News RSS feed (last 2 days)
+        # Search for hazard + specific location (not just India-wide)
+        query = f"{hazard_type.lower()} {location}"
         url = f"https://news.google.com/rss/search?q={query}+when:2d&hl=en-IN&gl=IN&ceid=IN:en"
         
-        res = httpx.get(
-            url,
-            timeout=5,
-            headers={"User-Agent": "TatSahayk/1.0"},
-            follow_redirects=True
-        )
+        res = httpx.get(url, timeout=5, headers={"User-Agent": "TatSahayk/1.0"})
         
-        if res.status_code != 200:
-            raise Exception(f"News API returned {res.status_code}")
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(res.text)
+        items = root.findall('.//item')
         
-        # Simple check — if recent news exists about this disaster type
-        content = res.text.lower()
-        hazard_keywords = [hazard_type.lower(), "disaster", "emergency"]
+        hazard_lower = hazard_type.lower()
+        location_lower = location.lower()
         
-        found = any(keyword in content for keyword in hazard_keywords)
+        # Must match BOTH hazard AND location in the title
+        relevant = [
+            item for item in items
+            if hazard_lower in (item.findtext('title') or '').lower()
+            and location_lower in (item.findtext('title') or '').lower()
+        ]
         
+        found = len(relevant) > 0
+
         return {
             "news_found": found,
-            "news_score": 0.7 if found else 0.3,
-            "note": f"Google News: Recent news {'FOUND' if found else 'NOT found'} for {hazard_type} in {location}",
-            "sources": []
+            "news_score": 0.75 if found else 0.30,
+            "note": f"Google News: {len(relevant)} article(s) for '{hazard_type} in {location}'" if found
+                    else f"Google News: No recent articles for '{hazard_type} in {location}'"
         }
-    
     except Exception as e:
-        logger.error(f"Google News check failed: {e}")
         return {
-            "news_found": True,
-            "news_score": 0.5,
-            "note": f"News check failed: {str(e)}",
-            "sources": []
+            "news_found": False,
+            "news_score": 0.4,
+            "note": f"News check unavailable: {e}"
         }
 
 
