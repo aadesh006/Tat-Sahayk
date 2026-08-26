@@ -120,12 +120,9 @@ const ReportModal = ({ report, onClose }) => {
               </div>
             </div>
 
-            {/* Hazard type and badges */}
+            {/* Hazard type and status badge (severity removed) */}
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">{report.disasterType}</h3>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${severityStyle[report.severity] || severityStyle.medium}`}>
-                {report.severity || "medium"}
-              </span>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border
                 ${report.status === "verified" ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20" :
                   report.status === "false"    ? "bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20" :

@@ -9,3 +9,7 @@ from app.models.comment import Comment
 from app.models.alert import Alert
 from app.models.map_annotation import MapAnnotation, DeployedForce
 from app.models.rescue_deployment import RescueDeployment, Shelter
+# Red Zone Management Extension
+from app.models.hazard_zone import HazardZone
+from app.models.relocation_site import RelocationSite
+from app.models.vulnerable_habitation import VulnerableHabitation

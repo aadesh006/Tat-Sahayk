@@ -76,14 +76,14 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
   return (
     <>
       <article 
-        className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] overflow-hidden hover:border-gray-300 dark:hover:border-[rgb(71,85,105)] transition-all rounded-2xl cursor-pointer"
+        className="bg-gray-50 dark:bg-black border-b border-gray-200 dark:border-[rgb(47,51,54)] hover:bg-gray-100 dark:hover:bg-[rgb(10,10,10)] transition-all cursor-pointer"
         onClick={() => onCardClick?.(report)}
       >
-        <div className="p-3 lg:p-4">
+        <div className="p-4 lg:p-5">
 
           {/* Header */}
-          <div className="flex flex-wrap items-start justify-between gap-2 mb-2 lg:mb-3">
-            <div className="space-y-1.5">
+          <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+            <div className="space-y-1">
               {/* Reporter name + time */}
               <div className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                 {report.reporter_profile_photo ? (
@@ -98,25 +98,25 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
                   </div>
                 )}
                 <span className="text-gray-900 dark:text-white font-semibold">{report.reporterName || "Anonymous"}</span>
-                <span className="text-gray-300 dark:text-gray-600">·</span>
                 <Clock size={12} />
                 <span>{report.date || "Just Now"}</span>
               </div>
 
-              <h3 className="text-base lg:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 flex-wrap">
-                {report.disasterType}
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${severityStyle[report.severity] || severityStyle.medium}`}>
-                  {report.severity || "medium"}
-                </span>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border
+              {/* Location with status badge (severity only for admins) */}
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+                <MapPin size={13} className="text-red-500" /> 
+                <span>{report.location}</span>
+                {showAdminActions && (
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${severityStyle[report.severity] || severityStyle.medium}`}>
+                    {report.severity || "medium"}
+                  </span>
+                )}
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium border
                   ${report.status === "verified" ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20" :
                     report.status === "false"    ? "bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20" :
                                                    "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20"}`}>
                   {report.status === "false" ? "Rejected" : (report.status === "verified" ? "Verified" : "Pending")}
                 </span>
-              </h3>
-              <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                <MapPin size={13} className="text-red-500" /> {report.location}
               </div>
             </div>
 
@@ -145,11 +145,11 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
           </div>
 
           {/* Body */}
-          <div className="flex flex-col md:flex-row gap-3 lg:gap-4">
+          <div className="flex flex-col md:flex-row gap-3">
             <div className="flex-1">
-              <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] p-3 rounded-xl border border-gray-100 dark:border-[rgb(47,51,54)] mb-2 lg:mb-3">
-                <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                  {report.description || "Situation under assessment."}
+              <div className="p-3 mb-3">
+                <p className="text-gray-900 dark:text-white text-base font-medium leading-relaxed">
+                  <span className="font-bold">{report.disasterType}:</span> {report.description || "Situation under assessment."}
                 </p>
               </div>
 
@@ -184,7 +184,7 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
             {/* Multi-Image/Video Grid */}
             {images.length > 0 && (
               <div className="md:w-52 shrink-0" onClick={(e) => e.stopPropagation()}>
-                <div className={`grid gap-1.5 rounded-xl overflow-hidden border border-gray-200 dark:border-[rgb(47,51,54)]
+                <div className={`grid gap-1 rounded-lg overflow-hidden border border-gray-200 dark:border-[rgb(47,51,54)]
                   ${images.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
                   {images.slice(0, 4).map((img, idx) => {
                     const isVideo = typeof img === 'string' && (img.includes('.mp4') || img.includes('.mov') || img.includes('.webm'));

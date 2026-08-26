@@ -101,7 +101,9 @@ const ProfilePage = () => {
     
     try {
       await updateProfile({ profile_photo: null });
-      queryClient.invalidateQueries({ queryKey: ['authUser'] });
+      // Invalidate and refetch to ensure immediate update
+      await queryClient.invalidateQueries({ queryKey: ['authUser'] });
+      await queryClient.refetchQueries({ queryKey: ['authUser'] });
       toast.success("Profile photo removed");
     } catch (error) {
       console.error("Photo delete error:", error);
@@ -117,8 +119,14 @@ const ProfilePage = () => {
     mutationFn: deleteAccount,
     onSuccess: () => {
       toast.success("Account deleted successfully");
+      // Clear token
       localStorage.removeItem("token");
-      window.location.href = "/login";
+      // Clear React Query cache
+      queryClient.clear();
+      // Force reload to ensure complete logout
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 500);
     },
     onError: (error) => {
       toast.error(error.response?.data?.detail || "Failed to delete account");
