@@ -148,10 +148,15 @@ def get_me(current_user: User = Depends(deps.get_current_user)):
 @router.patch("/me")
 def update_me(data: UserUpdate, db: Session = Depends(get_db), 
               current_user: User = Depends(deps.get_current_user)):
-    if data.full_name     is not None: current_user.full_name     = data.full_name
-    if data.profile_photo is not None: current_user.profile_photo = data.profile_photo
-    if data.latitude      is not None: current_user.latitude      = data.latitude
-    if data.longitude     is not None: current_user.longitude     = data.longitude
+    # Use hasattr to allow setting None values (e.g., removing profile photo)
+    if hasattr(data, 'full_name') and data.full_name is not None: 
+        current_user.full_name = data.full_name
+    if hasattr(data, 'profile_photo'):  # Allow None to remove photo
+        current_user.profile_photo = data.profile_photo
+    if hasattr(data, 'latitude') and data.latitude is not None: 
+        current_user.latitude = data.latitude
+    if hasattr(data, 'longitude') and data.longitude is not None: 
+        current_user.longitude = data.longitude
     db.commit()
     db.refresh(current_user)
     return current_user
