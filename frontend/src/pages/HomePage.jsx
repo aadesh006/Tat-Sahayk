@@ -223,7 +223,7 @@ const { data: alerts } = useQuery({
 
   const IncidentsList = () => (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 px-4 lg:px-0">
         <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
           What's Happening
         </h2>
@@ -243,12 +243,12 @@ const { data: alerts } = useQuery({
       </div>
 
       {reportsLoading ? (
-        <div className="flex flex-col items-center py-20">
+        <div className="flex flex-col items-center py-20 bg-white dark:bg-[rgb(22,22,22)]">
           <Loader2 className="animate-spin text-sky-500 mb-3" size={36} />
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t("loading")}</p>
         </div>
       ) : reports?.length > 0 ? (
-        <div className="grid grid-cols-1 gap-3 lg:gap-4">
+        <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl overflow-hidden">
           {reports.map((report) => (
             <div key={report.id} ref={(el) => (reportRefs.current[report.id] = el)}>
               <ReportCard report={report} onCardClick={setSelectedReport} />
@@ -256,7 +256,7 @@ const { data: alerts } = useQuery({
           ))}
         </div>
       ) : (
-        <div className="text-center py-20 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl">
+        <div className="text-center py-20 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl">
           <AlertTriangle className="mx-auto text-gray-300 dark:text-gray-600 mb-2" size={48} />
           <p className="text-gray-500 dark:text-gray-400 text-sm">{t("noIncidents")}</p>
         </div>
