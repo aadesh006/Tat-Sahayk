@@ -7,7 +7,8 @@ pydantic==2.5.3
 pydantic-settings==2.1.0
 python-multipart==0.0.6
 python-jose[cryptography]
-passlib[bcrypt]
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
 geoalchemy2==0.14.3
 httpx==0.26.0
 email-validator==2.1.0.post1
@@ -16,3 +17,4 @@ apscheduler==3.10.4
 requests==2.31.0
 shapely==2.0.3
 google-auth==2.27.0
+feedparser==6.0.11
