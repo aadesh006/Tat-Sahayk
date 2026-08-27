@@ -414,7 +414,7 @@ def create_report(
         image_url,
         report.latitude,
         report.longitude,
-        current_user.state if hasattr(current_user, 'state') else None
+        report.district  # Use report location, not user's home state
     )
     
     return report

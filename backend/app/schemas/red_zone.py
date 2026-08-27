@@ -1,255 +1,166 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
+from enum import Enum
+
+# ============== ENUMS ==============
+
+class RelocationPriority(str, Enum):
+    immediate = "immediate"
+    short_term = "short_term"
+    medium_term = "medium_term"
+    long_term = "long_term"
 
 # ============== HAZARD ZONE SCHEMAS ==============
 
-class HazardZoneBase(BaseModel):
-    name: str
-    zone_code: str
-    zone_type: str = "red"
-    risk_level: str
-    hazard_types: Optional[List[str]] = []
-    population_estimate: Optional[int] = 0
-    households_estimate: Optional[int] = 0
-    district: Optional[str] = None
-    state: Optional[str] = None
-    description: Optional[str] = None
-    mitigation_measures: Optional[str] = None
-
 class HazardZoneCreate(BaseModel):
-    name: str
-    zone_code: str
-    boundary_geojson: dict  # GeoJSON polygon
-    zone_type: str = "red"
-    risk_level: str
+    zone_name: str
+    district: str
+    state: str
     hazard_types: List[str] = []
-    population_estimate: Optional[int] = 0
-    households_estimate: Optional[int] = 0
-    district: Optional[str] = None
-    state: Optional[str] = None
-    description: Optional[str] = None
-    mitigation_measures: Optional[str] = None
-    is_official: bool = False
+    intensity_level: str = "medium"
+    risk_score: float = Field(ge=0, le=1, description="Risk score between 0 and 1")
+    affected_population: Optional[int] = 0
+    geometry: dict  # GeoJSON geometry
+    status: str = "active"
+    notes: Optional[str] = None
 
 class HazardZoneUpdate(BaseModel):
-    name: Optional[str] = None
-    boundary_geojson: Optional[dict] = None
-    zone_type: Optional[str] = None
-    risk_level: Optional[str] = None
+    zone_name: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
     hazard_types: Optional[List[str]] = None
-    population_estimate: Optional[int] = None
-    households_estimate: Optional[int] = None
-    historical_incidents_count: Optional[int] = None
+    intensity_level: Optional[str] = None
+    risk_score: Optional[float] = Field(None, ge=0, le=1)
+    affected_population: Optional[int] = None
+    geometry: Optional[dict] = None
     status: Optional[str] = None
-    is_official: Optional[bool] = None
-    description: Optional[str] = None
-    mitigation_measures: Optional[str] = None
+    notes: Optional[str] = None
 
 class HazardZoneResponse(BaseModel):
     id: int
-    name: str
+    name: str  # Changed from zone_name
     zone_code: str
-    boundary_geojson: dict
-    area_sqkm: Optional[float]
-    zone_type: str
-    risk_level: str
+    district: str
+    state: str
     hazard_types: List[str]
-    population_estimate: int
-    households_estimate: int
-    historical_incidents_count: int
-    district: Optional[str]
-    state: Optional[str]
+    risk_level: str  # Changed from intensity_level (and it's string not float)
+    population_estimate: int  # Changed from affected_population
+    geometry: dict
     status: str
-    is_official: bool
-    ai_confidence_score: Optional[float]
-    identified_by: str
-    description: Optional[str]
+    description: Optional[str]  # Changed from notes
+    created_by: str
     created_at: datetime
     updated_at: Optional[datetime]
 
     class Config:
         from_attributes = True
 
-
-# ============== VULNERABLE HABITATION SCHEMAS ==============
-
-class VulnerableHabitationBase(BaseModel):
-    name: str
-    habitation_code: str
-    household_count: Optional[int] = 0
-    population_count: Optional[int] = 0
-    relocation_priority: str
-    district: Optional[str] = None
-    state: Optional[str] = None
-
-class VulnerableHabitationCreate(BaseModel):
-    name: str
-    habitation_code: str
-    latitude: float
-    longitude: float
-    boundary_geojson: Optional[dict] = None
-    hazard_zone_id: Optional[int] = None
-    household_count: int = 0
-    population_count: int = 0
-    vulnerable_population: Optional[int] = 0
-    building_type: Optional[str] = None
-    structural_safety_rating: Optional[str] = None
-    distance_from_hazard_km: Optional[float] = None
-    exposure_level: Optional[str] = None
-    relocation_priority: str = "medium_term"
-    priority_score: Optional[float] = 0.0
-    district: Optional[str] = None
-    state: Optional[str] = None
-    gram_panchayat: Optional[str] = None
-    block: Optional[str] = None
-    notes: Optional[str] = None
-
-class VulnerableHabitationUpdate(BaseModel):
-    name: Optional[str] = None
-    hazard_zone_id: Optional[int] = None
-    household_count: Optional[int] = None
-    population_count: Optional[int] = None
-    vulnerable_population: Optional[int] = None
-    vulnerability_score: Optional[float] = None
-    building_type: Optional[str] = None
-    structural_safety_rating: Optional[str] = None
-    relocation_priority: Optional[str] = None
-    priority_score: Optional[float] = None
-    status: Optional[str] = None
-    relocation_status: Optional[str] = None
-    assigned_relocation_site_id: Optional[int] = None
-    notes: Optional[str] = None
-    assessment_report: Optional[str] = None
-
-class VulnerableHabitationResponse(BaseModel):
-    id: int
-    name: str
-    habitation_code: str
-    latitude: Optional[float]
-    longitude: Optional[float]
-    hazard_zone_id: Optional[int]
-    household_count: int
-    population_count: int
-    vulnerable_population: int
-    vulnerability_score: float
-    building_type: Optional[str]
-    relocation_priority: str
-    priority_score: float
-    district: Optional[str]
-    state: Optional[str]
-    status: str
-    relocation_status: Optional[str]
-    assigned_relocation_site_id: Optional[int]
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
 # ============== RELOCATION SITE SCHEMAS ==============
 
-class RelocationSiteBase(BaseModel):
-    name: str
-    site_code: str
-    max_households: int = 0
-    district: Optional[str] = None
-    state: Optional[str] = None
-
 class RelocationSiteCreate(BaseModel):
-    name: str
-    site_code: str
-    latitude: float
-    longitude: float
-    boundary_geojson: Optional[dict] = None
-    total_area_sqm: Optional[float] = None
-    usable_area_sqm: Optional[float] = None
-    max_households: int = 0
-    max_population: int = 0
-    suitability_score: Optional[float] = 0.0
-    land_type: Optional[str] = None
-    terrain_type: Optional[str] = None
-    soil_quality: Optional[str] = None
-    flood_risk: str = "low"
-    landslide_risk: str = "low"
-    earthquake_risk: str = "low"
-    distance_from_red_zones_km: Optional[float] = None
-    has_electricity: bool = False
-    has_water_supply: bool = False
-    has_drainage: bool = False
-    district: Optional[str] = None
-    state: Optional[str] = None
-    development_status: str = "proposed"
-    description: Optional[str] = None
+    site_name: str
+    district: str
+    state: str
+    carrying_capacity: int
+    current_occupancy: Optional[int] = 0
+    suitability_score: float = Field(ge=0, le=1, description="Suitability score between 0 and 1")
+    infrastructure_available: List[str] = []
+    water_availability: str = "adequate"
+    accessibility_score: float = Field(ge=0, le=1, description="Accessibility score between 0 and 1")
+    distance_to_town_km: Optional[float] = None
+    land_area_hectares: Optional[float] = None
+    geometry: dict  # GeoJSON geometry
+    status: str = "available"
+    notes: Optional[str] = None
 
 class RelocationSiteUpdate(BaseModel):
-    name: Optional[str] = None
-    max_households: Optional[int] = None
-    max_population: Optional[int] = None
-    current_households: Optional[int] = None
-    current_population: Optional[int] = None
-    available_capacity: Optional[int] = None
-    suitability_score: Optional[float] = None
-    development_status: Optional[str] = None
-    has_electricity: Optional[bool] = None
-    has_water_supply: Optional[bool] = None
-    has_drainage: Optional[bool] = None
+    site_name: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
+    carrying_capacity: Optional[int] = None
+    current_occupancy: Optional[int] = None
+    suitability_score: Optional[float] = Field(None, ge=0, le=1)
+    infrastructure_available: Optional[List[str]] = None
+    water_availability: Optional[str] = None
+    accessibility_score: Optional[float] = Field(None, ge=0, le=1)
+    distance_to_town_km: Optional[float] = None
+    land_area_hectares: Optional[float] = None
+    geometry: Optional[dict] = None
     status: Optional[str] = None
-    is_approved: Optional[bool] = None
-    description: Optional[str] = None
-    site_survey_report: Optional[str] = None
+    notes: Optional[str] = None
 
 class RelocationSiteResponse(BaseModel):
     id: int
-    name: str
+    name: str  # Changed from site_name
     site_code: str
-    latitude: Optional[float]
-    longitude: Optional[float]
-    total_area_sqm: Optional[float]
-    usable_area_sqm: Optional[float]
-    max_households: int
-    max_population: int
-    current_households: int
-    current_population: int
-    available_capacity: int
-    occupancy_percentage: float
+    district: str
+    state: str
+    max_households: int  # Changed from carrying_capacity
+    current_households: int  # Changed from current_occupancy
     suitability_score: float
-    land_type: Optional[str]
-    terrain_type: Optional[str]
-    flood_risk: str
-    landslide_risk: str
-    earthquake_risk: str
-    distance_from_red_zones_km: Optional[float]
     has_electricity: bool
     has_water_supply: bool
     has_drainage: bool
-    infrastructure_score: float
-    district: Optional[str]
-    state: Optional[str]
-    development_status: str
+    road_connectivity: Optional[str]
+    geometry: dict
     status: str
-    is_approved: bool
-    description: Optional[str]
+    description: Optional[str]  # Changed from notes
+    created_by: str
     created_at: datetime
+    updated_at: Optional[datetime]
 
     class Config:
         from_attributes = True
 
+# ============== VULNERABLE HABITATION SCHEMAS ==============
 
-# ============== STATISTICS & ANALYTICS SCHEMAS ==============
+class VulnerableHabitationCreate(BaseModel):
+    habitation_name: str
+    district: str
+    state: str
+    population_count: int
+    households: Optional[int] = None
+    vulnerability_score: float = Field(ge=0, le=1, description="Vulnerability score between 0 and 1")
+    relocation_priority: RelocationPriority = RelocationPriority.medium_term
+    hazard_zone_id: Optional[int] = None
+    assigned_relocation_site_id: Optional[int] = None
+    relocation_status: str = "not_started"
+    geometry: dict  # GeoJSON geometry (point)
+    notes: Optional[str] = None
 
-class RedZoneStats(BaseModel):
-    total_zones: int
-    zones_by_risk_level: dict  # {"critical": 5, "high": 10, ...}
-    zones_by_status: dict
-    total_affected_population: int
-    total_affected_households: int
+class VulnerableHabitationUpdate(BaseModel):
+    habitation_name: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
+    population_count: Optional[int] = None
+    households: Optional[int] = None
+    vulnerability_score: Optional[float] = Field(None, ge=0, le=1)
+    relocation_priority: Optional[RelocationPriority] = None
+    hazard_zone_id: Optional[int] = None
+    assigned_relocation_site_id: Optional[int] = None
+    relocation_status: Optional[str] = None
+    geometry: Optional[dict] = None
+    notes: Optional[str] = None
 
-class RelocationStats(BaseModel):
-    total_habitations: int
-    habitations_by_priority: dict  # {"immediate": 10, "short_term": 25, ...}
-    habitations_by_status: dict
-    total_sites: int
-    total_site_capacity: int
-    occupied_capacity: int
-    available_capacity: int
+class VulnerableHabitationResponse(BaseModel):
+    id: int
+    name: str  # Changed from habitation_name
+    habitation_code: str
+    district: str
+    state: str
+    population_count: int
+    household_count: int  # Changed from households
+    vulnerability_score: float
+    relocation_priority: str
+    hazard_zone_id: Optional[int]
+    assigned_relocation_site_id: Optional[int]
+    relocation_status: str
+    geometry: dict
+    notes: Optional[str]
+    created_by: str
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True

@@ -49,3 +49,18 @@ def get_current_user_optional(
         return user
     except JWTError:
         return None
+
+
+def get_admin_user(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """
+    Verify that the current user is an admin.
+    Raises 403 if user is not an admin.
+    """
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return current_user
