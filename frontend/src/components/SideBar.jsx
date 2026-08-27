@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router";
 import { ClipboardList, Map, LayoutDashboard, X,
-  PlusCircle, LogOut, ShieldAlert, LogIn, Home, Bell, MapPin, User } from 'lucide-react';
+  PlusCircle, LogOut, ShieldAlert, LogIn, Home, Bell, MapPin, User, AlertTriangle } from 'lucide-react';
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast, Toaster } from "react-hot-toast";
 import { logout } from "../lib/api.js";
@@ -35,10 +35,11 @@ const SideBar = ({ isOpen, onClose }) => {
       { to: "/profile", label: t("myProfile"), icon: <User size={20} /> },
       { to: "/map",     label: t("map"),        icon: <Map size={20} /> },
     ] : []),
-    // Admin sees Map link
+    // Admin sees Map link and Red Zone Management
     ...(isAdmin ? [
-      { to: "/map",     label: t("map"),        icon: <Map size={20} /> },
-      { to: "/admin",   label: t("adminPanel"), icon: <ShieldAlert size={20} /> }
+      { to: "/map",      label: t("map"),        icon: <Map size={20} /> },
+      { to: "/admin",    label: t("adminPanel"), icon: <ShieldAlert size={20} /> },
+      { to: "/red-zone", label: "Red Zone Management", icon: <AlertTriangle size={20} /> }
     ] : []),
   ];
 
