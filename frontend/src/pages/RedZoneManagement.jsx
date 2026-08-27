@@ -92,6 +92,43 @@ const RedZoneManagement = () => {
     onError: () => toast.error("Failed to auto-match sites"),
   });
 
+  // Delete mutations
+  const { mutate: deleteZone } = useMutation({
+    mutationFn: async (zoneId) => {
+      await axiosInstance.delete(`/red-zone/hazard-zones/${zoneId}`);
+    },
+    onSuccess: () => {
+      toast.success("Zone deleted");
+      queryClient.invalidateQueries({ queryKey: ["hazardZones"] });
+      queryClient.invalidateQueries({ queryKey: ["redZoneStats"] });
+    },
+    onError: (error) => toast.error(error.response?.data?.detail || "Failed to delete zone"),
+  });
+
+  const { mutate: deleteSite } = useMutation({
+    mutationFn: async (siteId) => {
+      await axiosInstance.delete(`/red-zone/relocation-sites/${siteId}`);
+    },
+    onSuccess: () => {
+      toast.success("Site deleted");
+      queryClient.invalidateQueries({ queryKey: ["relocationSites"] });
+      queryClient.invalidateQueries({ queryKey: ["redZoneStats"] });
+    },
+    onError: (error) => toast.error(error.response?.data?.detail || "Failed to delete site"),
+  });
+
+  const { mutate: deleteHabitation } = useMutation({
+    mutationFn: async (habitationId) => {
+      await axiosInstance.delete(`/red-zone/vulnerable-habitations/${habitationId}`);
+    },
+    onSuccess: () => {
+      toast.success("Habitation deleted");
+      queryClient.invalidateQueries({ queryKey: ["vulnerableHabitations"] });
+      queryClient.invalidateQueries({ queryKey: ["redZoneStats"] });
+    },
+    onError: (error) => toast.error(error.response?.data?.detail || "Failed to delete habitation"),
+  });
+
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: BarChart3 },
     { id: "zones", label: "Hazard Zones", icon: AlertTriangle },
@@ -177,6 +214,11 @@ const RedZoneManagement = () => {
             loading={zonesLoading} 
             onAddClick={() => setShowZoneModal(true)}
             onEditClick={(zone) => { setEditingItem(zone); setShowZoneModal(true); }}
+            onDeleteClick={(zoneId) => {
+              if (window.confirm("Are you sure you want to delete this hazard zone?")) {
+                deleteZone(zoneId);
+              }
+            }}
           />
         )}
         {activeTab === "sites" && (
@@ -185,6 +227,11 @@ const RedZoneManagement = () => {
             loading={sitesLoading} 
             onAddClick={() => setShowSiteModal(true)}
             onEditClick={(site) => { setEditingItem(site); setShowSiteModal(true); }}
+            onDeleteClick={(siteId) => {
+              if (window.confirm("Are you sure you want to delete this relocation site?")) {
+                deleteSite(siteId);
+              }
+            }}
           />
         )}
         {activeTab === "habitations" && (
@@ -194,6 +241,11 @@ const RedZoneManagement = () => {
             priorityColors={priorityColors}
             onAddClick={() => setShowHabitationModal(true)}
             onEditClick={(hab) => { setEditingItem(hab); setShowHabitationModal(true); }}
+            onDeleteClick={(habitationId) => {
+              if (window.confirm("Are you sure you want to delete this vulnerable habitation?")) {
+                deleteHabitation(habitationId);
+              }
+            }}
           />
         )}
         {activeTab === "recommendations" && (
@@ -405,7 +457,7 @@ const ProgressBar = ({ label, count, total, color }) => {
 
 // ─── HAZARD ZONES TAB ─────────────────────────────────────────────────────────
 
-const HazardZonesTab = ({ zones, loading, onAddClick, onEditClick }) => {
+const HazardZonesTab = ({ zones, loading, onAddClick, onEditClick, onDeleteClick }) => {
   if (loading) {
     return <div className="text-center py-12">Loading hazard zones...</div>;
   }
@@ -480,7 +532,10 @@ const HazardZonesTab = ({ zones, loading, onAddClick, onEditClick }) => {
                 <Edit size={14} />
                 Edit
               </button>
-              <button className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-sm font-medium">
+              <button 
+                onClick={() => onDeleteClick(zone.id)}
+                className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-sm font-medium"
+              >
                 <Trash2 size={14} />
                 Delete
               </button>
@@ -494,7 +549,7 @@ const HazardZonesTab = ({ zones, loading, onAddClick, onEditClick }) => {
 
 // ─── RELOCATION SITES TAB ─────────────────────────────────────────────────────
 
-const RelocationSitesTab = ({ sites, loading, onAddClick, onEditClick }) => {
+const RelocationSitesTab = ({ sites, loading, onAddClick, onEditClick, onDeleteClick }) => {
   if (loading) {
     return <div className="text-center py-12">Loading relocation sites...</div>;
   }
@@ -568,7 +623,10 @@ const RelocationSitesTab = ({ sites, loading, onAddClick, onEditClick }) => {
                   <Edit size={14} />
                   Edit
                 </button>
-                <button className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-sm font-medium">
+                <button 
+                  onClick={() => onDeleteClick(site.id)}
+                  className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-sm font-medium"
+                >
                   <Trash2 size={14} />
                   Delete
                 </button>
@@ -583,7 +641,7 @@ const RelocationSitesTab = ({ sites, loading, onAddClick, onEditClick }) => {
 
 // ─── VULNERABLE HABITATIONS TAB ───────────────────────────────────────────────
 
-const VulnerableHabitationsTab = ({ habitations, loading, priorityColors, onAddClick, onEditClick }) => {
+const VulnerableHabitationsTab = ({ habitations, loading, priorityColors, onAddClick, onEditClick, onDeleteClick }) => {
   if (loading) {
     return <div className="text-center py-12">Loading vulnerable habitations...</div>;
   }
@@ -660,7 +718,10 @@ const VulnerableHabitationsTab = ({ habitations, loading, priorityColors, onAddC
                 >
                   <Edit size={16} />
                 </button>
-                <button className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
+                <button 
+                  onClick={() => onDeleteClick(hab.id)}
+                  className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                >
                   <Trash2 size={16} />
                 </button>
               </div>
