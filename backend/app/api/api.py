@@ -34,4 +34,4 @@ api_router.include_router(map_resources.router, prefix="/map", tags=["map-resour
 api_router.include_router(map_data.router, prefix="/map", tags=["map-data"])
 
 # Red Zone Management (Proactive Relocation)
-api_router.include_router(red_zone.router, prefix="/red-zone", tags=["red-zone"])
+api_router.include_router(red_zone.router, prefix="/red-zones", tags=["red-zones"])

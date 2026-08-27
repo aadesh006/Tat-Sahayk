@@ -1,1042 +1,1257 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+"""
+Red Zone Management API Endpoints
+Handles hazard zones, relocation sites, vulnerable habitations, spatial analysis, and SDMA dashboard
+"""
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text
+from geoalchemy2.shape import from_shape, to_shape
+from geoalchemy2.functions import ST_DWithin
+from geoalchemy2.types import Geography
+from shapely.geometry import shape, mapping, Point
 from typing import List, Optional
-from datetime import datetime
-from geoalchemy2.functions import ST_AsGeoJSON, ST_GeomFromGeoJSON
-from geoalchemy2.shape import to_shape
-import json
+from datetime import datetime, timedelta
+import logging
 
-from app.api import deps
+from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
-from app.models.hazard_zone import HazardZone
-from app.models.relocation_site import RelocationSite
-from app.models.vulnerable_habitation import VulnerableHabitation
+from app.models.red_zone import HazardZone, RelocationSite, VulnerableHabitation
+from app.models.report import Report
 from app.schemas.red_zone import (
-    HazardZoneCreate,
-    HazardZoneUpdate,
-    HazardZoneResponse,
-    RelocationSiteCreate,
-    RelocationSiteUpdate,
-    RelocationSiteResponse,
-    VulnerableHabitationCreate,
-    VulnerableHabitationUpdate,
-    VulnerableHabitationResponse,
-    RelocationPriority
+    HazardZoneCreate, HazardZoneUpdate, HazardZoneResponse,
+    RelocationSiteCreate, RelocationSiteUpdate, RelocationSiteResponse,
+    VulnerableHabitationCreate, VulnerableHabitationUpdate, VulnerableHabitationResponse,
+    HabitationsAtRiskResponse, NearbySitesResponse,
+    SDMAStatsResponse, SDMASummaryResponse,
+    GeoJSONFeature, GeoJSONFeatureCollection,
+    AIAssessmentResponse
+)
+from app.services.red_zone_ai import (
+    assess_habitation_priority,
+    assess_relocation_site,
+    generate_sdma_summary
 )
 
 router = APIRouter()
-
-# ─── HAZARD ZONES ─────────────────────────────────────────────────────────────
-
-@router.post("/hazard-zones", response_model=HazardZoneResponse, status_code=status.HTTP_201_CREATED)
-def create_hazard_zone(
-    *,
-    db: Session = Depends(get_db),
-    zone_in: HazardZoneCreate,
-    current_user: User = Depends(deps.get_admin_user)
-):
-    """
-    Create a new hazard zone (Red Zone).
-    Admin only. District admins can only create zones in their district.
-    """
-    # Check district permissions
-    if current_user.district and zone_in.district.lower() != current_user.district.lower():
-        raise HTTPException(
-            status_code=403, 
-            detail=f"You can only create zones in {current_user.district} district"
-        )
-    
-    # Convert GeoJSON to PostGIS geometry
-    geometry_geojson = json.dumps(zone_in.geometry)
-    
-    hazard_zone = HazardZone(
-        name=zone_in.zone_name,
-        zone_code=f"RZ-{zone_in.district[:3].upper()}-{datetime.now().year}-{str(datetime.now().timestamp()).split('.')[1][:3]}",
-        district=zone_in.district,
-        state=zone_in.state,
-        hazard_types=zone_in.hazard_types,
-        risk_level=zone_in.intensity_level,
-        population_estimate=zone_in.affected_population,
-        boundary=func.ST_GeomFromGeoJSON(geometry_geojson),
-        status=zone_in.status,
-        description=zone_in.notes,
-        created_by_id=current_user.id
-    )
-    
-    db.add(hazard_zone)
-    db.commit()
-    db.refresh(hazard_zone)
-    
-    # Convert geometry to GeoJSON for response
-    geom_json = db.scalar(ST_AsGeoJSON(hazard_zone.boundary))
-    creator = db.query(User).filter(User.id == hazard_zone.created_by_id).first()
-    
-    return {
-        "id": hazard_zone.id,
-        "name": hazard_zone.name,
-        "zone_code": hazard_zone.zone_code,
-        "district": hazard_zone.district,
-        "state": hazard_zone.state,
-        "hazard_types": hazard_zone.hazard_types or [],
-        "risk_level": hazard_zone.risk_level,
-        "population_estimate": hazard_zone.population_estimate,
-        "geometry": json.loads(geom_json) if geom_json else None,
-        "status": hazard_zone.status,
-        "description": hazard_zone.description,
-        "created_by": creator.full_name if creator else "System",
-        "created_at": hazard_zone.created_at,
-        "updated_at": hazard_zone.updated_at
-    }
+logger = logging.getLogger(__name__)
 
 
-@router.get("/hazard-zones", response_model=List[HazardZoneResponse])
-def list_hazard_zones(
-    *,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_admin_user),
+# ==================== HAZARD ZONES ENDPOINTS ====================
+
+@router.get("/hazard-zones/", response_model=List[HazardZoneResponse])
+def get_hazard_zones(
+    active_only: bool = True,
     district: Optional[str] = None,
-    state: Optional[str] = None,
-    status_filter: Optional[str] = None,
-    hazard_type: Optional[str] = None
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    List all hazard zones with optional filters.
-    Admin only.
-    """
+    """List all hazard zones with district filtering for district admins"""
     query = db.query(HazardZone)
     
-    # Apply filters
-    if district:
+    if active_only:
+        query = query.filter(HazardZone.is_active == True)
+    
+    # District filtering for district admins
+    if current_user.role == "admin" and current_user.district:
+        query = query.filter(HazardZone.district.ilike(f"%{current_user.district}%"))
+    elif district:
         query = query.filter(HazardZone.district.ilike(f"%{district}%"))
     
-    if state:
-        query = query.filter(HazardZone.state.ilike(f"%{state}%"))
+    zones = query.order_by(HazardZone.created_at.desc()).all()
     
-    if status_filter:
-        query = query.filter(HazardZone.status == status_filter)
-    
-    if hazard_type:
-        query = query.filter(HazardZone.hazard_types.contains([hazard_type]))
-    
-    # District admin sees only their district
-    if current_user.district:
-        query = query.filter(HazardZone.district.ilike(f"%{current_user.district}%"))
-    
-    zones = query.order_by(HazardZone.risk_level.desc()).all()
-    
+    # Convert PostGIS boundary to GeoJSON
     result = []
     for zone in zones:
-        geom_json = db.scalar(ST_AsGeoJSON(zone.boundary))
-        creator = db.query(User).filter(User.id == zone.created_by_id).first()
+        zone_dict = {
+            "id": zone.id,
+            "name": zone.name,
+            "district": zone.district,
+            "state": zone.state,
+            "hazard_types": zone.hazard_types or [],
+            "intensity": zone.intensity,
+            "boundary": None,
+            "center_lat": zone.center_lat,
+            "center_lon": zone.center_lon,
+            "population_at_risk": zone.population_at_risk,
+            "affected_area_sqkm": zone.affected_area_sqkm,
+            "ai_confidence": zone.ai_confidence,
+            "ai_reasoning": zone.ai_reasoning,
+            "source": zone.source,
+            "is_active": zone.is_active,
+            "last_incident_date": zone.last_incident_date,
+            "created_by": zone.created_by,
+            "created_at": zone.created_at,
+            "updated_at": zone.updated_at
+        }
         
-        result.append({
-            **zone.__dict__,
-            "geometry": json.loads(geom_json) if geom_json else None,
-            "created_by": creator.full_name if creator else "System"
-        })
+        if zone.boundary:
+            try:
+                geom = to_shape(zone.boundary)
+                zone_dict["boundary"] = mapping(geom)
+            except:
+                pass
+        
+        result.append(HazardZoneResponse(**zone_dict))
     
     return result
+
+
+@router.post("/hazard-zones/", response_model=HazardZoneResponse)
+def create_hazard_zone(
+    zone_data: HazardZoneCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new hazard zone (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # District check for district admins
+    if current_user.district and zone_data.district.lower() != current_user.district.lower():
+        raise HTTPException(status_code=403, detail="Can only create zones in your district")
+    
+    new_zone = HazardZone(
+        name=zone_data.name,
+        district=zone_data.district,
+        state=zone_data.state,
+        hazard_types=zone_data.hazard_types,
+        intensity=zone_data.intensity,
+        center_lat=zone_data.center_lat,
+        center_lon=zone_data.center_lon,
+        population_at_risk=zone_data.population_at_risk,
+        affected_area_sqkm=zone_data.affected_area_sqkm,
+        last_incident_date=zone_data.last_incident_date,
+        source="manual",
+        created_by=current_user.id
+    )
+    
+    # Handle GeoJSON boundary if provided
+    if zone_data.boundary:
+        try:
+            geom = shape(zone_data.boundary)
+            new_zone.boundary = from_shape(geom, srid=4326)
+            # Auto-compute center if not provided
+            if not zone_data.center_lat or not zone_data.center_lon:
+                centroid = geom.centroid
+                new_zone.center_lat = centroid.y
+                new_zone.center_lon = centroid.x
+        except Exception as e:
+            logger.error(f"GeoJSON parsing error: {e}")
+            raise HTTPException(status_code=400, detail="Invalid GeoJSON boundary")
+    
+    db.add(new_zone)
+    db.commit()
+    db.refresh(new_zone)
+    
+    # Convert boundary back to GeoJSON for response
+    response_data = {
+        **zone_data.model_dump(),
+        "id": new_zone.id,
+        "ai_confidence": 0.0,
+        "ai_reasoning": None,
+        "source": "manual",
+        "is_active": True,
+        "created_by": current_user.id,
+        "created_at": new_zone.created_at,
+        "updated_at": None
+    }
+    
+    return HazardZoneResponse(**response_data)
 
 
 @router.get("/hazard-zones/{zone_id}", response_model=HazardZoneResponse)
 def get_hazard_zone(
-    *,
-    db: Session = Depends(get_db),
     zone_id: int,
-    current_user: User = Depends(deps.get_admin_user)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    Get a specific hazard zone by ID.
-    Admin only.
-    """
+    """Get single hazard zone with full details"""
     zone = db.query(HazardZone).filter(HazardZone.id == zone_id).first()
-    
     if not zone:
         raise HTTPException(status_code=404, detail="Hazard zone not found")
     
-    # Check district access
-    if current_user.district and zone.district != current_user.district:
-        raise HTTPException(status_code=403, detail="Access denied to this district's zones")
+    # District filtering
+    if current_user.role == "admin" and current_user.district:
+        if zone.district.lower() != current_user.district.lower():
+            raise HTTPException(status_code=403, detail="Access denied")
     
-    geom_json = db.scalar(ST_AsGeoJSON(zone.boundary))
-    creator = db.query(User).filter(User.id == zone.created_by_id).first()
-    
-    return {
-        **zone.__dict__,
-        "geometry": json.loads(geom_json) if geom_json else None,
-        "created_by": creator.full_name if creator else "System"
+    zone_dict = {
+        "id": zone.id,
+        "name": zone.name,
+        "district": zone.district,
+        "state": zone.state,
+        "hazard_types": zone.hazard_types or [],
+        "intensity": zone.intensity,
+        "boundary": None,
+        "center_lat": zone.center_lat,
+        "center_lon": zone.center_lon,
+        "population_at_risk": zone.population_at_risk,
+        "affected_area_sqkm": zone.affected_area_sqkm,
+        "ai_confidence": zone.ai_confidence,
+        "ai_reasoning": zone.ai_reasoning,
+        "source": zone.source,
+        "is_active": zone.is_active,
+        "last_incident_date": zone.last_incident_date,
+        "created_by": zone.created_by,
+        "created_at": zone.created_at,
+        "updated_at": zone.updated_at
     }
+    
+    if zone.boundary:
+        try:
+            geom = to_shape(zone.boundary)
+            zone_dict["boundary"] = mapping(geom)
+        except:
+            pass
+    
+    return HazardZoneResponse(**zone_dict)
 
 
-@router.patch("/hazard-zones/{zone_id}", response_model=HazardZoneResponse)
+@router.put("/hazard-zones/{zone_id}", response_model=HazardZoneResponse)
 def update_hazard_zone(
-    *,
-    db: Session = Depends(get_db),
     zone_id: int,
     zone_update: HazardZoneUpdate,
-    current_user: User = Depends(deps.get_admin_user)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    Update an existing hazard zone.
-    Admin only.
-    """
-    zone = db.query(HazardZone).filter(HazardZone.id == zone_id).first()
+    """Update hazard zone (admin only, own district)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
     
+    zone = db.query(HazardZone).filter(HazardZone.id == zone_id).first()
     if not zone:
         raise HTTPException(status_code=404, detail="Hazard zone not found")
     
-    # Check district access
-    if current_user.district and zone.district != current_user.district:
-        raise HTTPException(status_code=403, detail="Access denied to this district's zones")
-    
-    # Prevent changing district if district admin
-    if current_user.district and zone_update.district and zone_update.district.lower() != current_user.district.lower():
-        raise HTTPException(status_code=403, detail=f"You cannot move zones to other districts")
+    # District check
+    if current_user.district and zone.district.lower() != current_user.district.lower():
+        raise HTTPException(status_code=403, detail="Can only update zones in your district")
     
     # Update fields
-    update_data = zone_update.dict(exclude_unset=True)
-    
-    # Handle geometry update
-    if "geometry" in update_data and update_data["geometry"]:
-        geometry_geojson = json.dumps(update_data["geometry"])
-        zone.boundary = func.ST_GeomFromGeoJSON(geometry_geojson)
-        del update_data["geometry"]
-    
-    for field, value in update_data.items():
-        setattr(zone, field, value)
+    for field, value in zone_update.model_dump(exclude_unset=True).items():
+        if field == "boundary" and value:
+            try:
+                geom = shape(value)
+                setattr(zone, "boundary", from_shape(geom, srid=4326))
+                # Update center
+                centroid = geom.centroid
+                zone.center_lat = centroid.y
+                zone.center_lon = centroid.x
+            except Exception as e:
+                logger.error(f"GeoJSON parsing error: {e}")
+                raise HTTPException(status_code=400, detail="Invalid GeoJSON boundary")
+        else:
+            setattr(zone, field, value)
     
     zone.updated_at = datetime.utcnow()
-    
     db.commit()
     db.refresh(zone)
     
-    geom_json = db.scalar(ST_AsGeoJSON(zone.boundary))
-    creator = db.query(User).filter(User.id == zone.created_by_id).first()
-    
-    return {
-        **zone.__dict__,
-        "geometry": json.loads(geom_json) if geom_json else None,
-        "created_by": creator.full_name if creator else "System"
-    }
+    return get_hazard_zone(zone_id, db, current_user)
 
 
-@router.delete("/hazard-zones/{zone_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/hazard-zones/{zone_id}")
 def delete_hazard_zone(
-    *,
-    db: Session = Depends(get_db),
     zone_id: int,
-    current_user: User = Depends(deps.get_admin_user)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    Delete a hazard zone.
-    Admin only.
-    """
-    zone = db.query(HazardZone).filter(HazardZone.id == zone_id).first()
+    """Delete hazard zone (admin only, own district)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
     
+    zone = db.query(HazardZone).filter(HazardZone.id == zone_id).first()
     if not zone:
         raise HTTPException(status_code=404, detail="Hazard zone not found")
     
-    # Check district access
-    if current_user.district and zone.district != current_user.district:
-        raise HTTPException(status_code=403, detail="Access denied to this district's zones")
+    # District check
+    if current_user.district and zone.district.lower() != current_user.district.lower():
+        raise HTTPException(status_code=403, detail="Can only delete zones in your district")
     
     db.delete(zone)
     db.commit()
     
-    return None
+    return {"message": "Hazard zone deleted successfully"}
 
 
-# ─── RELOCATION SITES ─────────────────────────────────────────────────────────
+# ==================== RELOCATION SITES ENDPOINTS ====================
 
-@router.post("/relocation-sites", response_model=RelocationSiteResponse, status_code=status.HTTP_201_CREATED)
-def create_relocation_site(
-    *,
-    db: Session = Depends(get_db),
-    site_in: RelocationSiteCreate,
-    current_user: User = Depends(deps.get_admin_user)
-):
-    """
-    Create a new relocation site.
-    Admin only. District admins can only create sites in their district.
-    """
-    # Check district permissions
-    if current_user.district and site_in.district.lower() != current_user.district.lower():
-        raise HTTPException(
-            status_code=403, 
-            detail=f"You can only create sites in {current_user.district} district"
-        )
-    
-    # Convert GeoJSON to PostGIS geometry
-    geometry_geojson = json.dumps(site_in.geometry)
-    
-    site = RelocationSite(
-        name=site_in.site_name,
-        site_code=f"RS-{site_in.district[:3].upper()}-{datetime.now().year}-{str(datetime.now().timestamp()).split('.')[1][:3]}",
-        district=site_in.district,
-        state=site_in.state,
-        max_households=site_in.carrying_capacity,
-        current_households=site_in.current_occupancy or 0,
-        suitability_score=site_in.suitability_score,
-        has_electricity="electricity" in site_in.infrastructure_available,
-        has_water_supply="water_supply" in site_in.infrastructure_available,
-        has_drainage="drainage" in site_in.infrastructure_available,
-        road_connectivity=site_in.water_availability,
-        location=func.ST_GeomFromGeoJSON(geometry_geojson),
-        status=site_in.status,
-        description=site_in.notes,
-        created_by_id=current_user.id
-    )
-    
-    db.add(site)
-    db.commit()
-    db.refresh(site)
-    
-    geom_json = db.scalar(ST_AsGeoJSON(site.location))
-    creator = db.query(User).filter(User.id == site.created_by_id).first()
-    
-    return {
-        "id": site.id,
-        "name": site.name,
-        "site_code": site.site_code,
-        "district": site.district,
-        "state": site.state,
-        "max_households": site.max_households,
-        "current_households": site.current_households,
-        "suitability_score": site.suitability_score,
-        "has_electricity": site.has_electricity,
-        "has_water_supply": site.has_water_supply,
-        "has_drainage": site.has_drainage,
-        "road_connectivity": site.road_connectivity,
-        "geometry": json.loads(geom_json) if geom_json else None,
-        "status": site.status,
-        "description": site.description,
-        "created_by": creator.full_name if creator else "System",
-        "created_at": site.created_at,
-        "updated_at": site.updated_at
-    }
-
-
-@router.get("/relocation-sites", response_model=List[RelocationSiteResponse])
-def list_relocation_sites(
-    *,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_admin_user),
+@router.get("/sites/", response_model=List[RelocationSiteResponse])
+def get_relocation_sites(
+    active_only: bool = True,
     district: Optional[str] = None,
-    state: Optional[str] = None,
-    status_filter: Optional[str] = None,
-    min_capacity: Optional[int] = None
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    List all relocation sites with optional filters.
-    Admin only.
-    """
+    """List all relocation sites"""
     query = db.query(RelocationSite)
     
-    if district:
+    if active_only:
+        query = query.filter(RelocationSite.is_active == True)
+    
+    # District filtering
+    if current_user.role == "admin" and current_user.district:
+        query = query.filter(RelocationSite.district.ilike(f"%{current_user.district}%"))
+    elif district:
         query = query.filter(RelocationSite.district.ilike(f"%{district}%"))
     
-    if state:
-        query = query.filter(RelocationSite.state.ilike(f"%{state}%"))
-    
-    if status_filter:
-        query = query.filter(RelocationSite.status == status_filter)
-    
-    if min_capacity:
-        query = query.filter(RelocationSite.max_households >= min_capacity)
-    
-    # District admin sees only their district
-    if current_user.district:
-        query = query.filter(RelocationSite.district.ilike(f"%{current_user.district}%"))
-    
-    sites = query.order_by(RelocationSite.suitability_score.desc()).all()
-    
-    result = []
-    for site in sites:
-        geom_json = db.scalar(ST_AsGeoJSON(site.location))
-        creator = db.query(User).filter(User.id == site.created_by_id).first()
-        
-        result.append({
-            **site.__dict__,
-            "geometry": json.loads(geom_json) if geom_json else None,
-            "created_by": creator.full_name if creator else "System"
-        })
-    
-    return result
+    sites = query.order_by(RelocationSite.created_at.desc()).all()
+    return sites
 
 
-@router.get("/relocation-sites/{site_id}", response_model=RelocationSiteResponse)
-def get_relocation_site(
-    *,
+@router.post("/sites/", response_model=RelocationSiteResponse)
+def create_relocation_site(
+    site_data: RelocationSiteCreate,
     db: Session = Depends(get_db),
-    site_id: int,
-    current_user: User = Depends(deps.get_admin_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    Get a specific relocation site by ID.
-    Admin only.
-    """
-    site = db.query(RelocationSite).filter(RelocationSite.id == site_id).first()
+    """Create a new relocation site (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
     
+    # District check
+    if current_user.district and site_data.district.lower() != current_user.district.lower():
+        raise HTTPException(status_code=403, detail="Can only create sites in your district")
+    
+    # Create PostGIS point
+    point = Point(site_data.longitude, site_data.latitude)
+    
+    new_site = RelocationSite(
+        name=site_data.name,
+        district=site_data.district,
+        state=site_data.state,
+        location=from_shape(point, srid=4326),
+        latitude=site_data.latitude,
+        longitude=site_data.longitude,
+        carrying_capacity=site_data.carrying_capacity,
+        current_occupancy=site_data.current_occupancy,
+        available_capacity=site_data.carrying_capacity - site_data.current_occupancy,
+        facilities=site_data.facilities,
+        hazard_free_radius_km=site_data.hazard_free_radius_km,
+        land_area_sqkm=site_data.land_area_sqkm,
+        created_by=current_user.id
+    )
+    
+    db.add(new_site)
+    db.commit()
+    db.refresh(new_site)
+    
+    return new_site
+
+
+@router.get("/sites/{site_id}", response_model=RelocationSiteResponse)
+def get_relocation_site(
+    site_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get single relocation site"""
+    site = db.query(RelocationSite).filter(RelocationSite.id == site_id).first()
     if not site:
         raise HTTPException(status_code=404, detail="Relocation site not found")
     
-    if current_user.district and site.district != current_user.district:
-        raise HTTPException(status_code=403, detail="Access denied to this district's sites")
-    
-    geom_json = db.scalar(ST_AsGeoJSON(site.location))
-    creator = db.query(User).filter(User.id == site.created_by_id).first()
-    
-    return {
-        **site.__dict__,
-        "geometry": json.loads(geom_json) if geom_json else None,
-        "created_by": creator.full_name if creator else "System"
-    }
+    return site
 
 
-@router.patch("/relocation-sites/{site_id}", response_model=RelocationSiteResponse)
+@router.put("/sites/{site_id}", response_model=RelocationSiteResponse)
 def update_relocation_site(
-    *,
-    db: Session = Depends(get_db),
     site_id: int,
     site_update: RelocationSiteUpdate,
-    current_user: User = Depends(deps.get_admin_user)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    Update an existing relocation site.
-    Admin only.
-    """
-    site = db.query(RelocationSite).filter(RelocationSite.id == site_id).first()
+    """Update relocation site (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
     
+    site = db.query(RelocationSite).filter(RelocationSite.id == site_id).first()
     if not site:
         raise HTTPException(status_code=404, detail="Relocation site not found")
     
-    if current_user.district and site.district != current_user.district:
-        raise HTTPException(status_code=403, detail="Access denied to this district's sites")
+    # District check
+    if current_user.district and site.district.lower() != current_user.district.lower():
+        raise HTTPException(status_code=403, detail="Can only update sites in your district")
     
-    # Prevent changing district if district admin
-    if current_user.district and site_update.district and site_update.district.lower() != current_user.district.lower():
-        raise HTTPException(status_code=403, detail=f"You cannot move sites to other districts")
+    # Update fields
+    for field, value in site_update.model_dump(exclude_unset=True).items():
+        if field in ["latitude", "longitude"]:
+            if site_update.latitude and site_update.longitude:
+                point = Point(site_update.longitude, site_update.latitude)
+                site.location = from_shape(point, srid=4326)
+                site.latitude = site_update.latitude
+                site.longitude = site_update.longitude
+        else:
+            setattr(site, field, value)
     
-    update_data = site_update.dict(exclude_unset=True)
-    
-    if "geometry" in update_data and update_data["geometry"]:
-        geometry_geojson = json.dumps(update_data["geometry"])
-        site.location = func.ST_GeomFromGeoJSON(geometry_geojson)
-        del update_data["geometry"]
-    
-    for field, value in update_data.items():
-        setattr(site, field, value)
-    
-    site.updated_at = datetime.utcnow()
+    # Recalculate available capacity
+    site.available_capacity = site.carrying_capacity - site.current_occupancy
     
     db.commit()
     db.refresh(site)
     
-    geom_json = db.scalar(ST_AsGeoJSON(site.location))
-    creator = db.query(User).filter(User.id == site.created_by_id).first()
-    
-    return {
-        **site.__dict__,
-        "geometry": json.loads(geom_json) if geom_json else None,
-        "created_by": creator.full_name if creator else "System"
-    }
+    return site
 
 
-@router.delete("/relocation-sites/{site_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/sites/{site_id}")
 def delete_relocation_site(
-    *,
-    db: Session = Depends(get_db),
     site_id: int,
-    current_user: User = Depends(deps.get_admin_user)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    Delete a relocation site.
-    Admin only.
-    """
-    site = db.query(RelocationSite).filter(RelocationSite.id == site_id).first()
+    """Delete relocation site (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
     
+    site = db.query(RelocationSite).filter(RelocationSite.id == site_id).first()
     if not site:
         raise HTTPException(status_code=404, detail="Relocation site not found")
     
-    if current_user.district and site.district != current_user.district:
-        raise HTTPException(status_code=403, detail="Access denied to this district's sites")
+    # District check
+    if current_user.district and site.district.lower() != current_user.district.lower():
+        raise HTTPException(status_code=403, detail="Can only delete sites in your district")
     
     db.delete(site)
     db.commit()
     
-    return None
+    return {"message": "Relocation site deleted successfully"}
 
 
-# ─── VULNERABLE HABITATIONS ───────────────────────────────────────────────────
-
-@router.post("/vulnerable-habitations", response_model=VulnerableHabitationResponse, status_code=status.HTTP_201_CREATED)
-def create_vulnerable_habitation(
-    *,
+@router.post("/sites/{site_id}/assess", response_model=AIAssessmentResponse)
+def assess_site(
+    site_id: int,
     db: Session = Depends(get_db),
-    habitation_in: VulnerableHabitationCreate,
-    current_user: User = Depends(deps.get_admin_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    Register a new vulnerable habitation.
-    Admin only. District admins can only create habitations in their district.
-    """
-    # Check district permissions
-    if current_user.district and habitation_in.district.lower() != current_user.district.lower():
-        raise HTTPException(
-            status_code=403, 
-            detail=f"You can only create habitations in {current_user.district} district"
-        )
+    """Run AI suitability assessment on relocation site"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Convert GeoJSON to PostGIS geometry (point location)
-    geometry_geojson = json.dumps(habitation_in.geometry)
+    site = db.query(RelocationSite).filter(RelocationSite.id == site_id).first()
+    if not site:
+        raise HTTPException(status_code=404, detail="Relocation site not found")
     
-    habitation = VulnerableHabitation(
-        name=habitation_in.habitation_name,
-        habitation_code=f"VH-{habitation_in.district[:3].upper()}-{datetime.now().year}-{str(datetime.now().timestamp()).split('.')[1][:3]}",
-        district=habitation_in.district,
-        state=habitation_in.state,
-        population_count=habitation_in.population_count,
-        household_count=habitation_in.households or 0,
-        vulnerability_score=habitation_in.vulnerability_score,
-        relocation_priority=habitation_in.relocation_priority,
-        hazard_zone_id=habitation_in.hazard_zone_id,
-        assigned_relocation_site_id=habitation_in.assigned_relocation_site_id,
-        relocation_status=habitation_in.relocation_status or "not_started",
-        location=func.ST_GeomFromGeoJSON(geometry_geojson),
-        notes=habitation_in.notes,
-        assessed_by_id=current_user.id
+    # Find nearby hazard zones (within 20km)
+    nearby_zones = db.execute(
+        text("""
+            SELECT id, name, district, intensity, hazard_types, 
+                   ST_Distance(location::geography, 
+                               ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) / 1000 as distance_km
+            FROM hazard_zones
+            WHERE is_active = true
+              AND ST_DWithin(location::geography, 
+                             ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 
+                             20000)
+            ORDER BY distance_km
+            LIMIT 5
+        """),
+        {"lat": site.latitude, "lon": site.longitude}
+    ).fetchall()
+    
+    nearby_zones_data = [
+        {
+            "id": z[0],
+            "name": z[1],
+            "district": z[2],
+            "intensity": z[3],
+            "hazard_types": z[4],
+            "distance_km": round(z[5], 2)
+        }
+        for z in nearby_zones
+    ]
+    
+    site_data = {
+        "name": site.name,
+        "district": site.district,
+        "state": site.state,
+        "latitude": site.latitude,
+        "longitude": site.longitude,
+        "carrying_capacity": site.carrying_capacity,
+        "facilities": site.facilities or [],
+        "hazard_free_radius_km": site.hazard_free_radius_km
+    }
+    
+    assessment = assess_relocation_site(site_data, nearby_zones_data)
+    
+    # Update site with assessment
+    site.suitability_score = assessment.get("suitability_score", 0.5)
+    site.ai_assessment = assessment.get("reasoning", "")
+    if assessment.get("recommended_capacity_households"):
+        site.carrying_capacity = assessment["recommended_capacity_households"]
+        site.available_capacity = site.carrying_capacity - site.current_occupancy
+    
+    db.commit()
+    db.refresh(site)
+    
+    return AIAssessmentResponse(
+        success=True,
+        message="AI assessment completed",
+        assessment=assessment,
+        updated_fields={
+            "suitability_score": site.suitability_score,
+            "carrying_capacity": site.carrying_capacity
+        }
+    )
+
+
+# ==================== VULNERABLE HABITATIONS ENDPOINTS ====================
+
+@router.get("/habitations/", response_model=List[VulnerableHabitationResponse])
+def get_vulnerable_habitations(
+    priority: Optional[str] = None,
+    district: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List all vulnerable habitations (priority-sorted, district-filtered)"""
+    query = db.query(VulnerableHabitation)
+    
+    # Priority order for sorting
+    priority_order = {
+        "IMMEDIATE": 1,
+        "SHORT_TERM": 2,
+        "MEDIUM_TERM": 3,
+        "SAFE": 4
+    }
+    
+    if priority:
+        query = query.filter(VulnerableHabitation.priority == priority)
+    
+    # District filtering
+    if current_user.role == "admin" and current_user.district:
+        query = query.filter(VulnerableHabitation.district.ilike(f"%{current_user.district}%"))
+    elif district:
+        query = query.filter(VulnerableHabitation.district.ilike(f"%{district}%"))
+    
+    habitations = query.all()
+    
+    # Sort by priority
+    habitations.sort(key=lambda h: priority_order.get(h.priority, 99))
+    
+    return habitations
+
+
+@router.post("/habitations/", response_model=VulnerableHabitationResponse)
+def create_vulnerable_habitation(
+    habitation_data: VulnerableHabitationCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Register a new vulnerable habitation"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # District check
+    if current_user.district and habitation_data.district.lower() != current_user.district.lower():
+        raise HTTPException(status_code=403, detail="Can only register habitations in your district")
+    
+    # Create PostGIS point
+    point = Point(habitation_data.longitude, habitation_data.latitude)
+    
+    new_habitation = VulnerableHabitation(
+        name=habitation_data.name,
+        district=habitation_data.district,
+        state=habitation_data.state,
+        location=from_shape(point, srid=4326),
+        latitude=habitation_data.latitude,
+        longitude=habitation_data.longitude,
+        population=habitation_data.population,
+        households=habitation_data.households,
+        hazard_types=habitation_data.hazard_types,
+        created_by=current_user.id
     )
     
-    db.add(habitation)
+    db.add(new_habitation)
+    db.commit()
+    db.refresh(new_habitation)
+    
+    return new_habitation
+
+
+@router.get("/habitations/{habitation_id}", response_model=VulnerableHabitationResponse)
+def get_vulnerable_habitation(
+    habitation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get vulnerable habitation with full AI assessment"""
+    habitation = db.query(VulnerableHabitation).filter(
+        VulnerableHabitation.id == habitation_id
+    ).first()
+    
+    if not habitation:
+        raise HTTPException(status_code=404, detail="Habitation not found")
+    
+    return habitation
+
+
+@router.put("/habitations/{habitation_id}", response_model=VulnerableHabitationResponse)
+def update_vulnerable_habitation(
+    habitation_id: int,
+    habitation_update: VulnerableHabitationUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update vulnerable habitation (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    habitation = db.query(VulnerableHabitation).filter(
+        VulnerableHabitation.id == habitation_id
+    ).first()
+    
+    if not habitation:
+        raise HTTPException(status_code=404, detail="Habitation not found")
+    
+    # District check
+    if current_user.district and habitation.district.lower() != current_user.district.lower():
+        raise HTTPException(status_code=403, detail="Can only update habitations in your district")
+    
+    # Update fields
+    for field, value in habitation_update.model_dump(exclude_unset=True).items():
+        if field in ["latitude", "longitude"]:
+            if habitation_update.latitude and habitation_update.longitude:
+                point = Point(habitation_update.longitude, habitation_update.latitude)
+                habitation.location = from_shape(point, srid=4326)
+                habitation.latitude = habitation_update.latitude
+                habitation.longitude = habitation_update.longitude
+        else:
+            setattr(habitation, field, value)
+    
     db.commit()
     db.refresh(habitation)
     
-    geom_json = db.scalar(ST_AsGeoJSON(habitation.location))
-    creator = db.query(User).filter(User.id == habitation.assessed_by_id).first()
+    return habitation
+
+
+@router.delete("/habitations/{habitation_id}")
+def delete_vulnerable_habitation(
+    habitation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete vulnerable habitation (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
     
-    return {
-        "id": habitation.id,
+    habitation = db.query(VulnerableHabitation).filter(
+        VulnerableHabitation.id == habitation_id
+    ).first()
+    
+    if not habitation:
+        raise HTTPException(status_code=404, detail="Habitation not found")
+    
+    # District check
+    if current_user.district and habitation.district.lower() != current_user.district.lower():
+        raise HTTPException(status_code=403, detail="Can only delete habitations in your district")
+    
+    db.delete(habitation)
+    db.commit()
+    
+    return {"message": "Vulnerable habitation deleted successfully"}
+
+
+@router.post("/habitations/{habitation_id}/assess", response_model=AIAssessmentResponse)
+def assess_habitation(
+    habitation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Run AI priority assessment on vulnerable habitation"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    habitation = db.query(VulnerableHabitation).filter(
+        VulnerableHabitation.id == habitation_id
+    ).first()
+    
+    if not habitation:
+        raise HTTPException(status_code=404, detail="Habitation not found")
+    
+    # Find nearby hazard zones (within 10km)
+    nearby_zones = db.execute(
+        text("""
+            SELECT id, name, district, intensity, hazard_types, population_at_risk,
+                   ST_Distance(boundary::geography, 
+                               ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) / 1000 as distance_km
+            FROM hazard_zones
+            WHERE is_active = true
+              AND ST_DWithin(boundary::geography, 
+                             ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 
+                             10000)
+            ORDER BY distance_km
+            LIMIT 5
+        """),
+        {"lat": habitation.latitude, "lon": habitation.longitude}
+    ).fetchall()
+    
+    nearby_zones_data = [
+        {
+            "id": z[0],
+            "name": z[1],
+            "district": z[2],
+            "intensity": z[3],
+            "hazard_types": z[4],
+            "population_at_risk": z[5],
+            "distance_km": round(z[6], 2)
+        }
+        for z in nearby_zones
+    ]
+    
+    # Get recent disaster reports in area (within 5km, last 2 years)
+    two_years_ago = datetime.utcnow() - timedelta(days=730)
+    recent_reports = db.execute(
+        text("""
+            SELECT id, hazard_type, severity, description, status
+            FROM reports
+            WHERE status = 'verified'
+              AND created_at >= :since
+              AND ST_DWithin(location::geography, 
+                             ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 
+                             5000)
+            ORDER BY created_at DESC
+            LIMIT 10
+        """),
+        {"lat": habitation.latitude, "lon": habitation.longitude, "since": two_years_ago}
+    ).fetchall()
+    
+    recent_reports_data = [
+        {
+            "id": r[0],
+            "hazard_type": r[1],
+            "severity": r[2],
+            "description": r[3][:100] if r[3] else "",
+            "status": r[4]
+        }
+        for r in recent_reports
+    ]
+    
+    # Get available relocation sites
+    available_sites = db.query(RelocationSite).filter(
+        RelocationSite.is_active == True,
+        RelocationSite.available_capacity > 0
+    ).limit(5).all()
+    
+    available_sites_data = [
+        {
+            "id": s.id,
+            "name": s.name,
+            "district": s.district,
+            "available_capacity": s.available_capacity,
+            "suitability_score": s.suitability_score,
+            "facilities": s.facilities or []
+        }
+        for s in available_sites
+    ]
+    
+    habitation_data = {
         "name": habitation.name,
-        "habitation_code": habitation.habitation_code,
         "district": habitation.district,
         "state": habitation.state,
-        "population_count": habitation.population_count,
-        "household_count": habitation.household_count,
-        "vulnerability_score": habitation.vulnerability_score,
-        "relocation_priority": habitation.relocation_priority,
-        "hazard_zone_id": habitation.hazard_zone_id,
-        "assigned_relocation_site_id": habitation.assigned_relocation_site_id,
-        "relocation_status": habitation.relocation_status,
-        "geometry": json.loads(geom_json) if geom_json else None,
-        "notes": habitation.notes,
-        "created_by": creator.full_name if creator else "System",
-        "created_at": habitation.created_at,
-        "updated_at": habitation.updated_at
+        "population": habitation.population,
+        "households": habitation.households,
+        "hazard_types": habitation.hazard_types or [],
+        "exposure_score": habitation.exposure_score
     }
+    
+    assessment = assess_habitation_priority(
+        habitation_data,
+        nearby_zones_data,
+        recent_reports_data,
+        available_sites_data
+    )
+    
+    # Update habitation with assessment
+    habitation.priority = assessment.get("priority", "MEDIUM_TERM")
+    habitation.vulnerability_score = assessment.get("vulnerability_score", 0.5)
+    habitation.priority_reason = assessment.get("urgency_reason", "")
+    habitation.estimated_timeline_months = assessment.get("estimated_timeline_months", 12)
+    habitation.recommended_site_id = assessment.get("recommended_site_id")
+    habitation.ai_assessment = str(assessment)
+    habitation.last_assessed = datetime.utcnow()
+    
+    # Update nearest hazard zone if found
+    if nearby_zones_data:
+        habitation.nearest_hazard_zone_id = nearby_zones_data[0]["id"]
+    
+    db.commit()
+    db.refresh(habitation)
+    
+    return AIAssessmentResponse(
+        success=True,
+        message="AI assessment completed",
+        assessment=assessment,
+        updated_fields={
+            "priority": habitation.priority,
+            "vulnerability_score": habitation.vulnerability_score,
+            "estimated_timeline_months": habitation.estimated_timeline_months
+        }
+    )
 
 
-@router.get("/vulnerable-habitations", response_model=List[VulnerableHabitationResponse])
-def list_vulnerable_habitations(
-    *,
+@router.post("/habitations/bulk-assess")
+def bulk_assess_habitations(
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_admin_user),
-    district: Optional[str] = None,
-    state: Optional[str] = None,
-    priority: Optional[RelocationPriority] = None,
-    relocation_status: Optional[str] = None
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    List all vulnerable habitations with optional filters.
-    Admin only.
-    """
+    """Run spatial analysis + AI on all habitations in district"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
     query = db.query(VulnerableHabitation)
     
-    if district:
-        query = query.filter(VulnerableHabitation.district.ilike(f"%{district}%"))
-    
-    if state:
-        query = query.filter(VulnerableHabitation.state.ilike(f"%{state}%"))
-    
-    if priority:
-        query = query.filter(VulnerableHabitation.relocation_priority == priority)
-    
-    if relocation_status:
-        query = query.filter(VulnerableHabitation.relocation_status == relocation_status)
-    
-    # District admin sees only their district
+    # District filtering
     if current_user.district:
         query = query.filter(VulnerableHabitation.district.ilike(f"%{current_user.district}%"))
     
-    habitations = query.order_by(VulnerableHabitation.vulnerability_score.desc()).all()
+    habitations = query.all()
     
-    result = []
-    for hab in habitations:
-        geom_json = db.scalar(ST_AsGeoJSON(hab.location))
-        creator = db.query(User).filter(User.id == hab.assessed_by_id).first()
-        
-        result.append({
-            **hab.__dict__,
-            "geometry": json.loads(geom_json) if geom_json else None,
-            "created_by": creator.full_name if creator else "System"
-        })
+    assessed_count = 0
+    for habitation in habitations:
+        try:
+            # Calculate exposure score based on proximity to hazard zones
+            nearby_count = db.execute(
+                text("""
+                    SELECT COUNT(*)
+                    FROM hazard_zones
+                    WHERE is_active = true
+                      AND ST_DWithin(boundary::geography, 
+                                     ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 
+                                     5000)
+                """),
+                {"lat": habitation.latitude, "lon": habitation.longitude}
+            ).scalar()
+            
+            # Simple exposure scoring
+            habitation.exposure_score = min(1.0, nearby_count * 0.3)
+            assessed_count += 1
+        except Exception as e:
+            logger.error(f"Error assessing habitation {habitation.id}: {e}")
+            continue
     
-    return result
-
-
-@router.get("/vulnerable-habitations/{habitation_id}", response_model=VulnerableHabitationResponse)
-def get_vulnerable_habitation(
-    *,
-    db: Session = Depends(get_db),
-    habitation_id: int,
-    current_user: User = Depends(deps.get_admin_user)
-):
-    """
-    Get a specific vulnerable habitation by ID.
-    Admin only.
-    """
-    hab = db.query(VulnerableHabitation).filter(VulnerableHabitation.id == habitation_id).first()
-    
-    if not hab:
-        raise HTTPException(status_code=404, detail="Vulnerable habitation not found")
-    
-    if current_user.district and hab.district != current_user.district:
-        raise HTTPException(status_code=403, detail="Access denied to this district's habitations")
-    
-    geom_json = db.scalar(ST_AsGeoJSON(hab.location))
-    creator = db.query(User).filter(User.id == hab.created_by_id).first()
+    db.commit()
     
     return {
-        **hab.__dict__,
-        "geometry": json.loads(geom_json) if geom_json else None,
-        "created_by": creator.full_name if creator else "System"
+        "message": f"Bulk assessment completed",
+        "assessed_count": assessed_count,
+        "total_habitations": len(habitations)
     }
 
 
-@router.patch("/vulnerable-habitations/{habitation_id}", response_model=VulnerableHabitationResponse)
-def update_vulnerable_habitation(
-    *,
+# ==================== SPATIAL ANALYSIS ENDPOINTS ====================
+
+@router.get("/spatial/habitations-at-risk")
+def get_habitations_at_risk(
     db: Session = Depends(get_db),
-    habitation_id: int,
-    habitation_update: VulnerableHabitationUpdate,
-    current_user: User = Depends(deps.get_admin_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    Update an existing vulnerable habitation.
-    Admin only.
-    """
-    hab = db.query(VulnerableHabitation).filter(VulnerableHabitation.id == habitation_id).first()
+    """PostGIS: habitations within Red Zone radius"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
     
-    if not hab:
-        raise HTTPException(status_code=404, detail="Vulnerable habitation not found")
+    district_filter = ""
+    if current_user.district:
+        district_filter = f"AND h.district ILIKE '%{current_user.district}%'"
     
-    if current_user.district and hab.district != current_user.district:
-        raise HTTPException(status_code=403, detail="Access denied to this district's habitations")
+    results = db.execute(
+        text(f"""
+            SELECT 
+                h.id as habitation_id,
+                h.name as habitation_name,
+                h.district,
+                h.population,
+                z.id as hazard_zone_id,
+                z.name as hazard_zone_name,
+                ST_Distance(h.location::geography, z.boundary::geography) / 1000 as distance_km,
+                h.priority
+            FROM vulnerable_habitations h
+            JOIN hazard_zones z ON z.is_active = true
+            WHERE ST_DWithin(h.location::geography, z.boundary::geography, 2000)
+              {district_filter}
+            ORDER BY distance_km
+        """)
+    ).fetchall()
     
-    # Prevent changing district if district admin
-    if current_user.district and habitation_update.district and habitation_update.district.lower() != current_user.district.lower():
-        raise HTTPException(status_code=403, detail=f"You cannot move habitations to other districts")
-    
-    update_data = habitation_update.dict(exclude_unset=True)
-    
-    if "geometry" in update_data and update_data["geometry"]:
-        geometry_geojson = json.dumps(update_data["geometry"])
-        hab.location = func.ST_GeomFromGeoJSON(geometry_geojson)
-        del update_data["geometry"]
-    
-    for field, value in update_data.items():
-        setattr(hab, field, value)
-    
-    hab.updated_at = datetime.utcnow()
-    
-    db.commit()
-    db.refresh(hab)
-    
-    geom_json = db.scalar(ST_AsGeoJSON(hab.location))
-    creator = db.query(User).filter(User.id == hab.created_by_id).first()
-    
-    return {
-        **hab.__dict__,
-        "geometry": json.loads(geom_json) if geom_json else None,
-        "created_by": creator.full_name if creator else "System"
-    }
-
-
-@router.delete("/vulnerable-habitations/{habitation_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_vulnerable_habitation(
-    *,
-    db: Session = Depends(get_db),
-    habitation_id: int,
-    current_user: User = Depends(deps.get_admin_user)
-):
-    """
-    Delete a vulnerable habitation record.
-    Admin only.
-    """
-    hab = db.query(VulnerableHabitation).filter(VulnerableHabitation.id == habitation_id).first()
-    
-    if not hab:
-        raise HTTPException(status_code=404, detail="Vulnerable habitation not found")
-    
-    if current_user.district and hab.district != current_user.district:
-        raise HTTPException(status_code=403, detail="Access denied to this district's habitations")
-    
-    db.delete(hab)
-    db.commit()
-    
-    return None
-
-
-# ─── ANALYTICS & PRIORITIZATION ───────────────────────────────────────────────
-
-@router.get("/dashboard/statistics")
-def get_dashboard_statistics(
-    *,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_admin_user),
-    district: Optional[str] = None
-):
-    """
-    Get summary statistics for Red Zone Management dashboard.
-    Admin only.
-    """
-    # Base queries
-    zones_query = db.query(HazardZone)
-    sites_query = db.query(RelocationSite)
-    habitations_query = db.query(VulnerableHabitation)
-    
-    # Apply district filter for district admins
-    if current_user.district or district:
-        filter_district = district or current_user.district
-        zones_query = zones_query.filter(HazardZone.district.ilike(f"%{filter_district}%"))
-        sites_query = sites_query.filter(RelocationSite.district.ilike(f"%{filter_district}%"))
-        habitations_query = habitations_query.filter(VulnerableHabitation.district.ilike(f"%{filter_district}%"))
-    
-    # Hazard zones stats
-    total_zones = zones_query.count()
-    active_zones = zones_query.filter(HazardZone.status == "active").count()
-    high_risk_zones = zones_query.filter(HazardZone.risk_level == "critical").count() + zones_query.filter(HazardZone.risk_level == "high").count()
-    total_affected_population = db.query(func.sum(HazardZone.population_estimate)).scalar() or 0
-    
-    # Relocation sites stats
-    total_sites = sites_query.count()
-    available_sites = sites_query.filter(RelocationSite.status == "available").count()
-    total_capacity = db.query(func.sum(RelocationSite.max_households)).scalar() or 0
-    current_occupancy = db.query(func.sum(RelocationSite.current_households)).scalar() or 0
-    available_capacity = total_capacity - current_occupancy
-    
-    # Vulnerable habitations stats
-    total_habitations = habitations_query.count()
-    immediate_priority = habitations_query.filter(VulnerableHabitation.relocation_priority == "immediate").count()
-    short_term_priority = habitations_query.filter(VulnerableHabitation.relocation_priority == "short_term").count()
-    medium_term_priority = habitations_query.filter(VulnerableHabitation.relocation_priority == "medium_term").count()
-    
-    # Relocation status breakdown
-    not_started = habitations_query.filter(VulnerableHabitation.relocation_status == "not_started").count()
-    in_progress = habitations_query.filter(VulnerableHabitation.relocation_status == "in_progress").count()
-    completed = habitations_query.filter(VulnerableHabitation.relocation_status == "completed").count()
-    
-    # Total vulnerable population
-    total_vulnerable_population = db.query(func.sum(VulnerableHabitation.population_count)).scalar() or 0
-    
-    return {
-        "hazard_zones": {
-            "total": total_zones,
-            "active": active_zones,
-            "high_risk": high_risk_zones,
-            "affected_population": total_affected_population
-        },
-        "relocation_sites": {
-            "total": total_sites,
-            "available": available_sites,
-            "total_capacity": total_capacity,
-            "current_occupancy": current_occupancy,
-            "available_capacity": available_capacity,
-            "capacity_utilization_percent": round((current_occupancy / total_capacity * 100) if total_capacity > 0 else 0, 1)
-        },
-        "vulnerable_habitations": {
-            "total": total_habitations,
-            "immediate_priority": immediate_priority,
-            "short_term_priority": short_term_priority,
-            "medium_term_priority": medium_term_priority,
-            "total_population": total_vulnerable_population
-        },
-        "relocation_progress": {
-            "not_started": not_started,
-            "in_progress": in_progress,
-            "completed": completed,
-            "completion_rate_percent": round((completed / total_habitations * 100) if total_habitations > 0 else 0, 1)
+    return [
+        {
+            "habitation_id": r[0],
+            "habitation_name": r[1],
+            "district": r[2],
+            "population": r[3],
+            "hazard_zone_id": r[4],
+            "hazard_zone_name": r[5],
+            "distance_km": round(r[6], 2),
+            "priority": r[7]
         }
-    }
+        for r in results
+    ]
 
 
-@router.get("/prioritization/recommendations")
-def get_relocation_recommendations(
-    *,
+@router.get("/spatial/nearby-sites")
+def get_nearby_sites(
+    habitation_id: int,
+    max_distance_km: int = 50,
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_admin_user),
-    district: Optional[str] = None,
-    limit: int = 20
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    Get AI-driven relocation recommendations prioritized by urgency.
-    Considers vulnerability score, population, and available capacity.
-    Admin only.
-    """
-    # Get habitations that need relocation
-    query = db.query(VulnerableHabitation).filter(
-        VulnerableHabitation.relocation_status.in_(["not_started", "in_progress"])
-    )
+    """Find nearest relocation sites with capacity for a habitation"""
+    habitation = db.query(VulnerableHabitation).filter(
+        VulnerableHabitation.id == habitation_id
+    ).first()
     
-    # Apply district filter
-    if current_user.district or district:
-        filter_district = district or current_user.district
-        query = query.filter(VulnerableHabitation.district.ilike(f"%{filter_district}%"))
+    if not habitation:
+        raise HTTPException(status_code=404, detail="Habitation not found")
     
-    # Order by priority and vulnerability score
-    priority_order = {
-        "immediate": 1,
-        "short_term": 2,
-        "medium_term": 3,
-        "long_term": 4
-    }
+    results = db.execute(
+        text("""
+            SELECT 
+                id, name, district,
+                ST_Distance(location::geography, 
+                            ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) / 1000 as distance_km,
+                available_capacity,
+                suitability_score,
+                facilities
+            FROM relocation_sites
+            WHERE is_active = true
+              AND available_capacity > 0
+              AND ST_DWithin(location::geography, 
+                             ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 
+                             :max_distance)
+            ORDER BY distance_km
+            LIMIT 10
+        """),
+        {"lat": habitation.latitude, "lon": habitation.longitude, "max_distance": max_distance_km * 1000}
+    ).fetchall()
     
-    habitations = query.order_by(
-        VulnerableHabitation.vulnerability_score.desc()
-    ).limit(limit).all()
-    
-    recommendations = []
-    
-    for hab in habitations:
-        # Find suitable relocation sites
-        sites_query = db.query(RelocationSite).filter(
-            RelocationSite.district == hab.district,
-            RelocationSite.status == "available"
-        )
-        
-        available_sites = []
-        for site in sites_query.all():
-            remaining_capacity = site.max_households - site.current_households
-            if remaining_capacity >= hab.population_count:
-                # Calculate distance (simplified - would use ST_Distance in production)
-                available_sites.append({
-                    "site_id": site.id,
-                    "site_name": site.name,
-                    "remaining_capacity": remaining_capacity,
-                    "suitability_score": site.suitability_score,
-                    "distance_to_town_km": site.distance_to_town_km,
-                    "infrastructure_available": site.infrastructure_available
-                })
-        
-        # Sort sites by suitability score
-        available_sites.sort(key=lambda x: x["suitability_score"], reverse=True)
-        
-        # Get associated hazard zone
-        hazard_zone = None
-        if hab.hazard_zone_id:
-            zone = db.query(HazardZone).filter(HazardZone.id == hab.hazard_zone_id).first()
-            if zone:
-                hazard_zone = {
-                    "zone_id": zone.id,
-                    "zone_name": zone.name,
-                    "hazard_types": zone.hazard_types,
-                    "risk_level": zone.risk_level
-                }
-        
-        recommendations.append({
-            "habitation_id": hab.id,
-            "habitation_name": hab.name,
-            "district": hab.district,
-            "population": hab.population_count,
-            "households": hab.household_count,
-            "vulnerability_score": hab.vulnerability_score,
-            "priority": hab.relocation_priority,
-            "primary_hazards": [],  # Not in model, use empty array
-            "hazard_zone": hazard_zone,
-            "recommended_sites": available_sites[:3],  # Top 3 sites
-            "urgency_level": _calculate_urgency_level(hab),
-            "estimated_relocation_time_months": _estimate_relocation_time(hab)
-        })
-    
-    return {
-        "total_recommendations": len(recommendations),
-        "recommendations": recommendations
-    }
+    return [
+        {
+            "site_id": r[0],
+            "site_name": r[1],
+            "district": r[2],
+            "distance_km": round(r[3], 2),
+            "available_capacity": r[4],
+            "suitability_score": r[5],
+            "facilities": r[6] or []
+        }
+        for r in results
+    ]
 
 
-@router.post("/prioritization/calculate-scores")
-def recalculate_vulnerability_scores(
-    *,
+@router.post("/spatial/update-exposure")
+def update_exposure_scores(
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_admin_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    Recalculate vulnerability scores for all habitations using AI-driven algorithm.
-    Considers: hazard intensity, population, historical incidents, accessibility.
-    Admin only.
-    """
+    """Run PostGIS exposure scoring for all habitations"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
     habitations = db.query(VulnerableHabitation).all()
-    updated_count = 0
     
-    for hab in habitations:
-        # Get associated hazard zone risk
-        hazard_risk = 0.5  # default
-        if hab.hazard_zone_id:
-            zone = db.query(HazardZone).filter(HazardZone.id == hab.hazard_zone_id).first()
-            if zone:
-                hazard_risk = 0.8 if zone.risk_level == "critical" else 0.6 if zone.risk_level == "high" else 0.4
-        
-        # Calculate vulnerability score (0-1 scale)
-        # Factors: hazard risk (50%), population size (30%), structural safety (10%), status (10%)
-        population_factor = min(hab.population_count / 1000, 1.0) * 0.3  # Normalize to 1000
-        
-        # Use structural safety rating if available
-        safety_factor = 0.0
-        if hab.structural_safety_rating == "critical":
-            safety_factor = 0.1
-        elif hab.structural_safety_rating == "unsafe":
-            safety_factor = 0.08
-        elif hab.structural_safety_rating == "moderate":
-            safety_factor = 0.05
+    updated_count = 0
+    for habitation in habitations:
+        try:
+            # Count hazard zones within 5km
+            nearby_zones = db.execute(
+                text("""
+                    SELECT COUNT(*), 
+                           AVG(CASE intensity 
+                               WHEN 'critical' THEN 1.0
+                               WHEN 'high' THEN 0.75
+                               WHEN 'medium' THEN 0.5
+                               ELSE 0.25
+                           END) as avg_intensity
+                    FROM hazard_zones
+                    WHERE is_active = true
+                      AND ST_DWithin(boundary::geography, 
+                                     ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 
+                                     5000)
+                """),
+                {"lat": habitation.latitude, "lon": habitation.longitude}
+            ).fetchone()
             
-        status_factor = 0.1 if hab.relocation_status == "not_started" else 0.05
-        
-        new_score = hazard_risk * 0.5 + population_factor + safety_factor + status_factor
-        new_score = min(new_score, 1.0)
-        
-        # Update score
-        hab.vulnerability_score = round(new_score, 2)
-        
-        # Auto-assign priority based on score
-        if new_score >= 0.8:
-            hab.relocation_priority = "immediate"
-        elif new_score >= 0.6:
-            hab.relocation_priority = "short_term"
-        elif new_score >= 0.4:
-            hab.relocation_priority = "medium_term"
-        else:
-            hab.relocation_priority = "long_term"
-        
-        updated_count += 1
+            zone_count = nearby_zones[0]
+            avg_intensity = nearby_zones[1] or 0.0
+            
+            # Calculate exposure score (0-1)
+            habitation.exposure_score = min(1.0, (zone_count * 0.2) + (avg_intensity * 0.5))
+            updated_count += 1
+        except Exception as e:
+            logger.error(f"Error updating exposure for habitation {habitation.id}: {e}")
+            continue
     
     db.commit()
     
     return {
-        "message": "Vulnerability scores recalculated successfully",
-        "updated_habitations": updated_count
+        "message": "Exposure scores updated",
+        "updated_count": updated_count,
+        "total_habitations": len(habitations)
     }
 
 
-@router.post("/prioritization/match-sites")
-def auto_match_relocation_sites(
-    *,
+# ==================== SDMA DASHBOARD ENDPOINTS ====================
+
+@router.get("/sdma/stats", response_model=SDMAStatsResponse)
+def get_sdma_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_admin_user),
-    district: Optional[str] = None
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    Automatically match vulnerable habitations to suitable relocation sites.
-    Uses AI-driven algorithm considering capacity, suitability, and distance.
-    Admin only.
-    """
-    # Get habitations without assigned sites
-    query = db.query(VulnerableHabitation).filter(
-        VulnerableHabitation.assigned_relocation_site_id == None,
-        VulnerableHabitation.relocation_priority.in_(["immediate", "short_term"])
+    """Statistics for SDMA dashboard"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Apply district filtering
+    zone_query = db.query(HazardZone).filter(HazardZone.is_active == True)
+    hab_query = db.query(VulnerableHabitation)
+    site_query = db.query(RelocationSite).filter(RelocationSite.is_active == True)
+    
+    if current_user.district:
+        zone_query = zone_query.filter(HazardZone.district.ilike(f"%{current_user.district}%"))
+        hab_query = hab_query.filter(VulnerableHabitation.district.ilike(f"%{current_user.district}%"))
+        site_query = site_query.filter(RelocationSite.district.ilike(f"%{current_user.district}%"))
+    
+    zones = zone_query.all()
+    habitations = hab_query.all()
+    sites = site_query.all()
+    
+    total_population_at_risk = sum(h.population for h in habitations)
+    immediate_count = len([h for h in habitations if h.priority == "IMMEDIATE"])
+    short_term_count = len([h for h in habitations if h.priority == "SHORT_TERM"])
+    medium_term_count = len([h for h in habitations if h.priority == "MEDIUM_TERM"])
+    safe_count = len([h for h in habitations if h.priority == "SAFE"])
+    
+    total_site_capacity = sum(s.carrying_capacity for s in sites)
+    total_site_occupancy = sum(s.current_occupancy for s in sites)
+    total_households = sum(h.households for h in habitations)
+    capacity_gap = max(0, total_households - (total_site_capacity - total_site_occupancy))
+    
+    return SDMAStatsResponse(
+        active_red_zones=len(zones),
+        total_population_at_risk=total_population_at_risk,
+        total_habitations=len(habitations),
+        immediate_priority_count=immediate_count,
+        short_term_priority_count=short_term_count,
+        medium_term_priority_count=medium_term_count,
+        safe_count=safe_count,
+        total_relocation_sites=len(sites),
+        total_site_capacity=total_site_capacity,
+        total_site_occupancy=total_site_occupancy,
+        capacity_gap=capacity_gap
+    )
+
+
+@router.get("/sdma/summary", response_model=SDMASummaryResponse)
+def get_sdma_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """AI-generated executive summary for SDMA authorities"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Apply district filtering
+    zone_query = db.query(HazardZone).filter(HazardZone.is_active == True)
+    hab_query = db.query(VulnerableHabitation)
+    site_query = db.query(RelocationSite).filter(RelocationSite.is_active == True)
+    
+    if current_user.district:
+        zone_query = zone_query.filter(HazardZone.district.ilike(f"%{current_user.district}%"))
+        hab_query = hab_query.filter(VulnerableHabitation.district.ilike(f"%{current_user.district}%"))
+        site_query = site_query.filter(RelocationSite.district.ilike(f"%{current_user.district}%"))
+    
+    zones = zone_query.all()
+    habitations = hab_query.all()
+    sites = site_query.all()
+    
+    # Convert to dicts for AI
+    zones_data = [
+        {
+            "id": z.id,
+            "name": z.name,
+            "district": z.district,
+            "intensity": z.intensity,
+            "population_at_risk": z.population_at_risk,
+            "hazard_types": z.hazard_types or []
+        }
+        for z in zones
+    ]
+    
+    habitations_data = [
+        {
+            "id": h.id,
+            "name": h.name,
+            "district": h.district,
+            "population": h.population,
+            "households": h.households,
+            "priority": h.priority,
+            "priority_reason": h.priority_reason
+        }
+        for h in habitations
+    ]
+    
+    sites_data = [
+        {
+            "id": s.id,
+            "name": s.name,
+            "district": s.district,
+            "available_capacity": s.available_capacity,
+            "suitability_score": s.suitability_score
+        }
+        for s in sites
+    ]
+    
+    summary = generate_sdma_summary(zones_data, habitations_data, sites_data)
+    
+    return SDMASummaryResponse(**summary)
+
+
+@router.get("/sdma/report")
+def get_sdma_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Full data for PDF/print report"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    stats = get_sdma_stats(db, current_user)
+    summary = get_sdma_summary(db, current_user)
+    
+    # Get top priority habitations
+    hab_query = db.query(VulnerableHabitation).filter(
+        VulnerableHabitation.priority.in_(["IMMEDIATE", "SHORT_TERM"])
     )
     
-    if current_user.district or district:
-        filter_district = district or current_user.district
-        query = query.filter(VulnerableHabitation.district.ilike(f"%{filter_district}%"))
+    if current_user.district:
+        hab_query = hab_query.filter(
+            VulnerableHabitation.district.ilike(f"%{current_user.district}%")
+        )
     
-    habitations = query.order_by(VulnerableHabitation.vulnerability_score.desc()).all()
-    
-    matched_count = 0
-    matches = []
-    
-    for hab in habitations:
-        # Find best matching site in same district
-        sites = db.query(RelocationSite).filter(
-            RelocationSite.district == hab.district,
-            RelocationSite.status == "available"
-        ).all()
-        
-        best_site = None
-        best_score = 0
-        
-        for site in sites:
-            remaining_capacity = site.max_households - site.current_households
-            
-            if remaining_capacity >= hab.population_count:
-                # Calculate match score
-                capacity_score = min(remaining_capacity / hab.population_count, 2.0) / 2.0  # Prefer sites with adequate capacity
-                suitability_score = site.suitability_score
-                accessibility_score = site.accessibility_score
-                
-                match_score = (suitability_score * 0.5 + 
-                             capacity_score * 0.3 + 
-                             accessibility_score * 0.2)
-                
-                if match_score > best_score:
-                    best_score = match_score
-                    best_site = site
-        
-        if best_site:
-            hab.assigned_relocation_site_id = best_site.id
-            best_site.current_households += hab.population_count
-            matched_count += 1
-            
-            matches.append({
-                "habitation_id": hab.id,
-                "habitation_name": hab.name,
-                "population": hab.population_count,
-                "site_id": best_site.id,
-                "site_name": best_site.site_name,
-                "match_score": round(best_score, 2)
-            })
-    
-    db.commit()
+    priority_habitations = hab_query.all()
     
     return {
-        "message": f"Successfully matched {matched_count} habitations to relocation sites",
-        "matched_count": matched_count,
-        "matches": matches
+        "stats": stats,
+        "summary": summary,
+        "priority_habitations": priority_habitations,
+        "generated_at": datetime.utcnow().isoformat()
     }
 
 
-# ─── HELPER FUNCTIONS ─────────────────────────────────────────────────────────
+# ==================== MAP DATA ENDPOINTS ====================
 
-def _calculate_urgency_level(habitation: VulnerableHabitation) -> str:
-    """Calculate urgency level based on multiple factors"""
-    score = habitation.vulnerability_score
+@router.get("/map/zones", response_model=GeoJSONFeatureCollection)
+def get_zones_geojson(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """GeoJSON FeatureCollection of all active hazard zones"""
+    query = db.query(HazardZone).filter(HazardZone.is_active == True)
     
-    if habitation.relocation_priority == "immediate" and score >= 0.8:
-        return "CRITICAL"
-    elif habitation.relocation_priority == "immediate" or score >= 0.7:
-        return "HIGH"
-    elif habitation.relocation_priority == "short_term" or score >= 0.5:
-        return "MEDIUM"
-    else:
-        return "LOW"
+    # District filtering
+    if current_user.role == "admin" and current_user.district:
+        query = query.filter(HazardZone.district.ilike(f"%{current_user.district}%"))
+    
+    zones = query.all()
+    
+    features = []
+    for zone in zones:
+        if zone.boundary:
+            try:
+                geom = to_shape(zone.boundary)
+                feature = GeoJSONFeature(
+                    type="Feature",
+                    geometry=mapping(geom),
+                    properties={
+                        "id": zone.id,
+                        "name": zone.name,
+                        "district": zone.district,
+                        "state": zone.state,
+                        "intensity": zone.intensity,
+                        "hazard_types": zone.hazard_types or [],
+                        "population_at_risk": zone.population_at_risk,
+                        "ai_confidence": zone.ai_confidence,
+                        "source": zone.source
+                    }
+                )
+                features.append(feature)
+            except:
+                continue
+    
+    return GeoJSONFeatureCollection(type="FeatureCollection", features=features)
 
 
-def _estimate_relocation_time(habitation: VulnerableHabitation) -> int:
-    """Estimate relocation time in months based on population and complexity"""
-    base_months = 6  # Base planning time
+@router.get("/map/habitations", response_model=GeoJSONFeatureCollection)
+def get_habitations_geojson(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """All habitations as GeoJSON points"""
+    query = db.query(VulnerableHabitation)
     
-    # Add time based on population
-    if habitation.population_count > 500:
-        base_months += 6
-    elif habitation.population_count > 200:
-        base_months += 3
+    # District filtering
+    if current_user.role == "admin" and current_user.district:
+        query = query.filter(VulnerableHabitation.district.ilike(f"%{current_user.district}%"))
     
-    # Add time based on zone risk level
-    if habitation.hazard_zone_id:
-        zone = db.query(HazardZone).filter(HazardZone.id == habitation.hazard_zone_id).first()
-        if zone and zone.risk_level == "critical":
-            base_months -= 3  # More urgent
-        elif zone and zone.risk_level == "high":
-            base_months -= 1
+    habitations = query.all()
     
-    return base_months
+    features = []
+    for h in habitations:
+        feature = GeoJSONFeature(
+            type="Feature",
+            geometry={
+                "type": "Point",
+                "coordinates": [h.longitude, h.latitude]
+            },
+            properties={
+                "id": h.id,
+                "name": h.name,
+                "district": h.district,
+                "state": h.state,
+                "population": h.population,
+                "households": h.households,
+                "priority": h.priority,
+                "priority_reason": h.priority_reason,
+                "vulnerability_score": h.vulnerability_score
+            }
+        )
+        features.append(feature)
+    
+    return GeoJSONFeatureCollection(type="FeatureCollection", features=features)
+
+
+@router.get("/map/sites", response_model=GeoJSONFeatureCollection)
+def get_sites_geojson(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """All relocation sites as GeoJSON points"""
+    query = db.query(RelocationSite).filter(RelocationSite.is_active == True)
+    
+    # District filtering
+    if current_user.role == "admin" and current_user.district:
+        query = query.filter(RelocationSite.district.ilike(f"%{current_user.district}%"))
+    
+    sites = query.all()
+    
+    features = []
+    for s in sites:
+        feature = GeoJSONFeature(
+            type="Feature",
+            geometry={
+                "type": "Point",
+                "coordinates": [s.longitude, s.latitude]
+            },
+            properties={
+                "id": s.id,
+                "name": s.name,
+                "district": s.district,
+                "state": s.state,
+                "carrying_capacity": s.carrying_capacity,
+                "current_occupancy": s.current_occupancy,
+                "available_capacity": s.available_capacity,
+                "suitability_score": s.suitability_score,
+                "facilities": s.facilities or []
+            }
+        )
+        features.append(feature)
+    
+    return GeoJSONFeatureCollection(type="FeatureCollection", features=features)
