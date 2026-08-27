@@ -370,3 +370,55 @@ export const fetchAIClusters = async () => {
   const res = await axiosInstance.get("/ai/clusters");
   return res.data;
 };
+
+// ─── RED ZONE MANAGEMENT ─────────────────────────────────────────────────────
+
+export const fetchHazardZones = async () => {
+  const res = await axiosInstance.get('/red-zones/hazard-zones/');
+  return res.data;
+};
+
+export const createHazardZone = async (data) => {
+  const res = await axiosInstance.post('/red-zones/hazard-zones/', data);
+  return res.data;
+};
+
+export const fetchRelocationSites = async () => {
+  const res = await axiosInstance.get('/red-zones/sites/');
+  return res.data;
+};
+
+export const createRelocationSite = async (data) => {
+  const res = await axiosInstance.post('/red-zones/sites/', data);
+  return res.data;
+};
+
+export const fetchHabitations = async () => {
+  const res = await axiosInstance.get('/red-zones/habitations/');
+  return res.data;
+};
+
+export const createHabitation = async (data) => {
+  const res = await axiosInstance.post('/red-zones/habitations/', data);
+  return res.data;
+};
+
+export const assessHabitation = async (habitationId) => {
+  const res = await axiosInstance.post(`/red-zones/habitations/${habitationId}/assess`);
+  return res.data;
+};
+
+export const bulkAssessDistrict = async () => {
+  const res = await axiosInstance.post('/red-zones/habitations/bulk-assess');
+  return res.data;
+};
+
+export const fetchSDMAStats = async () => {
+  const res = await axiosInstance.get('/red-zones/sdma/stats');
+  return res.data;
+};
+
+export const fetchSDMASummary = async () => {
+  const res = await axiosInstance.get('/red-zones/sdma/summary');
+  return res.data;
+};
