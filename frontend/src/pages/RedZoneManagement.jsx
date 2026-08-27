@@ -1,1533 +1,1236 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  MapPin, AlertTriangle, Home, Users, TrendingUp, 
-  Plus, Edit, Trash2, CheckCircle, Clock, Target,
-  BarChart3, RefreshCw
-} from "lucide-react";
-import { axiosInstance } from "../lib/axios";
-import toast from "react-hot-toast";
+  fetchHazardZones, fetchRelocationSites, fetchHabitations, 
+  fetchSDMAStats, fetchSDMASummary,
+  createHazardZone, createRelocationSite, createHabitation,
+  assessHabitation, bulkAssessDistrict
+} from '../lib/api.js';
+import useAuthUser from '../hooks/useAuthUser.js';
+import { 
+  ShieldAlert, MapPin, Home, Users, TrendingUp, 
+  AlertCircle, CheckCircle, Clock, Loader2, Plus, 
+  X, Zap, Activity, Building2, FileText, Printer,
+  Trash2, Edit2, Filter, Search, ChevronDown, Shield
+} from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
-const RedZoneManagement = () => {
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [showZoneModal, setShowZoneModal] = useState(false);
-  const [showSiteModal, setShowSiteModal] = useState(false);
-  const [showHabitationModal, setShowHabitationModal] = useState(false);
-  const [showRecommendationModal, setShowRecommendationModal] = useState(false);
-  const [selectedRecommendation, setSelectedRecommendation] = useState(null);
-  const [editingItem, setEditingItem] = useState(null);
+// Match AdminDashboard color scheme - subdued badges
+const PRIORITY_CONFIG = {
+  IMMEDIATE: {
+    badge: 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/20',
+    label: 'Immediate'
+  },
+  SHORT_TERM: {
+    badge: 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-500/20',
+    label: 'Short Term'
+  },
+  MEDIUM_TERM: {
+    badge: 'bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-500/20',
+    label: 'Medium Term'
+  },
+  SAFE: {
+    badge: 'bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 border-green-200 dark:border-green-500/20',
+    label: 'Safe'
+  }
+};
+
+const INTENSITY_CONFIG = {
+  critical: { 
+    badge: 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/20',
+    label: 'Critical' 
+  },
+  high: { 
+    badge: 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-500/20',
+    label: 'High' 
+  },
+  medium: { 
+    badge: 'bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-500/20',
+    label: 'Medium' 
+  },
+  low: { 
+    badge: 'bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 border-green-200 dark:border-green-500/20',
+    label: 'Low' 
+  }
+};
+
+export default function RedZoneManagement() {
+  const { t } = useTranslation();
+  const { authUser } = useAuthUser();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showAddZoneModal, setShowAddZoneModal] = useState(false);
+  const [showAddSiteModal, setShowAddSiteModal] = useState(false);
+  const [showAddHabitationModal, setShowAddHabitationModal] = useState(false);
 
-  // Fetch statistics
+  // Queries
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["redZoneStats"],
-    queryFn: async () => {
-      const res = await axiosInstance.get("/red-zone/dashboard/statistics");
-      return res.data;
-    },
+    queryKey: ['sdma-stats'],
+    queryFn: fetchSDMAStats,
+    enabled: authUser?.role === 'admin'
   });
 
-  // Fetch recommendations
-  const { data: recommendations } = useQuery({
-    queryKey: ["relocationRecommendations"],
-    queryFn: async () => {
-      const res = await axiosInstance.get("/red-zone/prioritization/recommendations");
-      return res.data;
-    },
+  const { data: zones = [], isLoading: zonesLoading } = useQuery({
+    queryKey: ['hazard-zones'],
+    queryFn: fetchHazardZones
   });
 
-  // Fetch hazard zones
-  const { data: zones, isLoading: zonesLoading } = useQuery({
-    queryKey: ["hazardZones"],
-    queryFn: async () => {
-      const res = await axiosInstance.get("/red-zone/hazard-zones");
-      return res.data;
-    },
+  const { data: sites = [], isLoading: sitesLoading } = useQuery({
+    queryKey: ['relocation-sites'],
+    queryFn: fetchRelocationSites
   });
 
-  // Fetch relocation sites
-  const { data: sites, isLoading: sitesLoading } = useQuery({
-    queryKey: ["relocationSites"],
-    queryFn: async () => {
-      const res = await axiosInstance.get("/red-zone/relocation-sites");
-      return res.data;
-    },
+  const { data: habitations = [], isLoading: habitationsLoading } = useQuery({
+    queryKey: ['vulnerable-habitations'],
+    queryFn: fetchHabitations
   });
 
-  // Fetch vulnerable habitations
-  const { data: habitations, isLoading: habitationsLoading } = useQuery({
-    queryKey: ["vulnerableHabitations"],
-    queryFn: async () => {
-      const res = await axiosInstance.get("/red-zone/vulnerable-habitations");
-      return res.data;
-    },
+  const { data: summary, isLoading: summaryLoading } = useQuery({
+    queryKey: ['sdma-summary'],
+    queryFn: fetchSDMASummary,
+    enabled: activeTab === 'report'
   });
 
-  // Recalculate scores mutation
-  const { mutate: recalculateScores, isPending: recalculating } = useMutation({
-    mutationFn: async () => {
-      const res = await axiosInstance.post("/red-zone/prioritization/calculate-scores");
-      return res.data;
-    },
-    onSuccess: (data) => {
-      toast.success(`Updated ${data.updated_habitations} habitations`);
-      queryClient.invalidateQueries({ queryKey: ["vulnerableHabitations"] });
-      queryClient.invalidateQueries({ queryKey: ["redZoneStats"] });
-    },
-    onError: () => toast.error("Failed to recalculate scores"),
-  });
-
-  // Auto-match sites mutation
-  const { mutate: autoMatch, isPending: matching } = useMutation({
-    mutationFn: async () => {
-      const res = await axiosInstance.post("/red-zone/prioritization/match-sites");
-      return res.data;
-    },
-    onSuccess: (data) => {
-      toast.success(`Matched ${data.matched_count} habitations to sites`);
-      queryClient.invalidateQueries({ queryKey: ["vulnerableHabitations"] });
-      queryClient.invalidateQueries({ queryKey: ["relocationSites"] });
-      queryClient.invalidateQueries({ queryKey: ["redZoneStats"] });
-    },
-    onError: () => toast.error("Failed to auto-match sites"),
-  });
-
-  // Delete mutations
-  const { mutate: deleteZone } = useMutation({
-    mutationFn: async (zoneId) => {
-      await axiosInstance.delete(`/red-zone/hazard-zones/${zoneId}`);
-    },
+  // Bulk assess mutation
+  const bulkAssessMutation = useMutation({
+    mutationFn: bulkAssessDistrict,
     onSuccess: () => {
-      toast.success("Zone deleted");
-      queryClient.invalidateQueries({ queryKey: ["hazardZones"] });
-      queryClient.invalidateQueries({ queryKey: ["redZoneStats"] });
+      toast.success('Bulk assessment completed');
+      queryClient.invalidateQueries(['vulnerable-habitations']);
     },
-    onError: (error) => toast.error(error.response?.data?.detail || "Failed to delete zone"),
+    onError: () => toast.error('Bulk assessment failed')
   });
 
-  const { mutate: deleteSite } = useMutation({
-    mutationFn: async (siteId) => {
-      await axiosInstance.delete(`/red-zone/relocation-sites/${siteId}`);
-    },
-    onSuccess: () => {
-      toast.success("Site deleted");
-      queryClient.invalidateQueries({ queryKey: ["relocationSites"] });
-      queryClient.invalidateQueries({ queryKey: ["redZoneStats"] });
-    },
-    onError: (error) => toast.error(error.response?.data?.detail || "Failed to delete site"),
-  });
-
-  const { mutate: deleteHabitation } = useMutation({
-    mutationFn: async (habitationId) => {
-      await axiosInstance.delete(`/red-zone/vulnerable-habitations/${habitationId}`);
-    },
-    onSuccess: () => {
-      toast.success("Habitation deleted");
-      queryClient.invalidateQueries({ queryKey: ["vulnerableHabitations"] });
-      queryClient.invalidateQueries({ queryKey: ["redZoneStats"] });
-    },
-    onError: (error) => toast.error(error.response?.data?.detail || "Failed to delete habitation"),
-  });
+  if (authUser?.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-200 dark:border-red-500/20">
+            <ShieldAlert size={32} className="text-red-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Admin Access Required
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Red Zone Management is only accessible to admin users
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const tabs = [
-    { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-    { id: "zones", label: "Hazard Zones", icon: AlertTriangle },
-    { id: "sites", label: "Relocation Sites", icon: Home },
-    { id: "habitations", label: "Vulnerable Areas", icon: Users },
-    { id: "recommendations", label: "Recommendations", icon: Target },
+    { id: 'overview', label: 'Overview', icon: Activity },
+    { id: 'zones', label: 'Hazard Zones', icon: ShieldAlert },
+    { id: 'sites', label: 'Relocation Sites', icon: Building2 },
+    { id: 'habitations', label: 'Vulnerable Habitations', icon: Home },
+    { id: 'report', label: 'SDMA Report', icon: FileText }
   ];
-
-  const priorityColors = {
-    immediate: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-800",
-    short_term: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-300 dark:border-orange-800",
-    medium_term: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-300 dark:border-yellow-800",
-    long_term: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-300 dark:border-green-800",
-  };
-
-  const urgencyColors = {
-    CRITICAL: "bg-red-600 text-white",
-    HIGH: "bg-orange-500 text-white",
-    MEDIUM: "bg-yellow-500 text-white",
-    LOW: "bg-green-500 text-white",
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black">
-      {/* Header */}
-      <div className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur-md px-4 lg:px-6 py-4 border-b border-gray-200 dark:border-[rgb(47,51,54)]">
-        <div className="flex items-center justify-between">
+      <Toaster position="top-right" />
+      
+      {/* Header - Match AdminDashboard style */}
+      <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-6 py-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Red Zone Management</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Proactive Disaster Relocation System
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Shield size={18} className="text-red-500" />
+              Red Zone Management — {authUser?.district || 'National'}
+            </h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Proactive disaster relocation planning and risk assessment
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => recalculateScores()}
-              disabled={recalculating}
-              className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 disabled:opacity-50 text-sm font-medium"
-            >
-              <RefreshCw size={16} className={recalculating ? "animate-spin" : ""} />
-              Recalculate Scores
-            </button>
-            <button
-              onClick={() => autoMatch()}
-              disabled={matching}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 text-sm font-medium"
-            >
-              <Target size={16} />
-              Auto-Match Sites
-            </button>
+        </div>
+
+        {/* Stats Cards - Clean AdminDashboard style */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+          <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Active Red Zones</p>
+            <p className="text-2xl font-semibold text-red-600 dark:text-red-400">{stats?.active_red_zones || 0}</p>
+          </div>
+          <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">People at Risk</p>
+            <p className="text-2xl font-semibold text-orange-600 dark:text-orange-400">{(stats?.total_population_at_risk || 0).toLocaleString()}</p>
+          </div>
+          <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Relocation Sites</p>
+            <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats?.total_relocation_sites || 0}</p>
+          </div>
+          <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Immediate Priority</p>
+            <p className="text-2xl font-semibold text-red-600 dark:text-red-400">{stats?.immediate_priority_count || 0}</p>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)]">
-        <div className="px-4 lg:px-6 flex gap-1 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                ${activeTab === tab.id
-                  ? "border-sky-500 text-sky-600 dark:text-sky-400"
-                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                }`}
-            >
-              <tab.icon size={18} />
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      {/* Tab Bar - Match AdminDashboard */}
+      <div className="flex overflow-x-auto border-b border-gray-200 dark:border-[rgb(47,51,54)] bg-white dark:bg-[rgb(22,22,22)] px-4 md:px-6 scrollbar-hide">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 md:px-5 py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'border-red-500 text-red-500'
+                : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+            }`}
+          >
+            <tab.icon size={14} />
+            <span className="hidden sm:inline">{tab.label}</span>
+          </button>
+        ))}
       </div>
 
       {/* Content */}
-      <div className="p-4 lg:p-6 max-w-7xl mx-auto">
-        {activeTab === "dashboard" && (
-          <DashboardTab stats={stats} loading={statsLoading} />
+      <div className="px-4 sm:px-6 py-6">
+        {activeTab === 'overview' && (
+          <OverviewTab stats={stats} statsLoading={statsLoading} onBulkAssess={() => bulkAssessMutation.mutate()} />
         )}
-        {activeTab === "zones" && (
-          <HazardZonesTab 
-            zones={zones} 
-            loading={zonesLoading} 
-            onAddClick={() => setShowZoneModal(true)}
-            onEditClick={(zone) => { setEditingItem(zone); setShowZoneModal(true); }}
-            onDeleteClick={(zoneId) => {
-              if (window.confirm("Are you sure you want to delete this hazard zone?")) {
-                deleteZone(zoneId);
-              }
-            }}
-          />
+        {activeTab === 'zones' && (
+          <HazardZonesTab zones={zones} loading={zonesLoading} onAdd={() => setShowAddZoneModal(true)} />
         )}
-        {activeTab === "sites" && (
-          <RelocationSitesTab 
-            sites={sites} 
-            loading={sitesLoading} 
-            onAddClick={() => setShowSiteModal(true)}
-            onEditClick={(site) => { setEditingItem(site); setShowSiteModal(true); }}
-            onDeleteClick={(siteId) => {
-              if (window.confirm("Are you sure you want to delete this relocation site?")) {
-                deleteSite(siteId);
-              }
-            }}
-          />
+        {activeTab === 'sites' && (
+          <RelocationSitesTab sites={sites} loading={sitesLoading} onAdd={() => setShowAddSiteModal(true)} />
         )}
-        {activeTab === "habitations" && (
+        {activeTab === 'habitations' && (
           <VulnerableHabitationsTab 
             habitations={habitations} 
             loading={habitationsLoading} 
-            priorityColors={priorityColors}
-            onAddClick={() => setShowHabitationModal(true)}
-            onEditClick={(hab) => { setEditingItem(hab); setShowHabitationModal(true); }}
-            onDeleteClick={(habitationId) => {
-              if (window.confirm("Are you sure you want to delete this vulnerable habitation?")) {
-                deleteHabitation(habitationId);
-              }
-            }}
+            onAdd={() => setShowAddHabitationModal(true)}
+            onBulkAssess={() => bulkAssessMutation.mutate()}
           />
         )}
-        {activeTab === "recommendations" && (
-          <RecommendationsTab 
-            recommendations={recommendations} 
-            urgencyColors={urgencyColors}
-            priorityColors={priorityColors}
-          />
+        {activeTab === 'report' && (
+          <SDMAReportTab summary={summary} loading={summaryLoading} stats={stats} />
         )}
       </div>
 
       {/* Modals */}
-      {showZoneModal && (
-        <ZoneModal 
-          onClose={() => { setShowZoneModal(false); setEditingItem(null); }}
-          editingZone={editingItem}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["hazardZones"] });
-            queryClient.invalidateQueries({ queryKey: ["redZoneStats"] });
-          }}
-        />
-      )}
-      
-      {showSiteModal && (
-        <SiteModal 
-          onClose={() => { setShowSiteModal(false); setEditingItem(null); }}
-          editingSite={editingItem}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["relocationSites"] });
-            queryClient.invalidateQueries({ queryKey: ["redZoneStats"] });
-          }}
-        />
-      )}
-      
-      {showHabitationModal && (
-        <HabitationModal 
-          onClose={() => { setShowHabitationModal(false); setEditingItem(null); }}
-          editingHabitation={editingItem}
-          zones={zones}
-          sites={sites}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["vulnerableHabitations"] });
-            queryClient.invalidateQueries({ queryKey: ["redZoneStats"] });
-          }}
-        />
-      )}
-      
-      {showRecommendationModal && selectedRecommendation && (
-        <RecommendationDetailModal 
-          recommendation={selectedRecommendation}
-          onClose={() => { setShowRecommendationModal(false); setSelectedRecommendation(null); }}
-        />
-      )}
+      {showAddZoneModal && <AddHazardZoneModal onClose={() => setShowAddZoneModal(false)} />}
+      {showAddSiteModal && <AddRelocationSiteModal onClose={() => setShowAddSiteModal(false)} />}
+      {showAddHabitationModal && <AddHabitationModal onClose={() => setShowAddHabitationModal(false)} />}
     </div>
   );
-};
+}
 
-// ─── DASHBOARD TAB ────────────────────────────────────────────────────────────
-
-const DashboardTab = ({ stats, loading }) => {
-  if (loading) {
-    return <div className="text-center py-12">Loading statistics...</div>;
-  }
-
-  const StatCard = ({ title, value, subtitle, icon: Icon, color }) => (
-    <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-xl border border-gray-200 dark:border-[rgb(47,51,54)] p-6">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{title}</p>
-          <p className={`text-3xl font-bold ${color}`}>{value}</p>
-          {subtitle && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{subtitle}</p>
-          )}
-        </div>
-        <div className={`p-3 rounded-lg ${color} bg-opacity-10`}>
-          <Icon size={24} />
-        </div>
+// ==================== TAB 1: OVERVIEW ====================
+function OverviewTab({ stats, statsLoading, onBulkAssess }) {
+  if (statsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={32} className="animate-spin text-gray-400" />
       </div>
-    </div>
-  );
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Hazard Zones"
-          value={stats?.hazard_zones?.active || 0}
-          subtitle={`${stats?.hazard_zones?.high_risk || 0} high-risk zones`}
-          icon={AlertTriangle}
-          color="text-red-600 dark:text-red-400"
-        />
-        <StatCard
-          title="Affected Population"
-          value={(stats?.hazard_zones?.affected_population || 0).toLocaleString()}
-          subtitle="In red zones"
-          icon={Users}
-          color="text-orange-600 dark:text-orange-400"
-        />
-        <StatCard
-          title="Relocation Sites"
-          value={stats?.relocation_sites?.available || 0}
-          subtitle={`${stats?.relocation_sites?.total || 0} total sites`}
-          icon={Home}
-          color="text-emerald-600 dark:text-emerald-400"
-        />
-        <StatCard
-          title="Available Capacity"
-          value={(stats?.relocation_sites?.available_capacity || 0).toLocaleString()}
-          subtitle={`${stats?.relocation_sites?.capacity_utilization_percent || 0}% utilized`}
-          icon={TrendingUp}
-          color="text-sky-600 dark:text-sky-400"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-xl border border-gray-200 dark:border-[rgb(47,51,54)] p-6">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-            Relocation Priority
-          </h3>
-          <div className="space-y-3">
-            <PriorityBar
-              label="Immediate"
-              count={stats?.vulnerable_habitations?.immediate_priority || 0}
-              total={stats?.vulnerable_habitations?.total || 1}
-              color="bg-red-500"
-            />
-            <PriorityBar
-              label="Short-term"
-              count={stats?.vulnerable_habitations?.short_term_priority || 0}
-              total={stats?.vulnerable_habitations?.total || 1}
-              color="bg-orange-500"
-            />
-            <PriorityBar
-              label="Medium-term"
-              count={stats?.vulnerable_habitations?.medium_term_priority || 0}
-              total={stats?.vulnerable_habitations?.total || 1}
-              color="bg-yellow-500"
-            />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-xl border border-gray-200 dark:border-[rgb(47,51,54)] p-6">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-            Relocation Progress
-          </h3>
-          <div className="space-y-3">
-            <ProgressBar
-              label="Not Started"
-              count={stats?.relocation_progress?.not_started || 0}
-              total={stats?.vulnerable_habitations?.total || 1}
-              color="bg-gray-400"
-            />
-            <ProgressBar
-              label="In Progress"
-              count={stats?.relocation_progress?.in_progress || 0}
-              total={stats?.vulnerable_habitations?.total || 1}
-              color="bg-sky-500"
-            />
-            <ProgressBar
-              label="Completed"
-              count={stats?.relocation_progress?.completed || 0}
-              total={stats?.vulnerable_habitations?.total || 1}
-              color="bg-emerald-500"
-            />
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-[rgb(47,51,54)]">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Completion Rate</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                {stats?.relocation_progress?.completion_rate_percent || 0}%
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const PriorityBar = ({ label, count, total, color }) => {
-  const percentage = (count / total) * 100;
-  return (
-    <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-gray-700 dark:text-gray-300">{label}</span>
-        <span className="font-semibold text-gray-900 dark:text-white">{count}</span>
-      </div>
-      <div className="h-2 bg-gray-200 dark:bg-[rgb(38,38,38)] rounded-full overflow-hidden">
-        <div className={`h-full ${color}`} style={{ width: `${percentage}%` }} />
-      </div>
-    </div>
-  );
-};
-
-const ProgressBar = ({ label, count, total, color }) => {
-  const percentage = (count / total) * 100;
-  return (
-    <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-gray-700 dark:text-gray-300">{label}</span>
-        <span className="font-semibold text-gray-900 dark:text-white">{count}</span>
-      </div>
-      <div className="h-2 bg-gray-200 dark:bg-[rgb(38,38,38)] rounded-full overflow-hidden">
-        <div className={`h-full ${color}`} style={{ width: `${percentage}%` }} />
-      </div>
-    </div>
-  );
-};
-
-// ─── HAZARD ZONES TAB ─────────────────────────────────────────────────────────
-
-const HazardZonesTab = ({ zones, loading, onAddClick, onEditClick, onDeleteClick }) => {
-  if (loading) {
-    return <div className="text-center py-12">Loading hazard zones...</div>;
+    );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-          Hazard Zones ({zones?.length || 0})
-        </h2>
-        <button 
-          onClick={onAddClick}
-          className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 text-sm font-medium"
-        >
-          <Plus size={16} />
-          Add Zone
-        </button>
+      {/* Priority Breakdown */}
+      <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-4 sm:p-6">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Priority Breakdown</h3>
+        <div className="space-y-3">
+          <PriorityBar label="Immediate" count={stats?.immediate_priority_count || 0} total={stats?.total_habitations || 1} color="red" />
+          <PriorityBar label="Short Term" count={stats?.short_term_priority_count || 0} total={stats?.total_habitations || 1} color="orange" />
+          <PriorityBar label="Medium Term" count={stats?.medium_term_priority_count || 0} total={stats?.total_habitations || 1} color="yellow" />
+          <PriorityBar label="Safe" count={stats?.safe_count || 0} total={stats?.total_habitations || 1} color="green" />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {zones?.map((zone) => (
-          <div
-            key={zone.id}
-            className="bg-white dark:bg-[rgb(22,22,22)] rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] p-4"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 dark:text-white">{zone.name}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {zone.district}, {zone.state}
-                </p>
-              </div>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                zone.status === "active" 
-                  ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                  : "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
-              }`}>
-                {zone.status}
-              </span>
-            </div>
-
-            <div className="space-y-2 mb-3">
-              <div className="flex flex-wrap gap-1">
-                {zone.hazard_types?.map((hazard, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2 py-0.5 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 rounded text-xs"
-                  >
-                    {hazard}
-                  </span>
-                ))}
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Risk Level</span>
-                <span className="font-semibold text-red-600 dark:text-red-400">
-                  {zone.risk_level}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Population</span>
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {zone.population_estimate?.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-[rgb(47,51,54)]">
-              <button 
-                onClick={() => onEditClick(zone)}
-                className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded text-sm font-medium"
-              >
-                <Edit size={14} />
-                Edit
-              </button>
-              <button 
-                onClick={() => onDeleteClick(zone.id)}
-                className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-sm font-medium"
-              >
-                <Trash2 size={14} />
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
+      {/* Actions */}
+      <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-4 sm:p-6">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Quick Actions</h3>
+        <button
+          onClick={onBulkAssess}
+          className="w-full px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+        >
+          <Zap size={18} />
+          Run AI Assessment on All Habitations
+        </button>
       </div>
     </div>
   );
-};
+}
 
-// ─── RELOCATION SITES TAB ─────────────────────────────────────────────────────
+function PriorityBar({ label, count, total, color }) {
+  const percentage = (count / total) * 100;
+  const colorMap = {
+    red: 'bg-red-500',
+    orange: 'bg-orange-500',
+    yellow: 'bg-yellow-500',
+    green: 'bg-green-500'
+  };
 
-const RelocationSitesTab = ({ sites, loading, onAddClick, onEditClick, onDeleteClick }) => {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{label}</span>
+        <span className="text-xs font-bold text-gray-900 dark:text-white">{count}</span>
+      </div>
+      <div className="w-full bg-gray-200 dark:bg-[rgb(38,38,38)] rounded-full h-2">
+        <div className={`${colorMap[color]} h-2 rounded-full transition-all`} style={{ width: `${percentage}%` }} />
+      </div>
+    </div>
+  );
+}
+
+// ==================== TAB 2: HAZARD ZONES ====================
+function HazardZonesTab({ zones, loading, onAdd }) {
+  const [intensityFilter, setIntensityFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredZones = zones.filter(zone => {
+    const matchesIntensity = intensityFilter === 'all' || zone.intensity === intensityFilter;
+    const matchesSearch = zone.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         zone.district?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesIntensity && matchesSearch;
+  });
+
   if (loading) {
-    return <div className="text-center py-12">Loading relocation sites...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={32} className="animate-spin text-gray-400" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-          Relocation Sites ({sites?.length || 0})
+      {/* Header with Filters */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+          Hazard Zones ({filteredZones.length})
         </h2>
-        <button 
-          onClick={onAddClick}
-          className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 text-sm font-medium"
-        >
-          <Plus size={16} />
-          Add Site
-        </button>
-      </div>
+        
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+          {/* Search */}
+          <div className="relative flex-1 sm:flex-initial sm:w-56">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search zones..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            />
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sites?.map((site) => {
-          const utilizationPercent = ((site.current_households / site.max_households) * 100).toFixed(0);
-          
-          return (
-            <div
-              key={site.id}
-              className="bg-white dark:bg-[rgb(22,22,22)] rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] p-4"
+          {/* Intensity Filter */}
+          <div className="relative">
+            <select
+              value={intensityFilter}
+              onChange={(e) => setIntensityFilter(e.target.value)}
+              className="appearance-none pl-3 pr-8 py-2 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20 cursor-pointer"
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 dark:text-white">{site.name}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {site.district}, {site.state}
-                  </p>
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  site.status === "available" 
-                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                    : "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
-                }`}>
-                  {site.status}
-                </span>
-              </div>
-
-              <div className="space-y-2 mb-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Capacity</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {site.current_households} / {site.max_households}
-                  </span>
-                </div>
-                <div className="h-2 bg-gray-200 dark:bg-[rgb(38,38,38)] rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-emerald-500" 
-                    style={{ width: `${utilizationPercent}%` }} 
-                  />
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Suitability</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                    {(site.suitability_score * 100).toFixed(0)}%
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-[rgb(47,51,54)]">
-                <button 
-                  onClick={() => onEditClick(site)}
-                  className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded text-sm font-medium"
-                >
-                  <Edit size={14} />
-                  Edit
-                </button>
-                <button 
-                  onClick={() => onDeleteClick(site.id)}
-                  className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-sm font-medium"
-                >
-                  <Trash2 size={14} />
-                  Delete
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// ─── VULNERABLE HABITATIONS TAB ───────────────────────────────────────────────
-
-const VulnerableHabitationsTab = ({ habitations, loading, priorityColors, onAddClick, onEditClick, onDeleteClick }) => {
-  if (loading) {
-    return <div className="text-center py-12">Loading vulnerable habitations...</div>;
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-          Vulnerable Habitations ({habitations?.length || 0})
-        </h2>
-        <button 
-          onClick={onAddClick}
-          className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 text-sm font-medium"
-        >
-          <Plus size={16} />
-          Add Habitation
-        </button>
-      </div>
-
-      <div className="space-y-3">
-        {habitations?.map((hab) => (
-          <div
-            key={hab.id}
-            className="bg-white dark:bg-[rgb(22,22,22)] rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] p-4"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
-                    {hab.name}
-                  </h3>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
-                    priorityColors[hab.relocation_priority] || priorityColors.medium_term
-                  }`}>
-                    {hab.relocation_priority?.replace("_", " ")}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                  {hab.district}, {hab.state}
-                </p>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Population</span>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {hab.population_count?.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Households</span>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {hab.household_count?.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Risk Score</span>
-                    <p className="font-semibold text-red-600 dark:text-red-400">
-                      {(hab.vulnerability_score * 100).toFixed(0)}%
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Status</span>
-                    <p className="font-semibold text-gray-900 dark:text-white capitalize">
-                      {hab.relocation_status?.replace("_", " ")}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2 ml-4">
-                <button 
-                  onClick={() => onEditClick(hab)}
-                  className="p-2 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded"
-                >
-                  <Edit size={16} />
-                </button>
-                <button 
-                  onClick={() => onDeleteClick(hab.id)}
-                  className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// ─── RECOMMENDATIONS TAB ──────────────────────────────────────────────────────
-
-const RecommendationsTab = ({ recommendations, urgencyColors, priorityColors }) => {
-  if (!recommendations) {
-    return <div className="text-center py-12">Loading recommendations...</div>;
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 rounded-lg p-4">
-        <h3 className="font-semibold text-sky-900 dark:text-sky-400 mb-1">
-          AI-Powered Recommendations
-        </h3>
-        <p className="text-sm text-sky-700 dark:text-sky-500">
-          {recommendations.total_recommendations} habitations prioritized for relocation based on
-          vulnerability score, population, and hazard exposure.
-        </p>
-      </div>
-
-      <div className="space-y-3">
-        {recommendations.recommendations?.map((rec) => (
-          <div
-            key={rec.habitation_id}
-            className="bg-white dark:bg-[rgb(22,22,22)] rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] p-4"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
-                    {rec.habitation_name}
-                  </h3>
-                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                    urgencyColors[rec.urgency_level]
-                  }`}>
-                    {rec.urgency_level}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
-                    priorityColors[rec.priority]
-                  }`}>
-                    {rec.priority?.replace("_", " ")}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {rec.district} • {rec.population?.toLocaleString()} people • 
-                  Risk: {(rec.vulnerability_score * 100).toFixed(0)}%
-                </p>
-              </div>
-            </div>
-
-            {rec.hazard_zone && (
-              <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <p className="text-sm font-medium text-red-900 dark:text-red-400 mb-1">
-                  Located in: {rec.hazard_zone.zone_name}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {rec.hazard_zone.hazard_types?.map((hazard, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-xs"
-                    >
-                      {hazard}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {rec.recommended_sites?.length > 0 && (
-              <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                  Recommended Relocation Sites:
-                </p>
-                <div className="space-y-2">
-                  {rec.recommended_sites.map((site, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded"
-                    >
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-emerald-900 dark:text-emerald-400">
-                          {idx + 1}. {site.site_name}
-                        </p>
-                        <p className="text-xs text-emerald-700 dark:text-emerald-500">
-                          Capacity: {site.remaining_capacity?.toLocaleString()} • 
-                          Suitability: {(site.suitability_score * 100).toFixed(0)}% • 
-                          {site.distance_to_town_km} km from town
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-[rgb(47,51,54)] flex justify-between text-xs text-gray-500 dark:text-gray-400">
-              <span>Est. Time: {rec.estimated_relocation_time_months} months</span>
-              <button 
-                onClick={() => { setSelectedRecommendation(rec); setShowRecommendationModal(true); }}
-                className="text-sky-600 dark:text-sky-400 hover:underline font-medium"
-              >
-                View Details →
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// ─── ZONE MODAL ───────────────────────────────────────────────────────────────
-
-const ZoneModal = ({ onClose, editingZone, onSuccess }) => {
-  const [formData, setFormData] = useState({
-    zone_name: editingZone?.name || "",  // DB field is 'name'
-    district: editingZone?.district || "",
-    state: editingZone?.state || "Bihar",
-    hazard_types: editingZone?.hazard_types || [],
-    intensity_level: editingZone?.risk_level || "medium",  // DB field is 'risk_level'
-    risk_score: 0.5,  // Not used anymore, but kept for form compatibility
-    affected_population: editingZone?.population_estimate || 0,  // DB field is 'population_estimate'
-    geometry: editingZone?.geometry || { type: "Polygon", coordinates: [] },
-    status: editingZone?.status || "active",
-    notes: editingZone?.description || "",  // DB field is 'description'
-  });
-
-  const { mutate, isPending } = useMutation({
-    mutationFn: async (data) => {
-      if (editingZone) {
-        return await axiosInstance.patch(`/red-zone/hazard-zones/${editingZone.id}`, data);
-      }
-      return await axiosInstance.post("/red-zone/hazard-zones", data);
-    },
-    onSuccess: () => {
-      toast.success(editingZone ? "Zone updated" : "Zone created");
-      onSuccess();
-      onClose();
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.detail || "Operation failed");
-    },
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // Parse geometry if it's a string
-    let geometry = formData.geometry;
-    if (typeof geometry === "string") {
-      try {
-        geometry = JSON.parse(geometry);
-      } catch (err) {
-        toast.error("Invalid GeoJSON geometry");
-        return;
-      }
-    }
-    
-    mutate({ ...formData, geometry });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6">
-          <h2 className="text-xl font-bold mb-4">{editingZone ? "Edit" : "Add"} Hazard Zone</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Zone Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.zone_name}
-                  onChange={(e) => setFormData({...formData, zone_name: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">District *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.district}
-                  onChange={(e) => setFormData({...formData, district: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">State</label>
-                <input
-                  type="text"
-                  value={formData.state}
-                  onChange={(e) => setFormData({...formData, state: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Intensity Level</label>
-                <select
-                  value={formData.intensity_level}
-                  onChange={(e) => setFormData({...formData, intensity_level: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Risk Score (0-1)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="1"
-                  value={formData.risk_score}
-                  onChange={(e) => setFormData({...formData, risk_score: parseFloat(e.target.value)})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Affected Population</label>
-                <input
-                  type="number"
-                  value={formData.affected_population}
-                  onChange={(e) => setFormData({...formData, affected_population: parseInt(e.target.value) || 0})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Hazard Types (comma-separated)</label>
-              <input
-                type="text"
-                value={formData.hazard_types.join(", ")}
-                onChange={(e) => setFormData({...formData, hazard_types: e.target.value.split(",").map(h => h.trim())})}
-                placeholder="flood, landslide, earthquake"
-                className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Geometry (GeoJSON) *</label>
-              <textarea
-                required
-                rows={3}
-                value={typeof formData.geometry === "string" ? formData.geometry : JSON.stringify(formData.geometry, null, 2)}
-                onChange={(e) => setFormData({...formData, geometry: e.target.value})}
-                placeholder='{"type": "Polygon", "coordinates": [[[lng, lat], ...]]}'
-                className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)] font-mono text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Notes</label>
-              <textarea
-                rows={2}
-                value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)]"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isPending}
-                className="flex-1 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 disabled:opacity-50"
-              >
-                {isPending ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ─── SITE MODAL ───────────────────────────────────────────────────────────────
-
-const SiteModal = ({ onClose, editingSite, onSuccess }) => {
-  const [formData, setFormData] = useState({
-    site_name: editingSite?.name || "",  // DB field is 'name'
-    district: editingSite?.district || "",
-    state: editingSite?.state || "Bihar",
-    carrying_capacity: editingSite?.max_households || 0,  // DB field is 'max_households'
-    current_occupancy: editingSite?.current_households || 0,  // DB field is 'current_households'
-    suitability_score: editingSite?.suitability_score || 0.5,
-    infrastructure_available: [
-      ...(editingSite?.has_electricity ? ["electricity"] : []),
-      ...(editingSite?.has_water_supply ? ["water_supply"] : []),
-      ...(editingSite?.has_drainage ? ["drainage"] : []),
-    ],
-    water_availability: editingSite?.road_connectivity || "adequate",
-    accessibility_score: 0.5,
-    distance_to_town_km: 0,
-    land_area_hectares: 0,
-    geometry: editingSite?.geometry || { type: "Point", coordinates: [] },
-    status: editingSite?.status || "available",
-    notes: editingSite?.description || "",  // DB field is 'description'
-  });
-
-  const { mutate, isPending } = useMutation({
-    mutationFn: async (data) => {
-      if (editingSite) {
-        return await axiosInstance.patch(`/red-zone/relocation-sites/${editingSite.id}`, data);
-      }
-      return await axiosInstance.post("/red-zone/relocation-sites", data);
-    },
-    onSuccess: () => {
-      toast.success(editingSite ? "Site updated" : "Site created");
-      onSuccess();
-      onClose();
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.detail || "Operation failed");
-    },
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    let geometry = formData.geometry;
-    if (typeof geometry === "string") {
-      try {
-        geometry = JSON.parse(geometry);
-      } catch (err) {
-        toast.error("Invalid GeoJSON geometry");
-        return;
-      }
-    }
-    
-    mutate({ ...formData, geometry });
-  };
-
-  const toggleInfrastructure = (item) => {
-    const current = formData.infrastructure_available;
-    if (current.includes(item)) {
-      setFormData({...formData, infrastructure_available: current.filter(i => i !== item)});
-    } else {
-      setFormData({...formData, infrastructure_available: [...current, item]});
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6">
-          <h2 className="text-xl font-bold mb-4">{editingSite ? "Edit" : "Add"} Relocation Site</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Site Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.site_name}
-                  onChange={(e) => setFormData({...formData, site_name: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">District *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.district}
-                  onChange={(e) => setFormData({...formData, district: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Capacity</label>
-                <input
-                  type="number"
-                  value={formData.carrying_capacity}
-                  onChange={(e) => setFormData({...formData, carrying_capacity: parseInt(e.target.value) || 0})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Suitability (0-1)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="1"
-                  value={formData.suitability_score}
-                  onChange={(e) => setFormData({...formData, suitability_score: parseFloat(e.target.value)})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Distance (km)</label>
-                <input
-                  type="number"
-                  value={formData.distance_to_town_km}
-                  onChange={(e) => setFormData({...formData, distance_to_town_km: parseFloat(e.target.value) || 0})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Infrastructure</label>
-              <div className="flex flex-wrap gap-2">
-                {["electricity", "water_supply", "roads", "drainage", "healthcare", "schools"].map(item => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => toggleInfrastructure(item)}
-                    className={`px-3 py-1 rounded-lg text-sm ${
-                      formData.infrastructure_available.includes(item)
-                        ? "bg-sky-600 text-white"
-                        : "bg-gray-200 dark:bg-[rgb(38,38,38)] text-gray-700 dark:text-gray-300"
-                    }`}
-                  >
-                    {item.replace("_", " ")}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Geometry (GeoJSON Point) *</label>
-              <textarea
-                required
-                rows={2}
-                value={typeof formData.geometry === "string" ? formData.geometry : JSON.stringify(formData.geometry, null, 2)}
-                onChange={(e) => setFormData({...formData, geometry: e.target.value})}
-                placeholder='{"type": "Point", "coordinates": [lng, lat]}'
-                className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)] font-mono text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Notes</label>
-              <textarea
-                rows={2}
-                value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)]"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isPending}
-                className="flex-1 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 disabled:opacity-50"
-              >
-                {isPending ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ─── HABITATION MODAL ─────────────────────────────────────────────────────────
-
-const HabitationModal = ({ onClose, editingHabitation, zones, sites, onSuccess }) => {
-  const [formData, setFormData] = useState({
-    habitation_name: editingHabitation?.name || "",  // DB field is 'name'
-    district: editingHabitation?.district || "",
-    state: editingHabitation?.state || "Bihar",
-    population_count: editingHabitation?.population_count || 0,
-    households: editingHabitation?.household_count || 0,  // DB field is 'household_count'
-    vulnerability_score: editingHabitation?.vulnerability_score || 0.5,
-    relocation_priority: editingHabitation?.relocation_priority || "medium_term",
-    hazard_zone_id: editingHabitation?.hazard_zone_id || null,
-    assigned_relocation_site_id: editingHabitation?.assigned_relocation_site_id || null,
-    relocation_status: editingHabitation?.relocation_status || "not_started",
-    geometry: editingHabitation?.geometry || { type: "Point", coordinates: [] },
-    notes: editingHabitation?.notes || "",
-  });
-
-  const { mutate, isPending } = useMutation({
-    mutationFn: async (data) => {
-      if (editingHabitation) {
-        return await axiosInstance.patch(`/red-zone/vulnerable-habitations/${editingHabitation.id}`, data);
-      }
-      return await axiosInstance.post("/red-zone/vulnerable-habitations", data);
-    },
-    onSuccess: () => {
-      toast.success(editingHabitation ? "Habitation updated" : "Habitation created");
-      onSuccess();
-      onClose();
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.detail || "Operation failed");
-    },
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    let geometry = formData.geometry;
-    if (typeof geometry === "string") {
-      try {
-        geometry = JSON.parse(geometry);
-      } catch (err) {
-        toast.error("Invalid GeoJSON geometry");
-        return;
-      }
-    }
-    
-    mutate({ ...formData, geometry });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6">
-          <h2 className="text-xl font-bold mb-4">{editingHabitation ? "Edit" : "Add"} Vulnerable Habitation</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Habitation Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.habitation_name}
-                  onChange={(e) => setFormData({...formData, habitation_name: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">District *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.district}
-                  onChange={(e) => setFormData({...formData, district: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Population</label>
-                <input
-                  type="number"
-                  value={formData.population_count}
-                  onChange={(e) => setFormData({...formData, population_count: parseInt(e.target.value) || 0})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Households</label>
-                <input
-                  type="number"
-                  value={formData.households}
-                  onChange={(e) => setFormData({...formData, households: parseInt(e.target.value) || 0})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Vulnerability (0-1)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="1"
-                  value={formData.vulnerability_score}
-                  onChange={(e) => setFormData({...formData, vulnerability_score: parseFloat(e.target.value)})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Priority</label>
-                <select
-                  value={formData.relocation_priority}
-                  onChange={(e) => setFormData({...formData, relocation_priority: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                >
-                  <option value="immediate">Immediate</option>
-                  <option value="short_term">Short Term</option>
-                  <option value="medium_term">Medium Term</option>
-                  <option value="long_term">Long Term</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Status</label>
-                <select
-                  value={formData.relocation_status}
-                  onChange={(e) => setFormData({...formData, relocation_status: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-                >
-                  <option value="not_started">Not Started</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Geometry (GeoJSON Point) *</label>
-              <textarea
-                required
-                rows={2}
-                value={typeof formData.geometry === "string" ? formData.geometry : JSON.stringify(formData.geometry, null, 2)}
-                onChange={(e) => setFormData({...formData, geometry: e.target.value})}
-                placeholder='{"type": "Point", "coordinates": [lng, lat]}'
-                className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)] font-mono text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Notes</label>
-              <textarea
-                rows={2}
-                value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                className="w-full px-3 py-2 border rounded-lg dark:bg-[rgb(38,38,38)] dark:border-[rgb(47,51,54)]"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)]"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isPending}
-                className="flex-1 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 disabled:opacity-50"
-              >
-                {isPending ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ─── RECOMMENDATION DETAIL MODAL ──────────────────────────────────────────────
-
-const RecommendationDetailModal = ({ recommendation, onClose }) => {
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">{recommendation.habitation_name}</h2>
-              <p className="text-gray-500 dark:text-gray-400">{recommendation.district}</p>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+              <option value="all">All Severity</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
 
-          {/* AI Recommendation Basis */}
-          <div className="mb-6 p-4 bg-sky-50 dark:bg-sky-900/20 rounded-lg border border-sky-200 dark:border-sky-800">
-            <h3 className="font-bold text-sky-900 dark:text-sky-100 mb-3">🤖 AI Recommendation Basis</h3>
-            <div className="space-y-2 text-sm">
-              <p><strong>Vulnerability Score:</strong> {(recommendation.vulnerability_score * 100).toFixed(0)}% - Calculated from:</p>
-              <ul className="ml-6 space-y-1 list-disc text-gray-700 dark:text-gray-300">
-                <li><strong>Hazard Risk (50%):</strong> {recommendation.hazard_zone ? `${recommendation.hazard_zone.risk_level} risk zone` : 'No zone assigned'}</li>
-                <li><strong>Population Size (30%):</strong> {recommendation.population?.toLocaleString()} people</li>
-                <li><strong>Structural Safety (10%):</strong> Building safety rating</li>
-                <li><strong>Relocation Status (10%):</strong> Current progress</li>
-              </ul>
-              <p className="mt-3"><strong>Priority Level:</strong> Based on score and urgency - Higher scores = Higher priority</p>
-            </div>
-          </div>
-
-          {/* Population Details */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="p-4 bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-lg">
-              <div className="text-sm text-gray-500 dark:text-gray-400">Population</div>
-              <div className="text-2xl font-bold">{recommendation.population?.toLocaleString()}</div>
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-lg">
-              <div className="text-sm text-gray-500 dark:text-gray-400">Households</div>
-              <div className="text-2xl font-bold">{recommendation.households?.toLocaleString()}</div>
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-lg">
-              <div className="text-sm text-gray-500 dark:text-gray-400">Vulnerability Score</div>
-              <div className="text-2xl font-bold text-red-600">{(recommendation.vulnerability_score * 100).toFixed(0)}%</div>
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-lg">
-              <div className="text-sm text-gray-500 dark:text-gray-400">Priority</div>
-              <div className="text-xl font-bold capitalize">{recommendation.priority?.replace("_", " ")}</div>
-            </div>
-          </div>
-
-          {/* Hazard Zone Info */}
-          {recommendation.hazard_zone && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-              <h3 className="font-bold mb-2">⚠️ Hazard Zone</h3>
-              <p className="font-semibold">{recommendation.hazard_zone.zone_name}</p>
-              <p className="text-sm">Risk Level: <span className="font-bold text-red-600">{recommendation.hazard_zone.risk_level}</span></p>
-              <div className="flex flex-wrap gap-1 mt-2">
-                {recommendation.hazard_zone.hazard_types?.map((hazard, idx) => (
-                  <span key={idx} className="px-2 py-0.5 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 rounded text-xs">
-                    {hazard}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Estimated Timeline */}
-          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <h3 className="font-bold mb-3">📅 Estimated Relocation Timeline</h3>
-            <div className="text-sm space-y-2">
-              <p><strong>Total Time:</strong> {recommendation.estimated_relocation_time_months} months</p>
-              <p className="text-gray-600 dark:text-gray-400">Calculation based on:</p>
-              <ul className="ml-6 space-y-1 list-disc text-gray-700 dark:text-gray-300">
-                <li><strong>Base Planning:</strong> 6 months (surveys, approvals, logistics)</li>
-                <li><strong>Population Factor:</strong> +{recommendation.population > 500 ? '6' : recommendation.population > 200 ? '3' : '0'} months (larger populations need more time)</li>
-                <li><strong>Risk Urgency:</strong> {recommendation.hazard_zone?.risk_level === 'critical' ? '-3 months (expedited)' : recommendation.hazard_zone?.risk_level === 'high' ? '-1 month' : 'Normal timeline'}</li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Recommended Sites */}
-          <div className="mb-4">
-            <h3 className="font-bold mb-3">🏘️ Recommended Relocation Sites (Top 3)</h3>
-            {recommendation.recommended_sites && recommendation.recommended_sites.length > 0 ? (
-              <div className="space-y-3">
-                {recommendation.recommended_sites.map((site, idx) => (
-                  <div key={idx} className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="font-semibold">{idx + 1}. {site.site_name}</div>
-                      <span className="text-sm text-emerald-600 dark:text-emerald-400 font-bold">
-                        {(site.suitability_score * 100).toFixed(0)}% Suitable
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      <p>Capacity: {site.remaining_capacity} households available</p>
-                      <p>Why recommended: {
-                        site.suitability_score > 0.8 ? 'High suitability with excellent infrastructure' :
-                        site.suitability_score > 0.6 ? 'Good suitability and adequate facilities' :
-                        'Acceptable option with basic amenities'
-                      }</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400">No suitable sites available. Please create relocation sites first.</p>
-            )}
-          </div>
-
+          {/* Add Button */}
           <button
-            onClick={onClose}
-            className="w-full px-4 py-2 bg-gray-200 dark:bg-[rgb(38,38,38)] rounded-lg hover:bg-gray-300 dark:hover:bg-[rgb(47,51,54)]"
+            onClick={onAdd}
+            className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
           >
-            Close
+            <Plus size={16} />
+            Add Zone
           </button>
         </div>
       </div>
+
+      {/* Zones Table */}
+      <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-[rgb(38,38,38)] border-b border-gray-200 dark:border-[rgb(47,51,54)]">
+              <tr>
+                <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">District</th>
+                <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Intensity</th>
+                <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Population</th>
+                <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">AI Score</th>
+                <th className="px-4 py-3 text-right text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-[rgb(47,51,54)]">
+              {filteredZones.map(zone => (
+                <tr key={zone.id} className="hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">{zone.name}</div>
+                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                      {zone.hazard_types?.slice(0, 2).join(', ')}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-700 dark:text-gray-300">{zone.district}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-medium border ${INTENSITY_CONFIG[zone.intensity]?.badge || INTENSITY_CONFIG.medium.badge}`}>
+                      {INTENSITY_CONFIG[zone.intensity]?.label || zone.intensity}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs font-medium text-gray-900 dark:text-white">
+                    {zone.population_at_risk?.toLocaleString() || 0}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-700 dark:text-gray-300">
+                    {Math.round((zone.ai_confidence || 0) * 100)}%
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button className="p-1.5 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        <Edit2 size={14} />
+                      </button>
+                      <button className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {filteredZones.length === 0 && (
+          <div className="text-center py-12">
+            <ShieldAlert size={40} className="mx-auto text-gray-300 dark:text-gray-700 mb-3" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">No hazard zones found</p>
+          </div>
+        )}
+      </div>
     </div>
   );
-};
+}
 
-export default RedZoneManagement;
+// ==================== TAB 3: RELOCATION SITES ====================
+function RelocationSitesTab({ sites, loading, onAdd }) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredSites = sites.filter(site =>
+    site.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    site.district?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={32} className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+          Relocation Sites ({filteredSites.length})
+        </h2>
+        
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* Search */}
+          <div className="relative flex-1 sm:flex-initial sm:w-56">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search sites..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            />
+          </div>
+
+          {/* Add Button */}
+          <button
+            onClick={onAdd}
+            className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Plus size={16} />
+            Add Site
+          </button>
+        </div>
+      </div>
+
+      {/* Sites List */}
+      <div className="space-y-3">
+        {filteredSites.map(site => (
+          <div key={site.id} className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-4">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{site.name}</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                  <MapPin size={12} />
+                  {site.district}, {site.state}
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <button className="p-1.5 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                  <Edit2 size={14} />
+                </button>
+                <button className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Capacity Bar */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="text-gray-600 dark:text-gray-400">Capacity</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {site.current_occupancy || 0} / {site.carrying_capacity || 0}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-[rgb(38,38,38)] rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all ${
+                    ((site.current_occupancy || 0) / (site.carrying_capacity || 1)) < 0.7 ? 'bg-green-500' :
+                    ((site.current_occupancy || 0) / (site.carrying_capacity || 1)) < 0.9 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${Math.min(((site.current_occupancy || 0) / (site.carrying_capacity || 1)) * 100, 100)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Facilities */}
+            {site.facilities && site.facilities.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {site.facilities.slice(0, 5).map((facility, idx) => (
+                  <span key={idx} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-[10px] rounded-md">
+                    {facility}
+                  </span>
+                ))}
+                {site.facilities.length > 5 && (
+                  <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-[10px] rounded-md">
+                    +{site.facilities.length - 5}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {filteredSites.length === 0 && (
+        <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl text-center py-12">
+          <Building2 size={40} className="mx-auto text-gray-300 dark:text-gray-700 mb-3" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">No relocation sites found</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== TAB 4: VULNERABLE HABITATIONS ====================
+function VulnerableHabitationsTab({ habitations, loading, onAdd, onBulkAssess }) {
+  const [expandedId, setExpandedId] = useState(null);
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const queryClient = useQueryClient();
+
+  const filteredHabitations = habitations.filter(hab => {
+    const matchesPriority = priorityFilter === 'all' || hab.priority === priorityFilter;
+    const matchesSearch = hab.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         hab.district?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesPriority && matchesSearch;
+  });
+
+  const assessMutation = useMutation({
+    mutationFn: assessHabitation,
+    onSuccess: () => {
+      toast.success('AI assessment completed');
+      queryClient.invalidateQueries(['vulnerable-habitations']);
+    },
+    onError: () => toast.error('Assessment failed')
+  });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={32} className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header with Filters */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+          Vulnerable Habitations ({filteredHabitations.length})
+        </h2>
+        
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+          {/* Search */}
+          <div className="relative flex-1 sm:flex-initial sm:w-56">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search habitations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            />
+          </div>
+
+          {/* Priority Filter */}
+          <div className="relative">
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="appearance-none pl-3 pr-8 py-2 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20 cursor-pointer"
+            >
+              <option value="all">All Priority</option>
+              <option value="IMMEDIATE">Immediate</option>
+              <option value="SHORT_TERM">Short Term</option>
+              <option value="MEDIUM_TERM">Medium Term</option>
+              <option value="SAFE">Safe</option>
+            </select>
+            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
+
+          {/* Bulk Assess */}
+          <button
+            onClick={onBulkAssess}
+            className="px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Zap size={16} />
+            Bulk Assess
+          </button>
+
+          {/* Add Button */}
+          <button
+            onClick={onAdd}
+            className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Plus size={16} />
+            Register
+          </button>
+        </div>
+      </div>
+
+      {/* Habitations List */}
+      <div className="space-y-2">
+        {filteredHabitations.map(hab => (
+          <div key={hab.id} className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl overflow-hidden">
+            <div 
+              className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors"
+              onClick={() => setExpandedId(expandedId === hab.id ? null : hab.id)}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-semibold border ${PRIORITY_CONFIG[hab.priority]?.badge || PRIORITY_CONFIG.MEDIUM_TERM.badge}`}>
+                    {PRIORITY_CONFIG[hab.priority]?.label || hab.priority}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">{hab.name}</h3>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                      <MapPin size={10} />
+                      {hab.district}, {hab.state}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right hidden sm:block">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">{hab.population?.toLocaleString() || 0}</div>
+                    <div className="text-[10px] text-gray-500 dark:text-gray-400">Population</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        assessMutation.mutate(hab.id);
+                      }}
+                      disabled={assessMutation.isPending}
+                      className="p-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs transition-all"
+                    >
+                      {assessMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                    </button>
+                    <button 
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1.5 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button 
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {expandedId === hab.id && (
+              <div className="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-50 dark:bg-[rgb(38,38,38)]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase mb-1">Priority Reason</p>
+                    <p className="text-gray-900 dark:text-white">{hab.priority_reason || 'Not assessed'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase mb-1">Hazard Types</p>
+                    <div className="flex flex-wrap gap-1">
+                      {hab.hazard_types?.map((type, idx) => (
+                        <span key={idx} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-[10px] rounded-md">
+                          {type}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {filteredHabitations.length === 0 && (
+        <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl text-center py-12">
+          <Home size={40} className="mx-auto text-gray-300 dark:text-gray-700 mb-3" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">No vulnerable habitations found</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== TAB 5: SDMA REPORT ====================
+function SDMAReportTab({ summary, loading, stats }) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={32} className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">SDMA Executive Report</h2>
+        <button
+          onClick={() => window.print()}
+          className="px-3 py-2 bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5"
+        >
+          <Printer size={16} />
+          Print
+        </button>
+      </div>
+
+      {/* Risk Level */}
+      <div className={`p-4 rounded-xl border-2 ${
+        summary?.risk_level === 'CRITICAL' ? 'bg-red-50 dark:bg-red-500/10 border-red-500' :
+        summary?.risk_level === 'HIGH' ? 'bg-orange-50 dark:bg-orange-500/10 border-orange-500' :
+        summary?.risk_level === 'MEDIUM' ? 'bg-yellow-50 dark:bg-yellow-500/10 border-yellow-500' :
+        'bg-green-50 dark:bg-green-500/10 border-green-500'
+      }`}>
+        <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">RISK LEVEL</div>
+        <div className="text-2xl font-bold text-gray-900 dark:text-white">{summary?.risk_level || 'MEDIUM'}</div>
+      </div>
+
+      {/* Executive Summary */}
+      <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Executive Summary</h3>
+        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+          {summary?.executive_summary || 'Generating summary...'}
+        </p>
+      </div>
+
+      {/* Immediate Actions */}
+      <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Immediate Actions</h3>
+        <ul className="space-y-2">
+          {summary?.immediate_actions?.map((action, idx) => (
+            <li key={idx} className="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300">
+              <CheckCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+              <span>{action}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Resources */}
+      <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Resource Requirements</h3>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="text-center p-3 bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-xl">
+            <div className="text-lg font-bold text-gray-900 dark:text-white">₹{summary?.resource_requirements?.estimated_cost_crore || 0} Cr</div>
+            <div className="text-[10px] text-gray-600 dark:text-gray-400 mt-1">Cost</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-xl">
+            <div className="text-lg font-bold text-gray-900 dark:text-white">{summary?.resource_requirements?.transport_vehicles || 0}</div>
+            <div className="text-[10px] text-gray-600 dark:text-gray-400 mt-1">Vehicles</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-xl">
+            <div className="text-lg font-bold text-gray-900 dark:text-white">{summary?.resource_requirements?.temporary_shelters_needed || 0}</div>
+            <div className="text-[10px] text-gray-600 dark:text-gray-400 mt-1">Shelters</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==================== MODALS WITH PROPER FORMS ====================
+function AddHazardZoneModal({ onClose }) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    name: '',
+    district: '',
+    state: '',
+    center_lat: '',
+    center_lon: '',
+    intensity: 'medium',
+    hazard_types: [],
+    population_at_risk: 0
+  });
+
+  const mutation = useMutation({
+    mutationFn: createHazardZone,
+    onSuccess: () => {
+      toast.success('Hazard zone created');
+      queryClient.invalidateQueries(['hazard-zones']);
+      onClose();
+    },
+    onError: () => toast.error('Failed to create zone')
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl w-full max-w-2xl border border-gray-200 dark:border-[rgb(47,51,54)] overflow-hidden">
+        {/* Header */}
+        <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-[rgb(47,51,54)]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center border border-red-100 dark:border-red-800">
+              <ShieldAlert size={18} className="text-red-600 dark:text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-gray-900 dark:text-white font-semibold text-base">Add Hazard Zone</h2>
+              <p className="text-gray-500 dark:text-gray-400 text-xs">Mark a new permanently unsafe area</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors">
+            <X size={18} className="text-gray-400" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+              Zone Name
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Chamoli Glacier Risk Zone"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                District
+              </label>
+              <input
+                type="text"
+                value={form.district}
+                onChange={(e) => setForm({ ...form, district: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                State
+              </label>
+              <input
+                type="text"
+                value={form.state}
+                onChange={(e) => setForm({ ...form, state: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                Latitude
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                value={form.center_lat}
+                onChange={(e) => setForm({ ...form, center_lat: parseFloat(e.target.value) })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                Longitude
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                value={form.center_lon}
+                onChange={(e) => setForm({ ...form, center_lon: parseFloat(e.target.value) })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+              Intensity
+            </label>
+            <select
+              value={form.intensity}
+              onChange={(e) => setForm({ ...form, intensity: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+              Population at Risk
+            </label>
+            <input
+              type="number"
+              value={form.population_at_risk}
+              onChange={(e) => setForm({ ...form, population_at_risk: parseInt(e.target.value) })}
+              className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-[rgb(47,51,54)]">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => mutation.mutate(form)}
+              disabled={mutation.isPending || !form.name || !form.district}
+              className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              Create Zone
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddRelocationSiteModal({ onClose }) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    name: '',
+    district: '',
+    state: '',
+    latitude: '',
+    longitude: '',
+    carrying_capacity: 0,
+    current_occupancy: 0,
+    facilities: [],
+    land_area_sqkm: 0
+  });
+
+  const mutation = useMutation({
+    mutationFn: createRelocationSite,
+    onSuccess: () => {
+      toast.success('Relocation site created');
+      queryClient.invalidateQueries(['relocation-sites']);
+      onClose();
+    },
+    onError: () => toast.error('Failed to create site')
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl w-full max-w-2xl border border-gray-200 dark:border-[rgb(47,51,54)] overflow-hidden">
+        <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-[rgb(47,51,54)]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center border border-green-100 dark:border-green-800">
+              <Building2 size={18} className="text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <h2 className="text-gray-900 dark:text-white font-semibold text-base">Add Relocation Site</h2>
+              <p className="text-gray-500 dark:text-gray-400 text-xs">Register a safe relocation area</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors">
+            <X size={18} className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+              Site Name
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Kalpetta Resettlement Colony"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                District
+              </label>
+              <input
+                type="text"
+                value={form.district}
+                onChange={(e) => setForm({ ...form, district: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                State
+              </label>
+              <input
+                type="text"
+                value={form.state}
+                onChange={(e) => setForm({ ...form, state: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                Latitude
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                value={form.latitude}
+                onChange={(e) => setForm({ ...form, latitude: parseFloat(e.target.value) })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                Longitude
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                value={form.longitude}
+                onChange={(e) => setForm({ ...form, longitude: parseFloat(e.target.value) })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+              Carrying Capacity (Households)
+            </label>
+            <input
+              type="number"
+              value={form.carrying_capacity}
+              onChange={(e) => setForm({ ...form, carrying_capacity: parseInt(e.target.value) })}
+              className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-[rgb(47,51,54)]">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => mutation.mutate(form)}
+              disabled={mutation.isPending || !form.name || !form.district}
+              className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              Create Site
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddHabitationModal({ onClose }) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    name: '',
+    district: '',
+    state: '',
+    latitude: '',
+    longitude: '',
+    population: 0,
+    households: 0,
+    hazard_types: []
+  });
+
+  const mutation = useMutation({
+    mutationFn: createHabitation,
+    onSuccess: () => {
+      toast.success('Habitation registered');
+      queryClient.invalidateQueries(['vulnerable-habitations']);
+      onClose();
+    },
+    onError: () => toast.error('Failed to register habitation')
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl w-full max-w-2xl border border-gray-200 dark:border-[rgb(47,51,54)] overflow-hidden">
+        <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-[rgb(47,51,54)]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center border border-orange-100 dark:border-orange-800">
+              <Home size={18} className="text-orange-600 dark:text-orange-400" />
+            </div>
+            <div>
+              <h2 className="text-gray-900 dark:text-white font-semibold text-base">Register Vulnerable Habitation</h2>
+              <p className="text-gray-500 dark:text-gray-400 text-xs">Add a settlement requiring assessment</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors">
+            <X size={18} className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+              Settlement Name
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Mundakkai Village"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                District
+              </label>
+              <input
+                type="text"
+                value={form.district}
+                onChange={(e) => setForm({ ...form, district: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                State
+              </label>
+              <input
+                type="text"
+                value={form.state}
+                onChange={(e) => setForm({ ...form, state: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                Latitude
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                value={form.latitude}
+                onChange={(e) => setForm({ ...form, latitude: parseFloat(e.target.value) })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                Longitude
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                value={form.longitude}
+                onChange={(e) => setForm({ ...form, longitude: parseFloat(e.target.value) })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                Population
+              </label>
+              <input
+                type="number"
+                value={form.population}
+                onChange={(e) => setForm({ ...form, population: parseInt(e.target.value) })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+                Households
+              </label>
+              <input
+                type="number"
+                value={form.households}
+                onChange={(e) => setForm({ ...form, households: parseInt(e.target.value) })}
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-[rgb(47,51,54)]">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => mutation.mutate(form)}
+              disabled={mutation.isPending || !form.name || !form.district}
+              className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              Register
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Marker, useMapEvents, Tooltip } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Marker, useMapEvents, Tooltip, Polygon } from 'react-leaflet';
 import { fetchReports } from '../lib/api';
 import { axiosInstance } from '../lib/axios';
 import useAuthUser from '../hooks/useAuthUser';
@@ -93,6 +93,9 @@ const MapPage = () => {
   const [reports, setReports] = useState([]);
   const [deployments, setDeployments] = useState([]);
   const [shelters, setShelters] = useState([]);
+  const [redZones, setRedZones] = useState([]);
+  const [habitations, setHabitations] = useState([]);
+  const [relocationSites, setRelocationSites] = useState([]);
   const [loading, setLoading] = useState(false);
   const [center] = useState([20.5937, 78.9629]);
   const [showFilters, setShowFilters] = useState(false);
@@ -105,6 +108,9 @@ const MapPage = () => {
     reports: true,
     deployments: true,
     shelters: true,
+    redZones: true,
+    habitations: true,
+    relocationSites: true,
   });
   const { authUser } = useAuthUser();
   const isAdmin = authUser?.role === 'admin';
@@ -117,10 +123,13 @@ const MapPage = () => {
     // Don't block UI - load in background
     try {
       // Load all data in parallel - using optimized map endpoint for reports
-      const [reportsData, deploymentsRes, sheltersRes] = await Promise.all([
+      const [reportsData, deploymentsRes, sheltersRes, redZonesRes, habitationsRes, sitesRes] = await Promise.all([
         axiosInstance.get('/map/map-reports').then(res => res.data).catch(() => []),
         axiosInstance.get('/map/deployments').catch(() => ({ data: [] })),
         axiosInstance.get('/map/shelters').catch(() => ({ data: [] })),
+        axiosInstance.get('/red-zones/map/zones').catch(() => ({ data: { features: [] } })),
+        axiosInstance.get('/red-zones/map/habitations').catch(() => ({ data: { features: [] } })),
+        axiosInstance.get('/red-zones/map/sites').catch(() => ({ data: { features: [] } })),
       ]);
 
       // Cluster nearby reports (within ~5km)
@@ -129,6 +138,9 @@ const MapPage = () => {
       setReports(clusteredReports);
       setDeployments(deploymentsRes.data || []);
       setShelters(sheltersRes.data || []);
+      setRedZones(redZonesRes.data?.features || []);
+      setHabitations(habitationsRes.data?.features || []);
+      setRelocationSites(sitesRes.data?.features || []);
     } catch (error) {
       console.error('Failed to fetch map data:', error);
     }
@@ -289,6 +301,33 @@ const MapPage = () => {
                 className="w-4 h-4 text-green-600 rounded"
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">Shelters ({shelters.length})</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.redZones}
+                onChange={(e) => setFilters({ ...filters, redZones: e.target.checked })}
+                className="w-4 h-4 text-red-600 rounded"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">🔴 Red Zones ({redZones.length})</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.habitations}
+                onChange={(e) => setFilters({ ...filters, habitations: e.target.checked })}
+                className="w-4 h-4 text-orange-600 rounded"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">🏘️ At-Risk Habitations ({habitations.length})</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.relocationSites}
+                onChange={(e) => setFilters({ ...filters, relocationSites: e.target.checked })}
+                className="w-4 h-4 text-green-600 rounded"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">✅ Relocation Sites ({relocationSites.length})</span>
             </label>
           </div>
         </div>
@@ -499,6 +538,166 @@ const MapPage = () => {
                     className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors"
                   >
                     Navigate to Shelter
+                  </button>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* Red Zone polygons */}
+          {filters.redZones && redZones.map((zone) => {
+            const coords = zone.geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
+            const intensity = zone.properties.intensity;
+            const color = intensity === 'critical' ? '#dc2626' :
+                         intensity === 'high' ? '#ea580c' :
+                         intensity === 'medium' ? '#f59e0b' : '#84cc16';
+            
+            return (
+              <Polygon
+                key={`zone-${zone.properties.id}`}
+                positions={coords}
+                pathOptions={{
+                  color: color,
+                  fillColor: color,
+                  fillOpacity: 0.25,
+                  weight: 2,
+                }}
+              >
+                <Popup maxWidth={300}>
+                  <div className="p-2">
+                    <div className="flex items-start gap-2 mb-2">
+                      <AlertTriangle size={16} className="text-red-600 mt-0.5 shrink-0" />
+                      <h3 className="font-bold text-base text-gray-900">🔴 {zone.properties.name}</h3>
+                    </div>
+                    
+                    <div className="space-y-1.5 mb-2">
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">District:</span> {zone.properties.district}, {zone.properties.state}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Intensity:</span> 
+                        <span className={`ml-2 px-2 py-0.5 rounded text-xs font-semibold ${
+                          intensity === 'critical' ? 'bg-red-100 text-red-700' :
+                          intensity === 'high' ? 'bg-orange-100 text-orange-700' :
+                          intensity === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {intensity?.toUpperCase()}
+                        </span>
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Population at risk:</span> {zone.properties.population_at_risk?.toLocaleString()}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Hazards:</span> {zone.properties.hazard_types?.join(', ')}
+                      </p>
+                    </div>
+                    
+                    <p className="text-xs text-gray-500">
+                      AI confidence: {Math.round((zone.properties.ai_confidence || 0) * 100)}%
+                      {zone.properties.source === 'auto_cluster' && ' (Auto-detected)'}
+                    </p>
+                  </div>
+                </Popup>
+              </Polygon>
+            );
+          })}
+
+          {/* Vulnerable Habitations */}
+          {filters.habitations && habitations.map((hab) => {
+            const priority = hab.properties.priority;
+            const radius = priority === 'IMMEDIATE' ? 14 :
+                          priority === 'SHORT_TERM' ? 10 : 7;
+            const color = priority === 'IMMEDIATE' ? '#dc2626' :
+                         priority === 'SHORT_TERM' ? '#f59e0b' : '#84cc16';
+            
+            return (
+              <CircleMarker
+                key={`hab-${hab.properties.id}`}
+                center={hab.geometry.coordinates.slice().reverse()}
+                radius={radius}
+                pathOptions={{
+                  color: color,
+                  fillColor: color,
+                  fillOpacity: 0.8,
+                  weight: 2,
+                }}
+              >
+                <Popup maxWidth={280}>
+                  <div className="p-2">
+                    <div className="flex items-start gap-2 mb-2">
+                      <Home size={16} className="text-orange-600 mt-0.5 shrink-0" />
+                      <h3 className="font-bold text-base text-gray-900">🏘️ {hab.properties.name}</h3>
+                    </div>
+                    
+                    <div className="space-y-1.5 mb-2">
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">District:</span> {hab.properties.district}, {hab.properties.state}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Population:</span> {hab.properties.population?.toLocaleString()}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Priority:</span> 
+                        <span className={`ml-2 px-2 py-0.5 rounded text-xs font-semibold ${
+                          priority === 'IMMEDIATE' ? 'bg-red-100 text-red-700' :
+                          priority === 'SHORT_TERM' ? 'bg-orange-100 text-orange-700' :
+                          priority === 'MEDIUM_TERM' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {priority}
+                        </span>
+                      </p>
+                    </div>
+                    
+                    {hab.properties.priority_reason && (
+                      <p className="text-xs text-gray-600 mb-2">{hab.properties.priority_reason}</p>
+                    )}
+                    
+                    <p className="text-xs text-gray-500">
+                      Vulnerability: {Math.round((hab.properties.vulnerability_score || 0) * 100)}%
+                    </p>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          })}
+
+          {/* Relocation Sites */}
+          {filters.relocationSites && relocationSites.map((site) => (
+            <Marker
+              key={`site-${site.properties.id}`}
+              position={site.geometry.coordinates.slice().reverse()}
+              icon={shelterIcon}
+            >
+              <Popup maxWidth={300}>
+                <div className="p-2">
+                  <div className="flex items-start gap-2 mb-2">
+                    <Shield size={16} className="text-green-600 mt-0.5 shrink-0" />
+                    <h3 className="font-bold text-base text-gray-900">✅ {site.properties.name}</h3>
+                  </div>
+                  
+                  <p className="text-sm text-gray-600 mb-2">{site.properties.district}, {site.properties.state}</p>
+                  
+                  <div className="space-y-1.5 mb-3">
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Available capacity:</span> {site.properties.available_capacity} households
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Suitability:</span> {Math.round((site.properties.suitability_score || 0) * 100)}%
+                    </p>
+                    {site.properties.facilities?.length > 0 && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Facilities:</span> {site.properties.facilities.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <button
+                    onClick={() => openInMaps(site.geometry.coordinates[1], site.geometry.coordinates[0], site.properties.name)}
+                    className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                  >
+                    Navigate to Site
                   </button>
                 </div>
               </Popup>
