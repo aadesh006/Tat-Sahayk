@@ -186,10 +186,11 @@ const normalizeReport = (r) => ({
       : "Location unavailable",
 });
 
-export const fetchReports = async ({ status, severity, allReports = false, minimal = false } = {}) => {
+export const fetchReports = async ({ status, severity, district, allReports = false, minimal = false } = {}) => {
   const params = new URLSearchParams();
   if (status) params.append("status", status);
   if (severity) params.append("severity", severity);
+  if (district) params.append("district", district);
   if (allReports) params.append("all_reports", "true");
   if (minimal) params.append("minimal", "true");
   const res = await axiosInstance.get(`/reports/?${params.toString()}`);
