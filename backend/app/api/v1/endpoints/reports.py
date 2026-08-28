@@ -282,6 +282,7 @@ def read_reports(
     limit: int = 100,
     status: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
+    district: Optional[str] = Query(None),  # Filter by specific district for location-based feed
     all_reports: bool = Query(False),  # Bypass district filtering - used for citizen home page to show nationwide reports
     minimal: bool = Query(False),  # Return minimal data without media for faster loading
     current_user: User = Depends(deps.get_current_user_optional),  # optional auth
@@ -293,9 +294,12 @@ def read_reports(
         query = query.filter(Report.status == status)
     if severity:
         query = query.filter(Report.severity == severity)
-
-    # Admin sees only their district's reports UNLESS all_reports=true (for home page)
-    if current_user and current_user.role == "admin" and current_user.district and not all_reports:
+    
+    # Filter by specific district if provided (for location-based feed)
+    if district:
+        query = query.filter(Report.district.ilike(f"%{district}%"))
+    # Admin sees only their district's reports UNLESS all_reports=true or district filter is provided
+    elif current_user and current_user.role == "admin" and current_user.district and not all_reports:
         # Use ilike for partial matching (e.g., "Mumbai" matches "Mumbai Suburban")
         query = query.filter(Report.district.ilike(f"%{current_user.district}%"))
 
@@ -414,7 +418,7 @@ def create_report(
         image_url,
         report.latitude,
         report.longitude,
-        current_user.state if hasattr(current_user, 'state') else None
+        report.district  # Use report location, not user's home state
     )
     
     return report

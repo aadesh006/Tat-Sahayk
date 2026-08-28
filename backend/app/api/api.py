@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, reports, media, social, comments, alerts, map_admin, ai_analysis, map_resources, map_data
+from app.api.v1.endpoints import auth, reports, media, social, comments, alerts, map_admin, ai_analysis, map_resources, map_data, red_zone
 
 api_router = APIRouter()
 
@@ -32,3 +32,6 @@ api_router.include_router(map_resources.router, prefix="/map", tags=["map-resour
 
 #Map Data (Optimized for map view)
 api_router.include_router(map_data.router, prefix="/map", tags=["map-data"])
+
+# Red Zone Management (Proactive Relocation)
+api_router.include_router(red_zone.router, prefix="/red-zones", tags=["red-zones"])
