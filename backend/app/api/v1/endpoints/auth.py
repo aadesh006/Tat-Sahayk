@@ -161,13 +161,16 @@ def update_me(data: UserUpdate, db: Session = Depends(get_db),
     db.refresh(current_user)
     return current_user
 
-@router.patch("/update-location")
+@router.put("/me/location")
 def update_user_location(
     location_data: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    """Update user's location (district and state) for location-based alerts"""
+    """Update user's location (district and state) for location-based alerts - citizens only"""
+    if current_user.role == "admin":
+        raise HTTPException(status_code=403, detail="Admin locations are managed by the system")
+    
     district = location_data.get("district")
     state = location_data.get("state")
     
@@ -178,7 +181,18 @@ def update_user_location(
     current_user.state = state
     db.commit()
     db.refresh(current_user)
-    return {"message": "Location updated successfully", "district": district, "state": state}
+    
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "role": current_user.role,
+        "district": current_user.district,
+        "state": current_user.state,
+        "profile_photo": current_user.profile_photo,
+        "phone_verified": current_user.phone_verified,
+        "created_at": current_user.created_at,
+    }
 
 # ── Phone Verification Endpoints ─────────────────────────────────────────────
 
