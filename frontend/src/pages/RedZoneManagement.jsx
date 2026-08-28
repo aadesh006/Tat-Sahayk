@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import SDMAReportTab from '../components/SDMAReport.jsx';
 
 // Match AdminDashboard color scheme - subdued badges
 const PRIORITY_CONFIG = {
@@ -227,55 +228,146 @@ function OverviewTab({ stats, statsLoading, onBulkAssess }) {
     );
   }
 
+  const totalHabitations = stats?.total_habitations || 1;
+  const immediate = stats?.immediate_priority_count || 0;
+  const shortTerm = stats?.short_term_priority_count || 0;
+  const mediumTerm = stats?.medium_term_priority_count || 0;
+  const safe = stats?.safe_count || 0;
+
   return (
-    <div className="space-y-4">
-      {/* Priority Breakdown */}
-      <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-4 sm:p-6">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Priority Breakdown</h3>
-        <div className="space-y-3">
-          <PriorityBar label="Immediate" count={stats?.immediate_priority_count || 0} total={stats?.total_habitations || 1} color="red" />
-          <PriorityBar label="Short Term" count={stats?.short_term_priority_count || 0} total={stats?.total_habitations || 1} color="orange" />
-          <PriorityBar label="Medium Term" count={stats?.medium_term_priority_count || 0} total={stats?.total_habitations || 1} color="yellow" />
-          <PriorityBar label="Safe" count={stats?.safe_count || 0} total={stats?.total_habitations || 1} color="green" />
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Priority Visualization - Pie Chart */}
+      <div className="lg:col-span-2 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-6">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-6">Priority Distribution</h3>
+        
+        <div className="flex items-center justify-center gap-12">
+          {/* Simple Donut Chart using CSS */}
+          <div className="relative w-56 h-56">
+            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+              {/* Background circle */}
+              <circle
+                cx="50"
+                cy="50"
+                r="40"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="20"
+                className="text-gray-100 dark:text-[rgb(38,38,38)]"
+              />
+              
+              {/* Data segments */}
+              {(() => {
+                const total = immediate + shortTerm + mediumTerm + safe;
+                if (total === 0) return null;
+                
+                let offset = 0;
+                const segments = [
+                  { count: immediate, color: 'rgb(239, 68, 68)', label: 'Immediate' },
+                  { count: shortTerm, color: 'rgb(249, 115, 22)', label: 'Short Term' },
+                  { count: mediumTerm, color: 'rgb(234, 179, 8)', label: 'Medium Term' },
+                  { count: safe, color: 'rgb(34, 197, 94)', label: 'Safe' }
+                ];
+                
+                return segments.map((seg, idx) => {
+                  const percentage = (seg.count / total) * 100;
+                  const strokeDasharray = `${percentage * 2.51} ${251 - percentage * 2.51}`;
+                  const strokeDashoffset = -offset * 2.51;
+                  offset += percentage;
+                  
+                  return (
+                    <circle
+                      key={idx}
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="none"
+                      stroke={seg.color}
+                      strokeWidth="20"
+                      strokeDasharray={strokeDasharray}
+                      strokeDashoffset={strokeDashoffset}
+                      className="transition-all duration-300"
+                    />
+                  );
+                });
+              })()}
+            </svg>
+            
+            {/* Center text */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <div className="text-3xl font-bold text-gray-900 dark:text-white">{totalHabitations}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="space-y-3">
+            <LegendItem color="rgb(239, 68, 68)" label="Immediate" count={immediate} />
+            <LegendItem color="rgb(249, 115, 22)" label="Short Term" count={shortTerm} />
+            <LegendItem color="rgb(234, 179, 8)" label="Medium Term" count={mediumTerm} />
+            <LegendItem color="rgb(34, 197, 94)" label="Safe" count={safe} />
+          </div>
+        </div>
+
+        {/* Action Button - Elegant single button */}
+        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-[rgb(47,51,54)]">
+          <button
+            onClick={onBulkAssess}
+            className="w-full px-4 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-sm"
+          >
+            <Zap size={16} />
+            Run AI Assessment
+          </button>
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-4 sm:p-6">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Quick Actions</h3>
-        <button
-          onClick={onBulkAssess}
-          className="w-full px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
-        >
-          <Zap size={18} />
-          Run AI Assessment on All Habitations
-        </button>
+      {/* Key Metrics */}
+      <div className="space-y-4">
+        <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-6">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Risk Coverage</div>
+          <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            {Math.round(((stats?.total_population_at_risk || 0) / ((stats?.total_population_at_risk || 0) + 1000000)) * 100)}%
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">
+            {(stats?.total_population_at_risk || 0).toLocaleString()} people monitored
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-6">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Relocation Capacity</div>
+          <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            {stats?.total_relocation_capacity || 0}
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">
+            Across {stats?.total_relocation_sites || 0} sites
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-6">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Coverage Ratio</div>
+          <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            {Math.round(((stats?.total_relocation_capacity || 0) / ((stats?.total_population_at_risk || 0) / 4 + 1)) * 100)}%
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">
+            Capacity vs at-risk households
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function PriorityBar({ label, count, total, color }) {
-  const percentage = (count / total) * 100;
-  const colorMap = {
-    red: 'bg-red-500',
-    orange: 'bg-orange-500',
-    yellow: 'bg-yellow-500',
-    green: 'bg-green-500'
-  };
-
+function LegendItem({ color, label, count }) {
   return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{label}</span>
-        <span className="text-xs font-bold text-gray-900 dark:text-white">{count}</span>
-      </div>
-      <div className="w-full bg-gray-200 dark:bg-[rgb(38,38,38)] rounded-full h-2">
-        <div className={`${colorMap[color]} h-2 rounded-full transition-all`} style={{ width: `${percentage}%` }} />
+    <div className="flex items-center gap-3">
+      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color }} />
+      <div className="flex-1">
+        <div className="text-xs font-medium text-gray-900 dark:text-white">{label}</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">{count} settlements</div>
       </div>
     </div>
   );
 }
+
 
 // ==================== TAB 2: HAZARD ZONES ====================
 function HazardZonesTab({ zones, loading, onAdd }) {
@@ -698,83 +790,6 @@ function VulnerableHabitationsTab({ habitations, loading, onAdd, onBulkAssess })
           <p className="text-sm text-gray-500 dark:text-gray-400">No vulnerable habitations found</p>
         </div>
       )}
-    </div>
-  );
-}
-
-// ==================== TAB 5: SDMA REPORT ====================
-function SDMAReportTab({ summary, loading, stats }) {
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 size={32} className="animate-spin text-gray-400" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">SDMA Executive Report</h2>
-        <button
-          onClick={() => window.print()}
-          className="px-3 py-2 bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5"
-        >
-          <Printer size={16} />
-          Print
-        </button>
-      </div>
-
-      {/* Risk Level */}
-      <div className={`p-4 rounded-xl border-2 ${
-        summary?.risk_level === 'CRITICAL' ? 'bg-red-50 dark:bg-red-500/10 border-red-500' :
-        summary?.risk_level === 'HIGH' ? 'bg-orange-50 dark:bg-orange-500/10 border-orange-500' :
-        summary?.risk_level === 'MEDIUM' ? 'bg-yellow-50 dark:bg-yellow-500/10 border-yellow-500' :
-        'bg-green-50 dark:bg-green-500/10 border-green-500'
-      }`}>
-        <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">RISK LEVEL</div>
-        <div className="text-2xl font-bold text-gray-900 dark:text-white">{summary?.risk_level || 'MEDIUM'}</div>
-      </div>
-
-      {/* Executive Summary */}
-      <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Executive Summary</h3>
-        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-          {summary?.executive_summary || 'Generating summary...'}
-        </p>
-      </div>
-
-      {/* Immediate Actions */}
-      <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Immediate Actions</h3>
-        <ul className="space-y-2">
-          {summary?.immediate_actions?.map((action, idx) => (
-            <li key={idx} className="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300">
-              <CheckCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
-              <span>{action}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Resources */}
-      <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Resource Requirements</h3>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="text-center p-3 bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-xl">
-            <div className="text-lg font-bold text-gray-900 dark:text-white">₹{summary?.resource_requirements?.estimated_cost_crore || 0} Cr</div>
-            <div className="text-[10px] text-gray-600 dark:text-gray-400 mt-1">Cost</div>
-          </div>
-          <div className="text-center p-3 bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-xl">
-            <div className="text-lg font-bold text-gray-900 dark:text-white">{summary?.resource_requirements?.transport_vehicles || 0}</div>
-            <div className="text-[10px] text-gray-600 dark:text-gray-400 mt-1">Vehicles</div>
-          </div>
-          <div className="text-center p-3 bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-xl">
-            <div className="text-lg font-bold text-gray-900 dark:text-white">{summary?.resource_requirements?.temporary_shelters_needed || 0}</div>
-            <div className="text-[10px] text-gray-600 dark:text-gray-400 mt-1">Shelters</div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

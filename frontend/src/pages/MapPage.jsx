@@ -3,8 +3,10 @@ import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Marker, useMapEve
 import { fetchReports } from '../lib/api';
 import { axiosInstance } from '../lib/axios';
 import useAuthUser from '../hooks/useAuthUser';
-import { AlertTriangle, MapPin, Clock, Shield, Home, Filter, X, Loader2, Plus, Target } from 'lucide-react';
+import { AlertTriangle, MapPin, Clock, Shield, Home, Filter, X, Loader2, Plus, Target, Pentagon } from 'lucide-react';
 import { DeploymentModal, ShelterModal } from '../components/MapResourceModals';
+import { HazardZoneModal } from '../components/HazardZoneModal';
+import MapPolygonDrawer from '../components/MapPolygonDrawer';
 import toast from 'react-hot-toast';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -42,8 +44,8 @@ const shelterIcon = new L.Icon({
   popupAnchor: [0, -32],
 });
 
-// Component to set map bounds
-const MapBounds = () => {
+// Component to set map bounds and jurisdiction-based centering
+const MapBounds = ({ authUser, districtCoordinates }) => {
   const map = useMap();
   
   useEffect(() => {
@@ -53,14 +55,37 @@ const MapBounds = () => {
       [35.5, 97.5]  // Northeast corner (northernmost, easternmost)
     );
     
-    // Set bounds immediately without animation
+    // Set bounds
     map.setMaxBounds(indiaBounds);
-    map.fitBounds(indiaBounds, { animate: false, duration: 0 });
     
     // Set min/max zoom
     map.setMinZoom(5);
     map.setMaxZoom(18);
-  }, [map]);
+
+    // Set initial view based on admin's jurisdiction
+    if (authUser?.role === 'admin' && authUser?.district) {
+      console.log('Admin detected:', authUser);
+      console.log('District:', authUser.district);
+      console.log('Available districts:', Object.keys(districtCoordinates));
+      
+      const districtCenter = districtCoordinates[authUser.district];
+      console.log('District center:', districtCenter);
+      
+      if (districtCenter) {
+        // Zoom to district with more zoom for better view
+        map.setView(districtCenter, 11, { animate: true, duration: 1 });
+        console.log(`✓ Map locked to district: ${authUser.district} at ${districtCenter}`);
+      } else {
+        console.warn(`District "${authUser.district}" not found in coordinates map`);
+        // District not in coordinates map, zoom to India
+        map.fitBounds(indiaBounds, { animate: false, duration: 0 });
+      }
+    } else {
+      console.log('National admin or regular user - showing full India');
+      // National admin or regular user - show full India
+      map.fitBounds(indiaBounds, { animate: false, duration: 0 });
+    }
+  }, [map, authUser?.district, authUser?.role]);
   
   return null;
 };
@@ -90,6 +115,7 @@ const MapClickHandler = ({ pickingMode, onLocationPicked }) => {
 };
 
 const MapPage = () => {
+  const { authUser } = useAuthUser();
   const [reports, setReports] = useState([]);
   const [deployments, setDeployments] = useState([]);
   const [shelters, setShelters] = useState([]);
@@ -97,13 +123,111 @@ const MapPage = () => {
   const [habitations, setHabitations] = useState([]);
   const [relocationSites, setRelocationSites] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [center] = useState([20.5937, 78.9629]);
+  
+  // District coordinates mapping for major Indian districts
+  const districtCoordinates = {
+    // Maharashtra
+    'Mumbai': [19.0760, 72.8777],
+    'Mumbai Suburban': [19.0760, 72.8777],
+    'Mumbai City': [18.9388, 72.8354],
+    'Thane': [19.2183, 72.9781],
+    'Pune': [18.5204, 73.8567],
+    'Nagpur': [21.1458, 79.0882],
+    'Nashik': [19.9975, 73.7898],
+    'Aurangabad': [19.8762, 75.3433],
+    
+    // Kerala
+    'Wayanad': [11.6854, 76.1320],
+    'Thiruvananthapuram': [8.5241, 76.9366],
+    'Kochi': [9.9312, 76.2673],
+    'Ernakulam': [9.9312, 76.2673],
+    'Kozhikode': [11.2588, 75.7804],
+    'Alappuzha': [9.4981, 76.3388],
+    'Idukki': [9.9186, 77.1025],
+    
+    // Uttarakhand
+    'Chamoli': [30.4000, 79.3300],
+    'Dehradun': [30.3165, 78.0322],
+    'Haridwar': [29.9457, 78.1642],
+    'Nainital': [29.3803, 79.4636],
+    'Uttarkashi': [30.7268, 78.4354],
+    
+    // Odisha
+    'Kendrapara': [20.5020, 86.4221],
+    'Khordha': [20.1809, 85.6097],
+    'Puri': [19.8135, 85.8312],
+    'Cuttack': [20.4625, 85.8830],
+    
+    // Assam
+    'Majuli': [26.9500, 94.1667],
+    'Kamrup': [26.1445, 91.7362],
+    'Guwahati': [26.1445, 91.7362],
+    
+    // Bihar
+    'Muzaffarpur': [26.1225, 85.3647],
+    'Patna': [25.5941, 85.1376],
+    
+    // West Bengal
+    'Kolkata': [22.5726, 88.3639],
+    'Darjeeling': [27.0360, 88.2627],
+    
+    // Tamil Nadu
+    'Chennai': [13.0827, 80.2707],
+    'Coimbatore': [11.0168, 76.9558],
+    
+    // Karnataka
+    'Bengaluru': [12.9716, 77.5946],
+    'Bangalore': [12.9716, 77.5946],
+    'Mysuru': [12.2958, 76.6394],
+    
+    // Gujarat
+    'Ahmedabad': [23.0225, 72.5714],
+    'Surat': [21.1702, 72.8311],
+    
+    // Rajasthan
+    'Jaipur': [26.9124, 75.7873],
+    'Udaipur': [24.5854, 73.7125],
+    
+    // Himachal Pradesh
+    'Shimla': [31.1048, 77.1734],
+    'Kullu': [31.9578, 77.1092],
+    
+    // Jammu & Kashmir
+    'Srinagar': [34.0837, 74.7973],
+    'Jammu': [32.7266, 74.8570],
+  };
+
+  // Determine map center based on admin's district
+  const getMapCenter = () => {
+    if (authUser?.role === 'admin' && authUser?.district) {
+      const districtCenter = districtCoordinates[authUser.district];
+      if (districtCenter) {
+        return districtCenter;
+      }
+    }
+    // Default to India center
+    return [20.5937, 78.9629];
+  };
+
+  // Determine initial zoom based on whether viewing district or country
+  const getInitialZoom = () => {
+    if (authUser?.role === 'admin' && authUser?.district && districtCoordinates[authUser.district]) {
+      return 10; // Zoomed in for district view
+    }
+    return 5; // Country-level view
+  };
+
+  const [center] = useState(getMapCenter());
+  const [initialZoom] = useState(getInitialZoom());
   const [showFilters, setShowFilters] = useState(false);
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const [showDeploymentModal, setShowDeploymentModal] = useState(false);
   const [showShelterModal, setShowShelterModal] = useState(false);
   const [pickingMode, setPickingMode] = useState(null); // 'deployment' or 'shelter'
   const [pickedCoords, setPickedCoords] = useState(null);
+  const [isDrawingPolygon, setIsDrawingPolygon] = useState(false);
+  const [drawnPolygonCoords, setDrawnPolygonCoords] = useState(null);
+  const [showPolygonModal, setShowPolygonModal] = useState(false);
   const [filters, setFilters] = useState({
     reports: true,
     deployments: true,
@@ -112,7 +236,6 @@ const MapPage = () => {
     habitations: true,
     relocationSites: true,
   });
-  const { authUser } = useAuthUser();
   const isAdmin = authUser?.role === 'admin';
 
   useEffect(() => {
@@ -212,6 +335,27 @@ const MapPage = () => {
     });
   };
 
+  const handlePolygonCreated = (coordinates) => {
+    setDrawnPolygonCoords(coordinates);
+    setShowPolygonModal(true);
+    setIsDrawingPolygon(false);
+    toast.success('Polygon drawn! Fill in the details to save.');
+  };
+
+  const startDrawingPolygon = () => {
+    if (isDrawingPolygon) return; // Prevent duplicate activation
+    setShowAdminMenu(false);
+    setIsDrawingPolygon(true);
+    toast('✏️ Draw a polygon on the map to mark a hazard zone', {
+      duration: 4000,
+    });
+  };
+
+  const cancelPolygonDrawing = () => {
+    setIsDrawingPolygon(false);
+    setDrawnPolygonCoords(null);
+  };
+
   const getSeverityColor = (severity) => {
     switch (severity?.toLowerCase()) {
       case 'critical': return '#dc2626';
@@ -309,7 +453,7 @@ const MapPage = () => {
                 onChange={(e) => setFilters({ ...filters, redZones: e.target.checked })}
                 className="w-4 h-4 text-red-600 rounded"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-300">🔴 Red Zones ({redZones.length})</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Red Zones ({redZones.length})</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -318,7 +462,7 @@ const MapPage = () => {
                 onChange={(e) => setFilters({ ...filters, habitations: e.target.checked })}
                 className="w-4 h-4 text-orange-600 rounded"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-300">🏘️ At-Risk Habitations ({habitations.length})</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">At-Risk Habitations ({habitations.length})</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -327,7 +471,7 @@ const MapPage = () => {
                 onChange={(e) => setFilters({ ...filters, relocationSites: e.target.checked })}
                 className="w-4 h-4 text-green-600 rounded"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-300">✅ Relocation Sites ({relocationSites.length})</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Relocation Sites ({relocationSites.length})</span>
             </label>
           </div>
         </div>
@@ -337,7 +481,7 @@ const MapPage = () => {
       <div className="flex-1 relative">
         <MapContainer
           center={center}
-          zoom={5}
+          zoom={initialZoom}
           minZoom={5}
           maxZoom={18}
           style={{ height: '100%', width: '100%' }}
@@ -347,8 +491,13 @@ const MapPage = () => {
           zoomAnimation={false}
           fadeAnimation={false}
         >
-          <MapBounds />
+          <MapBounds authUser={authUser} districtCoordinates={districtCoordinates} />
           <MapClickHandler pickingMode={pickingMode} onLocationPicked={handleLocationPicked} />
+          <MapPolygonDrawer 
+            isDrawing={isDrawingPolygon} 
+            onPolygonCreated={handlePolygonCreated}
+            onCancelDrawing={cancelPolygonDrawing}
+          />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -726,11 +875,39 @@ const MapPage = () => {
           </div>
         )}
 
+        {/* Drawing Polygon Mode Overlay */}
+        {isDrawingPolygon && (
+          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-[1001] pointer-events-none">
+            <div className="bg-red-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top duration-200">
+              <Pentagon className="animate-pulse" size={20} />
+              <div>
+                <p className="font-bold text-sm">Draw polygon on map</p>
+                <p className="text-xs opacity-90">
+                  Click points to mark hazard zone boundary
+                </p>
+              </div>
+              <button
+                onClick={() => cancelPolygonDrawing()}
+                className="ml-2 p-1 hover:bg-white/20 rounded pointer-events-auto transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Admin Floating Action Buttons */}
-        {isAdmin && (
+        {isAdmin && !isDrawingPolygon && !pickingMode && (
           <div className="absolute bottom-4 left-4 z-[1000]">
             {showAdminMenu && (
               <div className="mb-3 space-y-2 animate-in slide-in-from-bottom-2 duration-200">
+                <button
+                  onClick={() => startDrawingPolygon()}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold shadow-lg transition-all w-full"
+                >
+                  <Pentagon size={16} />
+                  Draw Hazard Zone
+                </button>
                 <button
                   onClick={() => startPickingLocation('deployment')}
                   className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow-lg transition-all w-full"
@@ -820,6 +997,21 @@ const MapPage = () => {
             loadMapData();
             setShowShelterModal(false);
             setPickedCoords(null);
+          }}
+        />
+      )}
+
+      {showPolygonModal && drawnPolygonCoords && (
+        <HazardZoneModal
+          polygonCoords={drawnPolygonCoords}
+          onClose={() => {
+            setShowPolygonModal(false);
+            setDrawnPolygonCoords(null);
+          }}
+          onSuccess={() => {
+            loadMapData();
+            setShowPolygonModal(false);
+            setDrawnPolygonCoords(null);
           }}
         />
       )}

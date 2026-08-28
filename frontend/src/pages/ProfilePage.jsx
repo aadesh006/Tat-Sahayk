@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Link } from 'react-router';
 import { MapPin, Calendar, Mail, ArrowLeft, Clock,
   Loader2, Trash2, Edit2, X, Check, Filter, Shield, 
-  Users, Phone, AlertTriangle, Map as MapIcon, Camera, Upload, PhoneCall } from 'lucide-react';
+  Users, Phone, AlertTriangle, Map as MapIcon, Camera, Upload, PhoneCall, MapPinned } from 'lucide-react';
 import useAuthUser from '../hooks/useAuthUser.js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchUserReports, deleteReport, updateProfile, deleteAccount } from '../lib/api.js';
@@ -27,12 +27,61 @@ const ProfilePage = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [editOpen,     setEditOpen]     = useState(false);
   const [editName,     setEditName]     = useState(authUser?.full_name || "");
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [selectedState, setSelectedState] = useState(authUser?.state || "");
+  const [selectedDistrict, setSelectedDistrict] = useState(authUser?.district || "");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [phoneVerifyOpen, setPhoneVerifyOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const fileInputRef = useRef(null);
   const isAdmin = authUser?.role === "admin";
+
+  // Indian states and major districts
+  const statesAndDistricts = {
+    "Maharashtra": ["Mumbai", "Mumbai Suburban", "Thane", "Pune", "Nagpur", "Nashik", "Aurangabad", "Solapur", "Kolhapur", "Ratnagiri"],
+    "Kerala": ["Thiruvananthapuram", "Ernakulam", "Kochi", "Kozhikode", "Wayanad", "Alappuzha", "Idukki", "Kollam", "Palakkad", "Thrissur"],
+    "Uttarakhand": ["Dehradun", "Haridwar", "Chamoli", "Nainital", "Uttarkashi", "Pauri Garhwal", "Almora", "Pithoragarh"],
+    "Odisha": ["Khordha", "Cuttack", "Puri", "Kendrapara", "Balasore", "Ganjam", "Sambalpur", "Bhubaneswar"],
+    "Assam": ["Kamrup", "Guwahati", "Majuli", "Dibrugarh", "Jorhat", "Nagaon", "Tinsukia"],
+    "Bihar": ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur", "Darbhanga", "Purnia"],
+    "West Bengal": ["Kolkata", "Darjeeling", "North 24 Parganas", "Howrah", "Murshidabad", "South 24 Parganas"],
+    "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem", "Tirunelveli"],
+    "Karnataka": ["Bangalore", "Bengaluru", "Mysuru", "Mangaluru", "Hubballi", "Belagavi"],
+    "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Bhavnagar", "Jamnagar"],
+    "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur", "Kota", "Ajmer", "Bikaner"],
+    "Himachal Pradesh": ["Shimla", "Kullu", "Kangra", "Mandi", "Solan", "Una"],
+    "Jammu & Kashmir": ["Srinagar", "Jammu", "Anantnag", "Baramulla", "Pulwama"],
+    "Delhi": ["New Delhi", "Central Delhi", "North Delhi", "South Delhi", "East Delhi", "West Delhi"],
+    "Uttar Pradesh": ["Lucknow", "Kanpur", "Ghaziabad", "Agra", "Varanasi", "Meerut", "Allahabad"],
+    "Madhya Pradesh": ["Bhopal", "Indore", "Jabalpur", "Gwalior", "Ujjain", "Sagar"],
+    "Punjab": ["Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda"],
+    "Haryana": ["Gurugram", "Faridabad", "Rohtak", "Hisar", "Panipat"],
+    "Andhra Pradesh": ["Visakhapatnam", "Vijayawada", "Guntur", "Nellore", "Tirupati"],
+    "Telangana": ["Hyderabad", "Warangal", "Nizamabad", "Khammam", "Karimnagar"],
+    "Goa": ["North Goa", "South Goa"],
+    "Chhattisgarh": ["Raipur", "Bhilai", "Bilaspur", "Korba", "Durg"],
+    "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Hazaribagh"],
+    "Arunachal Pradesh": ["Itanagar", "Tawang", "Pasighat"],
+    "Manipur": ["Imphal", "Thoubal", "Bishnupur"],
+    "Meghalaya": ["Shillong", "Tura", "Jowai"],
+    "Mizoram": ["Aizawl", "Lunglei", "Champhai"],
+    "Nagaland": ["Kohima", "Dimapur", "Mokokchung"],
+    "Sikkim": ["Gangtok", "Namchi", "Gyalshing"],
+    "Tripura": ["Agartala", "Udaipur", "Dharmanagar"],
+  };
+
+  const { mutate: updateLocation, isPending: updatingLocation } = useMutation({
+    mutationFn: (data) => axiosInstance.put('/auth/me/location', data),
+    onSuccess: () => {
+      toast.success("Location updated successfully!");
+      queryClient.invalidateQueries({ queryKey: ['authUser'] });
+      setLocationModalOpen(false);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || "Failed to update location");
+    },
+  });
 
   const { data: userReports, isLoading } = useQuery({
     queryKey: ['user_reports', statusFilter],
@@ -252,22 +301,50 @@ const ProfilePage = () => {
 
       {/* User Info */}
       <div className="px-4 lg:px-8 mb-4">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-          {authUser.full_name}
-        </h2>
-        <p className="text-gray-500 dark:text-gray-400 text-sm">
-          @{authUser.email?.split('@')[0]}
-        </p>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 dark:text-gray-400 mt-3">
-          <span className="flex items-center gap-1.5">
-            <Mail size={14} /> {authUser.email}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Calendar size={14} />
-            Joined {authUser.created_at
-              ? new Date(authUser.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
-              : 'N/A'}
-          </span>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              {authUser.full_name}
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              @{authUser.email?.split('@')[0]}
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 dark:text-gray-400 mt-3">
+              <span className="flex items-center gap-1.5">
+                <Mail size={14} /> {authUser.email}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Calendar size={14} />
+                Joined {authUser.created_at
+                  ? new Date(authUser.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+                  : 'N/A'}
+              </span>
+              {!isAdmin && authUser.district && authUser.state && (
+                <span className="flex items-center gap-1.5">
+                  <MapPin size={14} className="text-green-500" />
+                  <span className="font-medium">{authUser.district}, {authUser.state}</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Location button for non-admin users */}
+          {!isAdmin && (
+            <button
+              onClick={() => {
+                setSelectedState(authUser?.state || "");
+                setSelectedDistrict(authUser?.district || "");
+                setLocationModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-xl hover:bg-green-100 dark:hover:bg-green-500/20 transition-colors group"
+              title="Set your location"
+            >
+              <MapPinned size={16} className="text-green-600 dark:text-green-400 group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-semibold text-green-700 dark:text-green-400">
+                {authUser.district ? 'Change' : 'Set'} Location
+              </span>
+            </button>
+          )}
         </div>
 
         {isAdmin && (
@@ -612,7 +689,135 @@ const ProfilePage = () => {
               <button
                 onClick={() => setDeleteModalOpen(false)}
                 disabled={deletingAccount}
-                className="flex-1 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] rounded-full text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors disabled:opacity-50"
+                className="flex-1 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+              >
+                {deletingAccount ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    Delete Account
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location Update Modal */}
+      {locationModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl w-full max-w-md p-6 shadow-2xl border border-gray-200 dark:border-[rgb(47,51,54)]">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-500/10 flex items-center justify-center border border-green-200 dark:border-green-500/20">
+                  <MapPinned size={20} className="text-green-600 dark:text-green-400" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Set Your Location
+                </h2>
+              </div>
+              <button
+                onClick={() => setLocationModalOpen(false)}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-full transition-colors"
+              >
+                <X size={20} className="text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-5">
+              Set your location to receive localized disaster alerts and see relevant reports from your area.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">
+                  State *
+                </label>
+                <select
+                  value={selectedState}
+                  onChange={(e) => {
+                    setSelectedState(e.target.value);
+                    setSelectedDistrict(""); // Reset district when state changes
+                  }}
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+                >
+                  <option value="">Select a state</option>
+                  {Object.keys(statesAndDistricts).sort().map((state) => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">
+                  District *
+                </label>
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => setSelectedDistrict(e.target.value)}
+                  disabled={!selectedState}
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select a district</option>
+                  {selectedState && statesAndDistricts[selectedState]?.map((district) => (
+                    <option key={district} value={district}>{district}</option>
+                  ))}
+                </select>
+                {!selectedState && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Please select a state first
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setLocationModalOpen(false)}
+                disabled={updatingLocation}
+                className="flex-1 py-3 border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!selectedState || !selectedDistrict) {
+                    toast.error("Please select both state and district");
+                    return;
+                  }
+                  updateLocation({ state: selectedState, district: selectedDistrict });
+                }}
+                disabled={updatingLocation || !selectedState || !selectedDistrict}
+                className="flex-1 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+              >
+                {updatingLocation ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check size={16} />
+                    Save Location
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}:border-[rgb(47,51,54)] rounded-full text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
