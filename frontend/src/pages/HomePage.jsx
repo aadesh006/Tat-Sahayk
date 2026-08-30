@@ -303,7 +303,7 @@ const { data: alerts } = useQuery({
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t("loading")}</p>
         </div>
       ) : reports?.length > 0 ? (
-        <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl overflow-hidden">
+        <div className="space-y-0">
           {reports.map((report) => (
             <div key={report.id} ref={(el) => (reportRefs.current[report.id] = el)}>
               <ReportCard report={report} onCardClick={setSelectedReport} />
