@@ -195,145 +195,145 @@ const IssueAlertModal = ({ adminDistrict, adminState, onClose, onSuccess }) => {
 
 // ── Report Card for Admin ─────────────────────────────────────────────────────
 const AdminReportCard = ({ report, onVerify }) => {
-  const [expanded, setExpanded]     = useState(false);
   const [lightboxOpen, setLightbox] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   const sev  = SEVERITY_COLORS[report.severity] || SEVERITY_COLORS.medium;
   const score = report.aiScore;
 
+  const openLightbox = (idx = 0) => { setLightboxIndex(idx); setLightbox(true); };
+  const images = report.images?.length > 0 ? report.images : (report.image ? [report.image] : []);
+
   return (
     <>
-      <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
-        <div className="p-4">
+      <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)]">
+        <div className="p-5">
+          {/* Top Section */}
+          <div className="flex items-start gap-4 mb-4">
+            {/* Left stripe */}
+            <div className={`w-1 self-stretch rounded-full ${sev.bg} shrink-0`} />
 
-          {/* Top row */}
-          <div className="flex items-start gap-3">
-            {/* Severity indicator */}
-            <div className={`w-1.5 self-stretch rounded-full ${sev.bg} shrink-0`} />
-
+            {/* Content */}
             <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="text-base font-black text-gray-900 dark:text-white">{report.disasterType}</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border ${sev.light}`}>
+              {/* Header */}
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{report.disasterType}</h3>
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border ${sev.light}`}>
                   {report.severity}
                 </span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border
-                  ${report.status === "verified" ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200" :
-                    report.status === "false"    ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200" :
-                                                   "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600"}`}>
-                  {report.status === "false" ? "Fake/Irrelevant" : report.status}
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border
+                  ${report.status === "verified" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20" :
+                    report.status === "false"    ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/20" :
+                                                   "bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-500/20"}`}>
+                  {report.status === "verified" ? "VERIFIED" : report.status === "false" ? "FAKE" : "PENDING"}
                 </span>
               </div>
 
-              <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                <span className="flex items-center gap-1"><MapPin size={11} /> {report.location}</span>
-                <span className="flex items-center gap-1"><Clock size={11} /> {report.date}</span>
-                <span className="text-[10px]">ID: #{report.id}</span>
+              {/* Meta info */}
+              <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mb-3">
+                <span className="flex items-center gap-1"><MapPin size={12} /> {report.location}</span>
+                <span className="flex items-center gap-1"><Clock size={12} /> {report.date}</span>
+                <span className="font-medium">ID: #{report.id}</span>
               </div>
-            </div>
 
-            {/* AI Score badge */}
-            <div className="shrink-0 text-center">
-              <div className={`text-xl font-black ${AI_SCORE_COLOR(score)}`}>
-                {score !== null && score !== undefined
-                  ? `${Math.round(score * 100)}%`
-                  : "—"}
-              </div>
-              <div className="text-[9px] font-bold text-gray-400 uppercase flex items-center gap-0.5 justify-center">
-                <Brain size={9} /> AI Score
-              </div>
-            </div>
-          </div>
+              {/* Description */}
+              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3">
+                "{report.description || "No description provided."}"
+              </p>
 
-          {/* Description */}
-          <div className="mt-3 ml-4 bg-gray-50 dark:bg-[rgb(38,38,38)] rounded-xl p-3 border border-gray-100 dark:border-[rgb(47,51,54)]">
-            <p className="text-sm text-gray-700 dark:text-gray-200 italic leading-relaxed">
-              "{report.description || "No description provided."}"
-            </p>
-          </div>
-
-          {/* AI Summary */}
-          {report.aiSummary && (
-            <div className="mt-2 ml-4 flex items-start gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
-              <Brain size={13} className="text-blue-500 mt-0.5 shrink-0" />
-              <p className="text-xs text-blue-700 dark:text-blue-300">{report.aiSummary}</p>
-            </div>
-          )}
-
-          {/* Media + actions row */}
-          <div className="mt-3 ml-4 flex items-center gap-3 flex-wrap">
-            {/* Display all media (images and videos) */}
-            {report.images && report.images.length > 0 && (
-              <div className="flex gap-2">
-                {report.images.slice(0, 3).map((media, idx) => {
-                  const isVideo = typeof media === 'string' && (media.includes('.mp4') || media.includes('.mov') || media.includes('.webm'));
-                  
-                  return (
-                    <div key={idx} className="relative">
-                      {isVideo ? (
-                        <video
-                          src={media}
-                          className="w-20 h-14 object-cover rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)]"
-                          controls
-                          preload="metadata"
-                        />
-                      ) : (
-                        <button onClick={() => setLightbox(true)}>
-                          <img 
-                            src={media} 
-                            alt={`Media ${idx + 1}`}
-                            className="w-20 h-14 object-cover rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] hover:opacity-80 transition-opacity cursor-zoom-in"
-                            onError={(e) => { e.target.style.display = "none"; }} 
-                          />
-                        </button>
-                      )}
-                      {isVideo && (
-                        <div className="absolute bottom-1 left-1 px-1 py-0.5 bg-black/70 text-white text-[8px] rounded">
-                          Video
-                        </div>
-                      )}
+              {/* AI Analysis */}
+              {report.aiSummary && (
+                <div className="mb-3 p-3 bg-sky-50 dark:bg-sky-500/10 rounded-lg border border-sky-200 dark:border-sky-500/20">
+                  <div className="flex items-start gap-2">
+                    <Brain size={14} className="text-sky-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase mb-1">AI ANALYSIS</div>
+                      <p className="text-xs text-sky-700 dark:text-sky-300 leading-relaxed">{report.aiSummary}</p>
                     </div>
-                  );
-                })}
-                {report.images.length > 3 && (
-                  <div className="w-20 h-14 rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-400">
-                    +{report.images.length - 3}
                   </div>
-                )}
-              </div>
-            )}
-            {/* Fallback for old single image format */}
-            {!report.images && report.image && (
-              <button onClick={() => setLightbox(true)}>
-                <img src={report.image} alt="Report"
-                  className="w-20 h-14 object-cover rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] hover:opacity-80 transition-opacity cursor-zoom-in"
-                  onError={(e) => { e.target.style.display = "none"; }} />
-              </button>
-            )}
+                </div>
+              )}
 
-            {/* Admin action buttons */}
-            <div className="flex gap-2 ml-auto flex-wrap">
-              <button
-                onClick={() => onVerify(report.id, "verified")}
-                disabled={report.status === "verified"}
-                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <CheckCircle size={13} /> Verify
-              </button>
-              <button
-                onClick={() => onVerify(report.id, "false")}
-                disabled={report.status === "false"}
-                className="flex items-center gap-1.5 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <XCircle size={13} /> Fake
-              </button>
-              <button
-                onClick={() => onVerify(report.id, "pending")}
-                disabled={report.status === "pending"}
-                className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl transition-colors disabled:opacity-40"
-              >
-                <Clock size={13} /> Reset
-              </button>
+              {/* Media thumbnails */}
+              {images.length > 0 && (
+                <div className="flex gap-2 mb-3">
+                  {images.slice(0, 3).map((media, idx) => {
+                    const isVideo = typeof media === 'string' && (media.includes('.mp4') || media.includes('.mov') || media.includes('.webm'));
+                    return (
+                      <div key={idx} className="relative">
+                        {isVideo ? (
+                          <video
+                            src={media}
+                            className="w-20 h-14 object-cover rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)]"
+                            controls
+                            preload="metadata"
+                          />
+                        ) : (
+                          <button onClick={() => openLightbox(idx)}>
+                            <img 
+                              src={media} 
+                              alt={`Media ${idx + 1}`}
+                              className="w-20 h-14 object-cover rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] hover:opacity-80 transition-opacity"
+                              onError={(e) => { e.target.style.display = "none"; }} 
+                            />
+                          </button>
+                        )}
+                        {isVideo && (
+                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/80 text-white text-[8px] font-bold rounded">
+                            Video
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {images.length > 3 && (
+                    <div className="w-20 h-14 rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-100 dark:bg-[rgb(38,38,38)] flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-400">
+                      +{images.length - 3}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onVerify(report.id, "verified"); }}
+                  disabled={report.status === "verified"}
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Verify
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onVerify(report.id, "false"); }}
+                  disabled={report.status === "false"}
+                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Fake
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onVerify(report.id, "pending"); }}
+                  disabled={report.status === "pending"}
+                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            {/* AI Score Badge */}
+            <div className="shrink-0">
+              <div className={`w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center ${
+                score >= 0.85 ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' :
+                score >= 0.65 ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-500/10' :
+                'border-red-500 bg-red-50 dark:bg-red-500/10'
+              }`}>
+                <div className={`text-xl font-black ${AI_SCORE_COLOR(score)}`}>
+                  {score !== null && score !== undefined ? `${Math.round(score * 100)}%` : "—"}
+                </div>
+                <div className="text-[8px] font-bold text-gray-500 dark:text-gray-400 uppercase">
+                  AI SCORE
+                </div>
+              </div>
             </div>
           </div>
         </div>
