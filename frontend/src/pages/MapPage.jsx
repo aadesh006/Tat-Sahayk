@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Marker, useMapEve
 import { fetchReports } from '../lib/api';
 import { axiosInstance } from '../lib/axios';
 import useAuthUser from '../hooks/useAuthUser';
-import { AlertTriangle, MapPin, Clock, Shield, Home, Filter, X, Loader2, Plus, Target, Pentagon } from 'lucide-react';
+import { AlertTriangle, MapPin, Clock, Shield, Home, Filter, X, Loader2, Plus, Target, Pentagon, RefreshCw, Map } from 'lucide-react';
 import { DeploymentModal, ShelterModal } from '../components/MapResourceModals';
 import { HazardZoneModal } from '../components/HazardZoneModal';
 import MapPolygonDrawer from '../components/MapPolygonDrawer';
@@ -228,6 +228,7 @@ const MapPage = () => {
   const [isDrawingPolygon, setIsDrawingPolygon] = useState(false);
   const [drawnPolygonCoords, setDrawnPolygonCoords] = useState(null);
   const [showPolygonModal, setShowPolygonModal] = useState(false);
+  const [showLegend, setShowLegend] = useState(false); // For mobile legend toggle
   const [filters, setFilters] = useState({
     reports: true,
     deployments: true,
@@ -241,6 +242,14 @@ const MapPage = () => {
   useEffect(() => {
     loadMapData();
   }, []);
+
+  // Auto-refresh map data every 5 minutes — no backend cost, just re-fetches cached data
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadMapData()
+    }, 5 * 60 * 1000) // 5 minutes
+    return () => clearInterval(interval)
+  }, [])
 
   const loadMapData = async () => {
     // Don't block UI - load in background
@@ -398,6 +407,21 @@ const MapPage = () => {
               {reports.length} Reports
             </span>
           </div>
+          
+          {/* Refresh Button */}
+          <button
+            onClick={(e) => {
+              e.currentTarget.querySelector('svg').classList.add('animate-spin');
+              loadMapData();
+              setTimeout(() => {
+                e.currentTarget.querySelector('svg')?.classList.remove('animate-spin');
+              }, 1000);
+            }}
+            className="p-2 sm:p-2.5 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-500/20 transition-colors"
+            title="Refresh map data"
+          >
+            <RefreshCw size={16} className="text-green-600 dark:text-green-400 transition-transform" />
+          </button>
           
           {/* Filter Button */}
           <button
@@ -937,34 +961,90 @@ const MapPage = () => {
           </div>
         )}
 
-        {/* Legend */}
-        <div className="absolute bottom-4 right-4 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-3 shadow-lg z-[1000] text-xs">
-          <h4 className="font-bold text-gray-900 dark:text-white mb-2">Legend</h4>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-600"></div>
-              <span className="text-gray-700 dark:text-gray-300">Critical</span>
+        {/* Legend Button (Mobile) */}
+        <button
+          onClick={() => setShowLegend(!showLegend)}
+          className="lg:hidden absolute bottom-4 right-4 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-3 shadow-lg z-[1000] flex items-center gap-2"
+        >
+          <Map size={16} className="text-gray-700 dark:text-gray-300" />
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Legend</span>
+        </button>
+
+        {/* Legend Panel (Desktop: Always visible, Mobile: Toggle) */}
+        <div className={`absolute bottom-4 right-4 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl shadow-lg z-[1000] text-xs max-w-[240px] transition-all ${
+          showLegend ? 'block' : 'hidden lg:block'
+        }`}>
+          <div className="p-4">
+            {/* Close button (Mobile only) */}
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-bold text-gray-900 dark:text-white text-sm">Map Legend</h4>
+              <button
+                onClick={() => setShowLegend(false)}
+                className="lg:hidden p-1 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors"
+              >
+                <X size={14} className="text-gray-500 dark:text-gray-400" />
+              </button>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-orange-600"></div>
-              <span className="text-gray-700 dark:text-gray-300">High</span>
+            
+            {/* Incident Hotspots */}
+            <div className="mb-3">
+              <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Incident Hotspots</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-600"></div>
+                  <span className="text-gray-700 dark:text-gray-300">Critical Severity</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-orange-600"></div>
+                  <span className="text-gray-700 dark:text-gray-300">High Severity</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <span className="text-gray-700 dark:text-gray-300">Medium Severity</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span className="text-gray-700 dark:text-gray-300">Low Severity</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-              <span className="text-gray-700 dark:text-gray-300">Medium</span>
+
+            <div className="border-t border-gray-200 dark:border-gray-700 mb-3"></div>
+
+            {/* Admin Designated Zones */}
+            <div className="mb-3">
+              <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Admin Red Zones</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-3 rounded border-2 border-red-600 bg-red-600/20"></div>
+                  <span className="text-gray-700 dark:text-gray-300">Hazard Zone</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle size={12} className="text-orange-600" />
+                  <span className="text-gray-700 dark:text-gray-300">Vulnerable Area</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Home size={12} className="text-green-600" />
+                  <span className="text-gray-700 dark:text-gray-300">Relocation Site</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              <span className="text-gray-700 dark:text-gray-300">Low</span>
-            </div>
-            <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
-            <div className="flex items-center gap-2">
-              <MapPin size={14} className="text-blue-600" />
-              <span className="text-gray-700 dark:text-gray-300">Rescue Team</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Home size={14} className="text-green-600" />
-              <span className="text-gray-700 dark:text-gray-300">Shelter</span>
+
+            <div className="border-t border-gray-200 dark:border-gray-700 mb-3"></div>
+
+            {/* Resources */}
+            <div>
+              <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Resources</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Shield size={12} className="text-blue-600" />
+                  <span className="text-gray-700 dark:text-gray-300">Rescue Team</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Home size={12} className="text-green-600" />
+                  <span className="text-gray-700 dark:text-gray-300">Emergency Shelter</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

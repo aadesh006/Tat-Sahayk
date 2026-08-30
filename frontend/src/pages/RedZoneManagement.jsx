@@ -1064,6 +1064,25 @@ function AddRelocationSiteModal({ onClose }) {
 
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
+              Land Area (sq km)
+            </label>
+            <input
+              type="number"
+              step="0.001"
+              value={form.land_area_sqkm}
+              onChange={(e) => setForm({ ...form, land_area_sqkm: parseFloat(e.target.value) })}
+              className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
+            />
+            {form.land_area_sqkm && (
+              <p className="text-xs text-sky-500 mt-1">
+                💡 Auto-calculated capacity: ~{Math.floor(form.land_area_sqkm * 1000000 / 75).toLocaleString()} households
+                (NDMA standard: 75 sqm/household)
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 block">
               Carrying Capacity (Households)
             </label>
             <input
@@ -1071,6 +1090,7 @@ function AddRelocationSiteModal({ onClose }) {
               value={form.carrying_capacity}
               onChange={(e) => setForm({ ...form, carrying_capacity: parseInt(e.target.value) })}
               className="w-full px-4 py-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
+              placeholder="Leave empty to auto-calculate from land area"
             />
           </div>
 
