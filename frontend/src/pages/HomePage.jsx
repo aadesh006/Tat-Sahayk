@@ -23,9 +23,11 @@ const HomePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileTab, setMobileTab] = useState("incidents");
   const [statusFilter, setStatusFilter] = useState("verified"); // Default to verified
-  const [locationFilter, setLocationFilter] = useState("nationwide"); // "nearby" or "nationwide"
   const [selectedReport, setSelectedReport] = useState(null);
   const reportRefs = useRef({});
+  
+  // Get location filter from URL params, default to nationwide
+  const locationFilter = searchParams.get('location') || 'nationwide';
 
   const { data: reports, isLoading: reportsLoading } = useQuery({
     queryKey: ['reports', statusFilter, locationFilter, authUser?.district],
@@ -240,44 +242,6 @@ const { data: alerts } = useQuery({
 
   const IncidentsList = () => (
     <>
-      {/* Location Toggle - only show if user has set location */}
-      {authUser?.district && authUser?.state && (
-        <div className="px-4 lg:px-0 mb-4">
-          <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MapPin size={16} className="text-green-500" />
-              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                Viewing reports from:
-              </span>
-            </div>
-            <div className="flex items-center gap-2 bg-gray-100 dark:bg-[rgb(38,38,38)] rounded-lg p-1">
-              <button
-                onClick={() => setLocationFilter("nearby")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  locationFilter === "nearby"
-                    ? "bg-green-500 text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                }`}
-              >
-                <MapPin size={14} />
-                {authUser.district}
-              </button>
-              <button
-                onClick={() => setLocationFilter("nationwide")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  locationFilter === "nationwide"
-                    ? "bg-sky-500 text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                }`}
-              >
-                <Globe size={14} />
-                Nationwide
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4 px-4 lg:px-0">
         <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
           What's Happening
@@ -321,7 +285,11 @@ const { data: alerts } = useQuery({
           </p>
           {locationFilter === "nearby" && (
             <button
-              onClick={() => setLocationFilter("nationwide")}
+              onClick={() => {
+                const newParams = new URLSearchParams(searchParams);
+                newParams.set('location', 'nationwide');
+                setSearchParams(newParams);
+              }}
               className="mt-3 text-xs text-sky-500 hover:text-sky-600 font-medium"
             >
               View nationwide reports →
