@@ -3,6 +3,7 @@ Red Zone Management API Endpoints
 Handles hazard zones, relocation sites, vulnerable habitations, spatial analysis, and SDMA dashboard
 """
 from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text
 from geoalchemy2.shape import from_shape, to_shape
@@ -12,6 +13,7 @@ from shapely.geometry import shape, mapping, Point
 from typing import List, Optional
 from datetime import datetime, timedelta
 import logging
+import io
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
@@ -35,6 +37,10 @@ from app.services.red_zone_ai import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# NDMA standard: minimum 25 sqm per person, avg 4 persons/household = 100 sqm/household
+# We use 75 sqm/household as practical standard (accounts for common areas)
+SQKM_PER_HOUSEHOLD = 0.000075  # 75 sqm = 0.000075 sqkm
 
 
 # ==================== HAZARD ZONES ENDPOINTS ====================
@@ -316,6 +322,14 @@ def create_relocation_site(
     # Create PostGIS point
     point = Point(site_data.longitude, site_data.latitude)
     
+    # Auto-derive carrying capacity from land area if carrying_capacity not provided or is 0
+    if site_data.land_area_sqkm and (not site_data.carrying_capacity or site_data.carrying_capacity == 0):
+        carrying_capacity = int(site_data.land_area_sqkm / SQKM_PER_HOUSEHOLD)
+    else:
+        carrying_capacity = site_data.carrying_capacity or 0
+    
+    available_capacity = max(0, carrying_capacity - site_data.current_occupancy)
+    
     new_site = RelocationSite(
         name=site_data.name,
         district=site_data.district,
@@ -323,9 +337,9 @@ def create_relocation_site(
         location=from_shape(point, srid=4326),
         latitude=site_data.latitude,
         longitude=site_data.longitude,
-        carrying_capacity=site_data.carrying_capacity,
+        carrying_capacity=carrying_capacity,
         current_occupancy=site_data.current_occupancy,
-        available_capacity=site_data.carrying_capacity - site_data.current_occupancy,
+        available_capacity=available_capacity,
         facilities=site_data.facilities,
         hazard_free_radius_km=site_data.hazard_free_radius_km,
         land_area_sqkm=site_data.land_area_sqkm,
@@ -383,8 +397,12 @@ def update_relocation_site(
         else:
             setattr(site, field, value)
     
+    # Recalculate carrying capacity if land area updated but carrying capacity not explicitly set
+    if site_update.land_area_sqkm and not site_update.carrying_capacity:
+        site.carrying_capacity = int(site_update.land_area_sqkm / SQKM_PER_HOUSEHOLD)
+    
     # Recalculate available capacity
-    site.available_capacity = site.carrying_capacity - site.current_occupancy
+    site.available_capacity = max(0, site.carrying_capacity - site.current_occupancy)
     
     db.commit()
     db.refresh(site)
@@ -808,22 +826,61 @@ def bulk_assess_habitations(
     assessed_count = 0
     for habitation in habitations:
         try:
-            # Calculate exposure score based on proximity to hazard zones
-            nearby_count = db.execute(
+            # PostGIS: count nearby zones + get max intensity
+            nearby = db.execute(
                 text("""
-                    SELECT COUNT(*)
+                    SELECT 
+                        COUNT(*) as zone_count,
+                        MAX(CASE intensity 
+                            WHEN 'critical' THEN 1.0
+                            WHEN 'high' THEN 0.75
+                            WHEN 'medium' THEN 0.5
+                            ELSE 0.25 END) as max_intensity,
+                        MIN(ST_Distance(boundary::geography,
+                            ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) / 1000) as min_distance_km
                     FROM hazard_zones
                     WHERE is_active = true
-                      AND ST_DWithin(boundary::geography, 
-                                     ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 
-                                     5000)
+                      AND ST_DWithin(
+                          boundary::geography,
+                          ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography,
+                          10000
+                      )
                 """),
                 {"lat": habitation.latitude, "lon": habitation.longitude}
-            ).scalar()
-            
-            # Simple exposure scoring
-            habitation.exposure_score = min(1.0, nearby_count * 0.3)
+            ).fetchone()
+
+            zone_count = nearby[0] or 0
+            max_intensity = nearby[1] or 0.0
+            min_distance_km = nearby[2] or 10.0
+
+            # Multi-hazard composite from habitation's own hazard types
+            from app.services.red_zone_ai import compute_multi_hazard_score
+            multi_hazard_factor = compute_multi_hazard_score(habitation.hazard_types or [])
+
+            # Distance decay: closer = higher exposure
+            distance_factor = max(0.0, 1.0 - (min_distance_km / 10.0)) if zone_count > 0 else 0.0
+
+            # Composite exposure score
+            habitation.exposure_score = min(1.0,
+                (zone_count * 0.10) +
+                (max_intensity * 0.35) +
+                (multi_hazard_factor * 0.35) +
+                (distance_factor * 0.20)
+            )
+
+            # Auto-update priority based on exposure if not manually set
+            if habitation.exposure_score >= 0.85:
+                if habitation.priority not in ["IMMEDIATE"]:
+                    habitation.priority = "IMMEDIATE"
+                    habitation.priority_reason = f"Auto-escalated: exposure score {habitation.exposure_score:.2f} with {zone_count} nearby hazard zones"
+            elif habitation.exposure_score >= 0.65:
+                if habitation.priority not in ["IMMEDIATE", "SHORT_TERM"]:
+                    habitation.priority = "SHORT_TERM"
+                    habitation.priority_reason = f"Auto-escalated: exposure score {habitation.exposure_score:.2f}"
+
+            habitation.last_assessed = datetime.utcnow()
             assessed_count += 1
+
         except Exception as e:
             logger.error(f"Error assessing habitation {habitation.id}: {e}")
             continue
@@ -1134,6 +1191,182 @@ def get_sdma_report(
         "priority_habitations": priority_habitations,
         "generated_at": datetime.utcnow().isoformat()
     }
+
+
+@router.get("/sdma/export-pdf")
+def export_sdma_pdf(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Export SDMA report as downloadable PDF."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm
+        from reportlab.lib.enums import TA_CENTER
+    except ImportError:
+        raise HTTPException(status_code=500, detail="reportlab not installed. Run: pip install reportlab")
+
+    # Fetch data with district filtering
+    hab_query = db.query(VulnerableHabitation)
+    zone_query = db.query(HazardZone).filter(HazardZone.is_active == True)
+    site_query = db.query(RelocationSite).filter(RelocationSite.is_active == True)
+
+    if current_user.district:
+        hab_query = hab_query.filter(VulnerableHabitation.district.ilike(f"%{current_user.district}%"))
+        zone_query = zone_query.filter(HazardZone.district.ilike(f"%{current_user.district}%"))
+        site_query = site_query.filter(RelocationSite.district.ilike(f"%{current_user.district}%"))
+
+    habitations = hab_query.all()
+    zones = zone_query.all()
+    sites = site_query.all()
+
+    immediate = [h for h in habitations if h.priority == "IMMEDIATE"]
+    short_term = [h for h in habitations if h.priority == "SHORT_TERM"]
+    total_at_risk = sum(h.population for h in habitations)
+    total_households = sum(h.households for h in habitations)
+    total_capacity = sum(s.available_capacity for s in sites)
+    capacity_gap = max(0, total_households - total_capacity)
+
+    # Build PDF
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        topMargin=1.5*cm, bottomMargin=1.5*cm,
+        leftMargin=2*cm, rightMargin=2*cm
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle("Title", parent=styles["Title"], textColor=colors.darkred, fontSize=18, spaceAfter=6)
+    heading2_style = ParagraphStyle("H2", parent=styles["Heading2"], textColor=colors.darkred, fontSize=12, spaceBefore=12, spaceAfter=4)
+    normal_style = styles["Normal"]
+
+    story = []
+
+    # Header
+    story.append(Paragraph("TAT-SAHAYK DISASTER MANAGEMENT SYSTEM", title_style))
+    story.append(Paragraph("STATE DISASTER MANAGEMENT AUTHORITY — ACTION REPORT", styles["Heading3"]))
+    story.append(Paragraph(
+        f"District: <b>{current_user.district or 'All Districts'}</b>    "
+        f"Generated: <b>{datetime.utcnow().strftime('%d %B %Y, %H:%M UTC')}</b>    "
+        f"Prepared by: <b>{current_user.full_name or 'System'}</b>",
+        normal_style
+    ))
+    story.append(HRFlowable(width="100%", thickness=2, color=colors.darkred, spaceAfter=8))
+
+    # Summary stats table
+    story.append(Paragraph("SITUATION SUMMARY", heading2_style))
+    summary_data = [
+        ["Indicator", "Count", "Status"],
+        ["Active Red Zones", str(len(zones)), "⚠️ Requires monitoring"],
+        ["Total Population at Risk", f"{total_at_risk:,}", "Across all habitations"],
+        ["Total Households", f"{total_households:,}", "Requiring assessment"],
+        ["Immediate Priority", str(len(immediate)), "🔴 Urgent action needed"],
+        ["Short Term Priority", str(len(short_term)), "🟠 Action within 6 months"],
+        ["Available Site Capacity", f"{total_capacity:,} households", "✅ Ready for relocation"],
+        ["Capacity Gap", f"{capacity_gap:,} households", "❌ Additional sites needed" if capacity_gap > 0 else "✅ Sufficient capacity"],
+    ]
+    t = Table(summary_data, colWidths=[7*cm, 4*cm, 6*cm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.darkred),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 9),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.lightyellow, colors.white]),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("TOPPADDING", (0,0), (-1,-1), 5),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+    ]))
+    story.append(t)
+
+    # Active Red Zones
+    story.append(Paragraph("ACTIVE HAZARD RED ZONES", heading2_style))
+    if zones:
+        zone_data = [["Zone Name", "District", "Intensity", "Population at Risk", "Hazards"]]
+        for z in zones[:10]:
+            zone_data.append([
+                z.name[:35],
+                z.district,
+                z.intensity.upper(),
+                f"{z.population_at_risk:,}",
+                ", ".join((z.hazard_types or [])[:2])
+            ])
+        zt = Table(zone_data, colWidths=[5.5*cm, 3*cm, 2.5*cm, 3*cm, 4*cm])
+        zt.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,0), colors.grey),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+            ("FONTSIZE", (0,0), (-1,-1), 8),
+            ("GRID", (0,0), (-1,-1), 0.5, colors.lightgrey),
+            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.whitesmoke, colors.white]),
+        ]))
+        story.append(zt)
+    else:
+        story.append(Paragraph("No active red zones recorded.", normal_style))
+
+    # Immediate Priority Habitations
+    story.append(Paragraph("IMMEDIATE PRIORITY — URGENT RELOCATION REQUIRED", heading2_style))
+    if immediate:
+        imm_data = [["Settlement", "District/State", "Population", "Households", "Hazards", "Timeline"]]
+        for h in immediate[:15]:
+            imm_data.append([
+                h.name[:25],
+                f"{h.district}, {h.state}"[:25],
+                str(h.population),
+                str(h.households),
+                ", ".join((h.hazard_types or [])[:2])[:20],
+                f"{h.estimated_timeline_months or 3}mo"
+            ])
+        it = Table(imm_data, colWidths=[4*cm, 4.5*cm, 2*cm, 2.5*cm, 3.5*cm, 1.5*cm])
+        it.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,0), colors.red),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+            ("FONTSIZE", (0,0), (-1,-1), 8),
+            ("GRID", (0,0), (-1,-1), 0.5, colors.lightgrey),
+            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.mistyrose, colors.white]),
+        ]))
+        story.append(it)
+    else:
+        story.append(Paragraph("No settlements currently require immediate relocation.", normal_style))
+
+    # Recommended Actions
+    story.append(Paragraph("RECOMMENDED ACTIONS", heading2_style))
+    actions = [
+        f"1. Immediately assess and initiate relocation for {len(immediate)} IMMEDIATE priority settlements ({sum(h.population for h in immediate):,} people).",
+        f"2. Secure {max(0, capacity_gap):,} additional household units at approved relocation sites to close capacity gap.",
+        f"3. Activate inter-agency coordination with NDRF, Revenue Department, and Panchayati Raj for short-term relocations.",
+        f"4. Issue advisories to {len(short_term)} short-term priority settlements before upcoming monsoon season.",
+        f"5. Update Red Zone boundaries quarterly based on new verified incident clusters.",
+    ]
+    for action in actions:
+        story.append(Paragraph(action, normal_style))
+        story.append(Spacer(1, 0.2*cm))
+
+    # Footer
+    story.append(Spacer(1, 1*cm))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.grey))
+    story.append(Paragraph(
+        "This report was generated by Tat-Sahayk AI-Powered Disaster Management System. "
+        "For official use only. Emergency: 1077 | NDRF: 011-24363260",
+        ParagraphStyle("Footer", parent=normal_style, fontSize=7, textColor=colors.grey)
+    ))
+
+    doc.build(story)
+    buf.seek(0)
+
+    filename = f"SDMA_Report_{current_user.district or 'National'}_{datetime.utcnow().strftime('%Y%m%d')}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 
 # ==================== MAP DATA ENDPOINTS ====================

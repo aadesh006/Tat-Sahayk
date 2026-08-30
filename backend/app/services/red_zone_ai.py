@@ -19,6 +19,34 @@ logger = logging.getLogger(__name__)
 bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
 NOVA_MICRO = "us.amazon.nova-micro-v1:0"
 
+HAZARD_WEIGHTS = {
+    "landslide": 0.95,
+    "glacier_lake_outburst": 0.95,
+    "cyclone": 0.90,
+    "earthquake": 0.85,
+    "coastal_erosion": 0.80,
+    "tsunami": 0.90,
+    "cloudburst": 0.80,
+    "flood": 0.75,
+    "storm": 0.70,
+    "storm_surge": 0.75,
+    "erosion": 0.60,
+    "industrial": 0.65,
+    "oil_spill": 0.60,
+}
+
+def compute_multi_hazard_score(hazard_types: list) -> float:
+    """
+    Compute composite risk score for multiple hazard types.
+    Multi-hazard compounds: highest weight + 10% bonus per additional hazard.
+    """
+    if not hazard_types:
+        return 0.5
+    weights = [HAZARD_WEIGHTS.get(h.lower().replace(" ", "_"), 0.5) for h in hazard_types]
+    base = max(weights)
+    bonus = (len(weights) - 1) * 0.10
+    return min(1.0, base + bonus)
+
 
 def _call_nova_micro(prompt: str, max_tokens: int = 400) -> dict:
     """
@@ -59,6 +87,9 @@ def assess_cluster_as_red_zone(cluster_data: dict) -> dict:
     Returns:
         Dict with is_red_zone, intensity, confidence, reasoning, population_at_risk_estimate, etc.
     """
+    hazard_types = cluster_data.get('hazard_types', [cluster_data.get('hazard_type', 'unknown')])
+    multi_score = compute_multi_hazard_score(hazard_types)
+    
     prompt = f"""You are an NDMA (National Disaster Management Authority) expert for India.
 
 A geographic cluster of verified disaster reports has been detected:
@@ -67,6 +98,7 @@ A geographic cluster of verified disaster reports has been detected:
 - Hazard Type: {cluster_data.get('hazard_type', 'Unknown')}
 - Number of verified reports: {cluster_data.get('report_count', 0)}
 - Cluster radius: {cluster_data.get('radius_km', 80)}km
+- Multi-hazard composite risk score: {multi_score:.2f}
 - Sample Reports: {json.dumps(cluster_data.get('reports', [])[:5])}
 
 Assess if this area should be classified as a Hazard Red Zone requiring habitation relocation.
@@ -124,6 +156,8 @@ def assess_habitation_priority(
     Returns:
         Dict with priority, vulnerability_score, urgency_reason, estimated_timeline_months, etc.
     """
+    multi_hazard_score = compute_multi_hazard_score(habitation.get('hazard_types', []))
+    
     prompt = f"""You are an NDMA relocation planning expert for India.
 
 Assess the relocation priority for this vulnerable settlement:
@@ -134,6 +168,8 @@ Settlement Details:
 - Population: {habitation.get('population', 0)} people, {habitation.get('households', 0)} households
 - Known hazard exposure: {habitation.get('hazard_types', [])}
 - Current exposure score: {habitation.get('exposure_score', 0):.2f}
+- Multi-hazard composite score: {multi_hazard_score:.2f} ({len(habitation.get('hazard_types', []))} hazard types: {', '.join(habitation.get('hazard_types', []))})
+- IMPORTANT: Multiple concurrent hazards significantly increase urgency. Weight this heavily.
 
 Nearby Hazard Zones ({len(nearby_zones)} within 10km):
 {json.dumps(nearby_zones[:3], indent=2)}
