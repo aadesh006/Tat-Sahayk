@@ -423,3 +423,15 @@ export const fetchSDMASummary = async () => {
   const res = await axiosInstance.get('/red-zones/sdma/summary');
   return res.data;
 };
+
+export const downloadSDMAPdf = async () => {
+  const res = await axiosInstance.get('/red-zones/sdma/export-pdf', {
+    responseType: 'blob'
+  })
+  const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `SDMA_Report_${new Date().toISOString().split('T')[0]}.pdf`
+  link.click()
+  window.URL.revokeObjectURL(url)
+}
