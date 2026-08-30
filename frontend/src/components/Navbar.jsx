@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../context/ThemeContext.jsx";
-import { Sun, Moon, Menu, ChevronDown, Phone, User, LogOut } from "lucide-react";
+import { Sun, Moon, Menu, ChevronDown, Phone, User, LogOut, MapPin, Globe } from "lucide-react";
 import toast from "react-hot-toast";
 import useAuthUser from "../hooks/useAuthUser.js";
-import { Link } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { logout } from "../lib/api.js";
 
@@ -24,6 +24,8 @@ const Navbar = ({ onMenuClick }) => {
   const { dark, toggle } = useTheme();
   const { authUser } = useAuthUser();
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [langOpen, setLangOpen] = useState(false);
   const [sosOpen, setSosOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -32,6 +34,16 @@ const Navbar = ({ onMenuClick }) => {
   const userMenuRef = useRef(null);
   
   const isAdmin = authUser?.role === "admin";
+  const showLocationToggle = location.pathname === "/" && !isAdmin;
+  
+  // Get location filter from URL or default to nationwide
+  const locationFilter = searchParams.get('location') || 'nationwide';
+  
+  const setLocationFilter = (value) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('location', value);
+    setSearchParams(newParams);
+  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -136,6 +148,34 @@ const Navbar = ({ onMenuClick }) => {
       {/* Right controls */}
       <div className="flex items-center gap-2 relative z-40">
 
+        {/* Local/Nationwide Toggle - Only on homepage for citizens */}
+        {showLocationToggle && authUser?.district && (
+          <div className="flex items-center gap-2 bg-gray-100 dark:bg-[rgb(22,22,22)] rounded-full p-1">
+            <button
+              onClick={() => setLocationFilter("nearby")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                locationFilter === "nearby"
+                  ? "bg-green-500 text-white shadow-sm"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              }`}
+            >
+              <MapPin size={14} />
+              <span className="hidden sm:inline">{authUser.district}</span>
+            </button>
+            <button
+              onClick={() => setLocationFilter("nationwide")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                locationFilter === "nationwide"
+                  ? "bg-sky-500 text-white shadow-sm"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              }`}
+            >
+              <Globe size={14} />
+              <span className="hidden sm:inline">Nationwide</span>
+            </button>
+          </div>
+        )}
+
         {/* SOS Button - Only for citizens, not admins */}
         {!isAdmin && (
           <button
@@ -147,8 +187,8 @@ const Navbar = ({ onMenuClick }) => {
           </button>
         )}
 
-        {/* Language dropdown */}
-        <div ref={langRef} className="relative">
+        {/* Language dropdown - HIDDEN */}
+        {/* <div ref={langRef} className="relative">
           <button
             onClick={() => setLangOpen((o) => !o)}
             className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-[rgb(22,22,22)] hover:bg-gray-200 dark:hover:bg-[rgb(38,38,38)] rounded-full text-sm font-medium text-gray-700 dark:text-gray-200 transition-colors"
@@ -179,16 +219,16 @@ const Navbar = ({ onMenuClick }) => {
               ))}
             </div>
           )}
-        </div>
+        </div> */}
 
-        {/* Dark mode toggle */}
-        <button
+        {/* Dark mode toggle - HIDDEN (default is dark) */}
+        {/* <button
           onClick={toggle}
           className="p-2.5 rounded-full bg-gray-100 dark:bg-[rgb(22,22,22)] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(38,38,38)] transition-colors"
           title={dark ? "Switch to light mode" : "Switch to dark mode"}
         >
           {dark ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
+        </button> */}
 
         {/* User menu - only show if authenticated */}
         {authUser && (
