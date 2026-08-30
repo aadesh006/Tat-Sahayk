@@ -1,5 +1,7 @@
 import React from 'react';
-import { Loader2, Printer, FileText, AlertCircle, CheckCircle, Activity, MapPin } from 'lucide-react';
+import { Loader2, Printer, FileText, AlertCircle, CheckCircle, Activity, MapPin, Download } from 'lucide-react';
+import { downloadSDMAPdf } from '../lib/api.js';
+import toast from 'react-hot-toast';
 
 export default function SDMAReportTab({ summary, loading, stats }) {
   if (loading) {
@@ -19,13 +21,29 @@ export default function SDMAReportTab({ summary, loading, stats }) {
             State Disaster Management Authority — Risk Assessment & Resource Planning
           </p>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="px-4 py-2 bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 rounded-xl text-xs font-medium transition-all flex items-center gap-2"
-        >
-          <Printer size={14} />
-          Export PDF
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-sm font-bold rounded-xl transition-colors"
+          >
+            <Printer size={16} />
+            Print
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await downloadSDMAPdf()
+                toast.success("PDF downloaded")
+              } catch {
+                toast.error("PDF export failed")
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl transition-colors"
+          >
+            <Download size={16} />
+            Export PDF
+          </button>
+        </div>
       </div>
 
       {/* Risk Level Banner */}
