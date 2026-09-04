@@ -435,3 +435,37 @@ export const downloadSDMAPdf = async () => {
   link.click()
   window.URL.revokeObjectURL(url)
 }
+
+export const updateHazardZone = async (zoneId, data) => {
+  const res = await axiosInstance.put(`/red-zones/hazard-zones/${zoneId}`, data);
+  return res.data;
+};
+
+export const deleteHazardZone = async (zoneId) => {
+  await axiosInstance.delete(`/red-zones/hazard-zones/${zoneId}`);
+};
+
+export const updateRelocationSite = async (siteId, data) => {
+  const res = await axiosInstance.put(`/red-zones/sites/${siteId}`, data);
+  return res.data;
+};
+
+export const deleteRelocationSite = async (siteId) => {
+  await axiosInstance.delete(`/red-zones/sites/${siteId}`);
+};
+
+export const updateHabitation = async (habitationId, data) => {
+  const res = await axiosInstance.put(`/red-zones/habitations/${habitationId}`, data);
+  return res.data;
+};
+
+export const deleteHabitation = async (habitationId) => {
+  await axiosInstance.delete(`/red-zones/habitations/${habitationId}`);
+};
+
+// ─── MAP RESOURCES (Admin-created markers) ────────────────────────────────────
+
+export const fetchMapResources = async () => {
+  const res = await axiosInstance.get('/map/resources');
+  return res.data;
+};
