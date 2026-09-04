@@ -4,6 +4,8 @@ import {
   fetchHazardZones, fetchRelocationSites, fetchHabitations, 
   fetchSDMAStats, fetchSDMASummary,
   createHazardZone, createRelocationSite, createHabitation,
+  updateHazardZone, updateRelocationSite, updateHabitation,
+  deleteHazardZone, deleteRelocationSite, deleteHabitation,
   assessHabitation, bulkAssessDistrict
 } from '../lib/api.js';
 import useAuthUser from '../hooks/useAuthUser.js';
@@ -64,6 +66,9 @@ export default function RedZoneManagement() {
   const [showAddZoneModal, setShowAddZoneModal] = useState(false);
   const [showAddSiteModal, setShowAddSiteModal] = useState(false);
   const [showAddHabitationModal, setShowAddHabitationModal] = useState(false);
+  const [editingZone, setEditingZone] = useState(null);
+  const [editingSite, setEditingSite] = useState(null);
+  const [editingHabitation, setEditingHabitation] = useState(null);
 
   // Queries
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -192,10 +197,36 @@ export default function RedZoneManagement() {
           <OverviewTab stats={stats} statsLoading={statsLoading} onBulkAssess={() => bulkAssessMutation.mutate()} />
         )}
         {activeTab === 'zones' && (
-          <HazardZonesTab zones={zones} loading={zonesLoading} onAdd={() => setShowAddZoneModal(true)} />
+          <HazardZonesTab 
+            zones={zones} 
+            loading={zonesLoading} 
+            onAdd={() => setShowAddZoneModal(true)}
+            onEdit={(zone) => { setEditingZone(zone); setShowAddZoneModal(true); }}
+            onDelete={(zoneId) => {
+              if (confirm('Delete this hazard zone?')) {
+                deleteHazardZone(zoneId).then(() => {
+                  toast.success('Hazard zone deleted');
+                  queryClient.invalidateQueries(['hazard-zones']);
+                }).catch(() => toast.error('Failed to delete zone'));
+              }
+            }}
+          />
         )}
         {activeTab === 'sites' && (
-          <RelocationSitesTab sites={sites} loading={sitesLoading} onAdd={() => setShowAddSiteModal(true)} />
+          <RelocationSitesTab 
+            sites={sites} 
+            loading={sitesLoading} 
+            onAdd={() => setShowAddSiteModal(true)}
+            onEdit={(site) => { setEditingSite(site); setShowAddSiteModal(true); }}
+            onDelete={(siteId) => {
+              if (confirm('Delete this relocation site?')) {
+                deleteRelocationSite(siteId).then(() => {
+                  toast.success('Site deleted');
+                  queryClient.invalidateQueries(['relocation-sites']);
+                }).catch(() => toast.error('Failed to delete site'));
+              }
+            }}
+          />
         )}
         {activeTab === 'habitations' && (
           <VulnerableHabitationsTab 
@@ -203,6 +234,15 @@ export default function RedZoneManagement() {
             loading={habitationsLoading} 
             onAdd={() => setShowAddHabitationModal(true)}
             onBulkAssess={() => bulkAssessMutation.mutate()}
+            onEdit={(hab) => { setEditingHabitation(hab); setShowAddHabitationModal(true); }}
+            onDelete={(habId) => {
+              if (confirm('Delete this habitation?')) {
+                deleteHabitation(habId).then(() => {
+                  toast.success('Habitation deleted');
+                  queryClient.invalidateQueries(['vulnerable-habitations']);
+                }).catch(() => toast.error('Failed to delete habitation'));
+              }
+            }}
           />
         )}
         {activeTab === 'report' && (
@@ -211,9 +251,9 @@ export default function RedZoneManagement() {
       </div>
 
       {/* Modals */}
-      {showAddZoneModal && <AddHazardZoneModal onClose={() => setShowAddZoneModal(false)} />}
-      {showAddSiteModal && <AddRelocationSiteModal onClose={() => setShowAddSiteModal(false)} />}
-      {showAddHabitationModal && <AddHabitationModal onClose={() => setShowAddHabitationModal(false)} />}
+      {showAddZoneModal && <AddHazardZoneModal editingZone={editingZone} onClose={() => { setShowAddZoneModal(false); setEditingZone(null); }} />}
+      {showAddSiteModal && <AddRelocationSiteModal editingSite={editingSite} onClose={() => { setShowAddSiteModal(false); setEditingSite(null); }} />}
+      {showAddHabitationModal && <AddHabitationModal editingHabitation={editingHabitation} onClose={() => { setShowAddHabitationModal(false); setEditingHabitation(null); }} />}
     </div>
   );
 }
@@ -370,7 +410,7 @@ function LegendItem({ color, label, count }) {
 
 
 // ==================== TAB 2: HAZARD ZONES ====================
-function HazardZonesTab({ zones, loading, onAdd }) {
+function HazardZonesTab({ zones, loading, onAdd, onEdit, onDelete }) {
   const [intensityFilter, setIntensityFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -474,10 +514,16 @@ function HazardZonesTab({ zones, loading, onAdd }) {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button className="p-1.5 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                      <button 
+                        onClick={() => onEdit(zone)}
+                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                      >
                         <Edit2 size={14} />
                       </button>
-                      <button className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400">
+                      <button 
+                        onClick={() => onDelete(zone.id)}
+                        className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                      >
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -500,7 +546,7 @@ function HazardZonesTab({ zones, loading, onAdd }) {
 }
 
 // ==================== TAB 3: RELOCATION SITES ====================
-function RelocationSitesTab({ sites, loading, onAdd }) {
+function RelocationSitesTab({ sites, loading, onAdd, onEdit, onDelete }) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredSites = sites.filter(site =>
@@ -561,10 +607,16 @@ function RelocationSitesTab({ sites, loading, onAdd }) {
                 </p>
               </div>
               <div className="flex items-center gap-1">
-                <button className="p-1.5 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                <button 
+                  onClick={() => onEdit(site)}
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                >
                   <Edit2 size={14} />
                 </button>
-                <button className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400">
+                <button 
+                  onClick={() => onDelete(site.id)}
+                  className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                >
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -619,7 +671,7 @@ function RelocationSitesTab({ sites, loading, onAdd }) {
 }
 
 // ==================== TAB 4: VULNERABLE HABITATIONS ====================
-function VulnerableHabitationsTab({ habitations, loading, onAdd, onBulkAssess }) {
+function VulnerableHabitationsTab({ habitations, loading, onAdd, onBulkAssess, onEdit, onDelete }) {
   const [expandedId, setExpandedId] = useState(null);
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -744,13 +796,13 @@ function VulnerableHabitationsTab({ habitations, loading, onAdd, onBulkAssess })
                       {assessMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
                     </button>
                     <button 
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onEdit(hab); }}
                       className="p-1.5 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                     >
                       <Edit2 size={14} />
                     </button>
                     <button 
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onDelete(hab.id); }}
                       className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                     >
                       <Trash2 size={14} />

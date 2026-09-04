@@ -411,3 +411,105 @@ def analyze_report_cluster(reports_data: list) -> dict:
     except Exception as e:
         logger.error(f"Cluster analysis failed: {e}")
         return {"cluster_summary": "Analysis failed.", "severity": "MEDIUM", "confidence": 0.5}
+
+
+
+async def generate_ai_analysis(prompt: str, max_tokens: int = 800) -> str:
+    """
+    Generate AI analysis using AWS Bedrock
+    Falls back to Amazon Nova if Claude is unavailable
+    
+    Args:
+        prompt: The analysis prompt
+        max_tokens: Maximum response length
+    
+    Returns:
+        str: AI-generated analysis text
+    """
+    try:
+        import boto3
+        import json
+        from app.core.config import settings
+        
+        bedrock = boto3.client(
+            service_name="bedrock-runtime",
+            region_name=settings.AWS_REGION,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
+        
+        # Try Amazon Nova Pro first (more reliable, newer model)
+        nova_model_id = "us.amazon.nova-pro-v1:0"
+        
+        try:
+            nova_request = {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [{"text": prompt}]
+                    }
+                ],
+                "inferenceConfig": {
+                    "max_new_tokens": max_tokens,
+                    "temperature": 0.7,
+                    "top_p": 0.9
+                }
+            }
+            
+            response = bedrock.invoke_model(
+                modelId=nova_model_id,
+                body=json.dumps(nova_request)
+            )
+            
+            response_body = json.loads(response["body"].read())
+            analysis = response_body["output"]["message"]["content"][0]["text"]
+            
+            logger.info(f"AI analysis generated with Nova Pro ({len(analysis)} chars)")
+            return analysis.strip()
+            
+        except Exception as nova_error:
+            logger.warning(f"Nova Pro failed: {nova_error}, trying Claude models...")
+            
+            # Fallback to Claude models
+            claude_models = [
+                "anthropic.claude-3-5-sonnet-20241022-v2:0",
+                "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+                "anthropic.claude-3-5-sonnet-20240620-v1:0",
+            ]
+            
+            for model_id in claude_models:
+                try:
+                    claude_request = {
+                        "anthropic_version": "bedrock-2023-05-31",
+                        "max_tokens": max_tokens,
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": [{"type": "text", "text": prompt}]
+                            }
+                        ],
+                        "temperature": 0.7,
+                        "top_p": 0.9
+                    }
+                    
+                    response = bedrock.invoke_model(
+                        modelId=model_id,
+                        body=json.dumps(claude_request)
+                    )
+                    
+                    response_body = json.loads(response["body"].read())
+                    analysis = response_body["content"][0]["text"]
+                    
+                    logger.info(f"AI analysis generated with {model_id} ({len(analysis)} chars)")
+                    return analysis.strip()
+                    
+                except Exception as claude_error:
+                    logger.warning(f"Claude model {model_id} failed: {claude_error}")
+                    continue
+            
+            # All models failed
+            raise Exception("All AI models unavailable")
+        
+    except Exception as e:
+        logger.error(f"AI analysis generation failed: {e}", exc_info=True)
+        raise Exception(f"AI analysis failed: {str(e)}")

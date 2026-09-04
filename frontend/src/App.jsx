@@ -10,6 +10,7 @@ import SignupPage from './pages/SignupPage.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AlertsPage from './pages/AlertsPage.jsx';
 import RedZoneManagement from './pages/RedZoneManagement.jsx';
+import AdminAnalytics from './pages/AdminAnalytics.jsx';
 import { Loader2 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -97,6 +98,7 @@ const App = () => {
         <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
         <Route path="/new"   element={<Protected><CreateReport /></Protected>} />
         <Route path="/admin" element={<AdminOnly><AdminDashboard /></AdminOnly>} />
+        <Route path="/admin/analytics" element={<AdminOnly><AdminAnalytics /></AdminOnly>} />
         <Route path="/red-zone" element={<AdminOnly><RedZoneManagement /></AdminOnly>} />
         <Route path="/login"  element={!isAuthenticated ? <LoginPage />  : <Navigate to="/" />} />
         <Route path="/signup" element={!isAuthenticated ? <SignupPage /> : <Navigate to="/" />} />

@@ -19,7 +19,7 @@ const LANGUAGES = [
   { code: "kn", label: "Kannada",    native: "ಕನ್" },
 ];
 
-const Navbar = ({ onMenuClick }) => {
+const Navbar = () => {
   const { t, i18n } = useTranslation();
   const { dark, toggle } = useTheme();
   const { authUser } = useAuthUser();
@@ -34,7 +34,7 @@ const Navbar = ({ onMenuClick }) => {
   const userMenuRef = useRef(null);
   
   const isAdmin = authUser?.role === "admin";
-  const showLocationToggle = location.pathname === "/" && !isAdmin;
+  const showLocationToggle = location.pathname === "/" && authUser?.district;
   
   // Get location filter from URL or default to nationwide
   const locationFilter = searchParams.get('location') || 'nationwide';
@@ -125,17 +125,10 @@ const Navbar = ({ onMenuClick }) => {
   return (
     <header className="h-16 bg-white dark:bg-black border-b border-gray-200 dark:border-[rgb(47,51,54)] flex items-center justify-between px-4 lg:px-6 shrink-0 z-30 backdrop-blur-sm bg-white/80 dark:bg-black/80">
 
-      {/* Left — hamburger + logo */}
+      {/* Left — logo (no hamburger needed - bottom nav on mobile) */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={onMenuClick}
-          className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-[rgb(22,22,22)] rounded-full transition-colors"
-        >
-          <Menu size={20} className="text-gray-700 dark:text-gray-200" />
-        </button>
-        
-        {/* Logo - visible on desktop */}
-        <Link to="/" className="hidden lg:flex items-center hover:opacity-80 transition-opacity">
+        {/* Logo - always visible */}
+        <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
           <img src="/anchor-nobg.png" alt="तट-Sahayk Logo" className="h-10 w-auto object-contain" />
           {isAdmin && (
             <span className="ml-2 px-2 py-1 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-full border border-purple-200 dark:border-purple-500/20">

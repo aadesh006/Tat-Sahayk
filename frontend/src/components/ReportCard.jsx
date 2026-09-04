@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock, MapPin, MessageCircle, Share2, ChevronDown, ChevronUp, Trash2, CheckCircle, XCircle, Plus } from "lucide-react";
+import { Clock, MapPin, MessageCircle, Share2, ChevronDown, ChevronUp, Trash2, CheckCircle, XCircle, Plus, MoreHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axiosInstance } from "../lib/axios";
@@ -15,6 +15,7 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(report.user_confirmed || false);
   const [confirmCount, setConfirmCount] = useState(report.confirmation_count || 0);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const { mutate: toggleConfirm, isPending: confirmPending } = useMutation({
     mutationFn: () => axiosInstance.post(`/reports/${report.id}/confirm`),
@@ -136,11 +137,41 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
               </div>
             )}
 
+            {/* Three-dot menu for delete (citizens) */}
             {onDelete && (
-              <button onClick={() => onDelete(report.id)}
-                className="p-2 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors">
-                <Trash2 size={16} />
-              </button>
+              <div className="relative">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors"
+                >
+                  <MoreHorizontal size={18} />
+                </button>
+                
+                {menuOpen && (
+                  <>
+                    {/* Backdrop to close menu */}
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
+                    />
+                    
+                    {/* Dropdown menu */}
+                    <div className="absolute right-0 top-full mt-1 z-20 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl shadow-lg overflow-hidden min-w-[140px]">
+                      <button
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setMenuOpen(false); 
+                          onDelete(report.id); 
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                        Delete Report
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
 

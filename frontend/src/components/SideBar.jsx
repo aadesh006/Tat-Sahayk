@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router";
 import { ClipboardList, Map, LayoutDashboard, X,
-  PlusCircle, LogOut, ShieldAlert, LogIn, Home, Bell, MapPin, User, AlertTriangle } from 'lucide-react';
+  PlusCircle, LogOut, ShieldAlert, LogIn, Home, Bell, MapPin, User, AlertTriangle, Brain } from 'lucide-react';
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast, Toaster } from "react-hot-toast";
 import { logout } from "../lib/api.js";
@@ -39,6 +39,7 @@ const SideBar = ({ isOpen, onClose }) => {
     ...(isAdmin ? [
       { to: "/map",      label: t("map"),        icon: <Map size={20} /> },
       { to: "/admin",    label: t("adminPanel"), icon: <ShieldAlert size={20} /> },
+      { to: "/admin/analytics", label: "AI Analytics", icon: <Brain size={20} /> },
       { to: "/red-zone", label: "Red Zone Management", icon: <AlertTriangle size={20} /> }
     ] : []),
   ];
@@ -57,14 +58,10 @@ const SideBar = ({ isOpen, onClose }) => {
       )}
 
       <aside className={`
-        flex flex-col h-screen
+        hidden lg:flex flex-col h-screen
         bg-white dark:bg-black
         border-r border-gray-200 dark:border-[rgb(47,51,54)]
         w-64 shrink-0
-        fixed top-0 left-0 z-[1000]
-        transition-transform duration-300 ease-in-out
-        lg:translate-x-0 lg:relative
-        ${isOpen ? "translate-x-0" : "-translate-x-full"}
         overflow-hidden
       `}>
 
@@ -75,9 +72,6 @@ const SideBar = ({ isOpen, onClose }) => {
               तट-Sahayk
             </span>
           </Link>
-          <button onClick={onClose} className="lg:hidden text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg p-2 transition-colors">
-            <X size={20} />
-          </button>
         </div>
 
         {/* Nav links - scrollable */}
