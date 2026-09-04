@@ -103,78 +103,80 @@ export default function AdminAnalytics() {
     <div className="min-h-screen bg-black pb-20 lg:pb-0">
       {/* Header */}
       <div className="bg-black border-b border-[rgb(47,51,54)] sticky top-0 z-10">
-        <div className="max-w-[1400px] mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                <Shield className="w-7 h-7 text-sky-500" />
-                Real-Time Intelligence Dashboard
+              <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2 sm:gap-3">
+                <Shield className="w-6 h-6 sm:w-7 sm:h-7 text-sky-500" />
+                <span className="hidden sm:inline">Real-Time Intelligence Dashboard</span>
+                <span className="sm:hidden">Intelligence</span>
               </h1>
-              <p className="text-sm text-gray-400 mt-1">
-                District: {report?.district || 'National'} • Last updated: {report?.generated_at ? new Date(report.generated_at).toLocaleTimeString() : 'N/A'}
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">
+                {report?.district || 'National'} • {report?.generated_at ? new Date(report.generated_at).toLocaleTimeString() : 'N/A'}
               </p>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
               <button
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm transition-colors flex-1 sm:flex-initial justify-center ${
                   autoRefresh 
                     ? 'bg-green-500/10 border border-green-500/20 text-green-400' 
                     : 'bg-gray-800 border border-[rgb(47,51,54)] text-gray-400'
                 }`}
               >
-                <Clock className="w-4 h-4" />
-                Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Auto-refresh {autoRefresh ? 'ON' : 'OFF'}</span>
+                <span className="sm:hidden">{autoRefresh ? 'ON' : 'OFF'}</span>
               </button>
               
               <button
                 onClick={handleRefresh}
                 disabled={isRefreshing || reportFetching}
-                className={`flex items-center gap-2 px-3 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-initial justify-center ${
                   isRefreshing || reportFetching ? 'opacity-75 cursor-not-allowed' : ''
                 }`}
               >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing || reportFetching ? 'animate-spin' : ''}`} />
-                {isRefreshing || reportFetching ? 'Refreshing...' : 'Refresh'}
+                <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshing || reportFetching ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{isRefreshing || reportFetching ? 'Refreshing...' : 'Refresh'}</span>
               </button>
             </div>
           </div>
         </div>
       </div>
       
-      <div className="max-w-[1400px] mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Risk Score Banner */}
         <div className={`bg-[rgb(22,22,22)] border ${
           riskLevel === 'CRITICAL' ? 'border-red-500' : 
           riskLevel === 'HIGH' ? 'border-orange-500' : 
           riskLevel === 'MEDIUM' ? 'border-gray-600' : 
           'border-gray-700'
-        } rounded-xl p-6`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
+        } rounded-xl p-4 sm:p-6`}>
+          <div className="flex flex-col sm:flex-row items-center sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto">
               <div className="relative">
-                <div className={`w-24 h-24 rounded-full ${riskInfo.bg} flex items-center justify-center`}>
-                  <div className="text-white text-3xl font-bold">{riskScore.toFixed(0)}</div>
+                <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full ${riskInfo.bg} flex items-center justify-center`}>
+                  <div className="text-white text-2xl sm:text-3xl font-bold">{riskScore.toFixed(0)}</div>
                 </div>
               </div>
-              <div>
-                <div className={`text-3xl font-bold ${riskInfo.text} mb-1`}>{riskLevel} RISK</div>
-                <div className="text-gray-400 text-sm">Composite Score: {riskScore.toFixed(1)} / 100</div>
-                <div className="text-gray-500 text-xs mt-2">
-                  {report?.citizen_reports?.total_reports || 0} reports • {report?.active_alerts?.total_active || 0} alerts • {report?.red_zone_status?.immediate_evacuation_needed || 0} evacuations needed
+              <div className="flex-1">
+                <div className={`text-2xl sm:text-3xl font-bold ${riskInfo.text} mb-1`}>{riskLevel} RISK</div>
+                <div className="text-gray-400 text-xs sm:text-sm">Score: {riskScore.toFixed(1)} / 100</div>
+                <div className="text-gray-500 text-[10px] sm:text-xs mt-1.5 sm:mt-2">
+                  {report?.citizen_reports?.total_reports || 0} reports • {report?.active_alerts?.total_active || 0} alerts
                 </div>
               </div>
             </div>
             
             {stats?.needs_attention && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 sm:px-4 py-2 sm:py-3 w-full sm:w-auto">
                 <div className="flex items-center gap-2 text-red-400">
-                  <AlertTriangle className="w-5 h-5" />
-                  <span className="font-semibold">Attention Required</span>
+                  <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="font-semibold text-xs sm:text-sm">Attention Required</span>
                 </div>
-                <div className="text-xs text-red-300/80 mt-1">
-                  {stats.reports.pending} pending • {stats.alerts.critical} critical alerts
+                <div className="text-[10px] sm:text-xs text-red-300/80 mt-1">
+                  {stats.reports.pending} pending • {stats.alerts.critical} critical
                 </div>
               </div>
             )}
@@ -182,7 +184,7 @@ export default function AdminAnalytics() {
         </div>
         
         {/* Quick Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Citizen Reports */}
           <div className="bg-[rgb(22,22,22)] border border-[rgb(47,51,54)] rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
@@ -287,7 +289,7 @@ export default function AdminAnalytics() {
         </div>
         
         {/* AI Analysis & External Data */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* AI Analysis */}
           <div className="bg-[rgb(22,22,22)] border border-[rgb(47,51,54)] rounded-xl p-6">
             <div className="flex items-center gap-2 mb-4">

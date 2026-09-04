@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { Home, Map, PlusCircle, Bell, User, ShieldAlert, AlertTriangle, LayoutDashboard } from 'lucide-react';
+import { Home, Map, PlusCircle, Bell, User, ShieldAlert, AlertTriangle, LayoutDashboard, Brain } from 'lucide-react';
 import useAuthUser from "../hooks/useAuthUser.js";
 
 const BottomNavBar = () => {
@@ -29,7 +29,7 @@ const BottomNavBar = () => {
     { to: "/", label: "Home", icon: Home },
     { to: "/map", label: "Map", icon: Map },
     { to: "/admin", label: "", icon: LayoutDashboard, isCenter: true }, // Center FAB
-    { to: "/alerts", label: "Alerts", icon: Bell },
+    { to: "/admin/analytics", label: "Analytics", icon: Brain },
     { to: "/red-zone", label: "Red Zone", icon: AlertTriangle },
   ];
 
