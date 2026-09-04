@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import SideBar from "./SideBar.jsx";
 import Navbar from "./Navbar.jsx";
+import BottomNavBar from "./BottomNavBar.jsx";
 import LocationPrompt from "./LocationPrompt.jsx";
 import useAuthUser from "../hooks/useAuthUser.js";
 
 const Layout = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const { authUser } = useAuthUser();
 
@@ -47,12 +47,17 @@ const Layout = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200 overflow-hidden">
-      <SideBar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {/* Sidebar - visible only on desktop (lg+) */}
+      <SideBar isOpen={false} onClose={() => {}} />
+      
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Navbar onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900">
+        <Navbar />
+        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 pb-16 lg:pb-0">
           {children}
         </main>
+        
+        {/* Bottom Nav - visible on mobile, hidden on desktop (lg+) */}
+        <BottomNavBar />
       </div>
       
       {/* Location prompt for citizens without location */}
