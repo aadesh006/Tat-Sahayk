@@ -8,12 +8,12 @@ import {
 } from 'lucide-react';
 import { axiosInstance } from '../lib/axios';
 
-// Risk score color coding
+// Risk score color coding - neutral palette
 const getRiskColor = (score) => {
   if (score >= 75) return { bg: 'bg-red-500', text: 'text-red-500', ring: 'ring-red-500', label: 'CRITICAL' };
   if (score >= 50) return { bg: 'bg-orange-500', text: 'text-orange-500', ring: 'ring-orange-500', label: 'HIGH' };
-  if (score >= 25) return { bg: 'bg-yellow-500', text: 'text-yellow-500', ring: 'ring-yellow-500', label: 'MEDIUM' };
-  return { bg: 'bg-green-500', text: 'text-green-500', ring: 'ring-green-500', label: 'LOW' };
+  if (score >= 25) return { bg: 'bg-gray-500', text: 'text-gray-400', ring: 'ring-gray-600', label: 'MEDIUM' };
+  return { bg: 'bg-gray-600', text: 'text-gray-400', ring: 'ring-gray-700', label: 'LOW' };
 };
 
 // Fetch consolidated report
@@ -145,7 +145,12 @@ export default function AdminAnalytics() {
       
       <div className="max-w-[1400px] mx-auto px-6 py-6 space-y-6">
         {/* Risk Score Banner */}
-        <div className={`bg-[rgb(22,22,22)] border-2 ${riskInfo.ring} rounded-xl p-6`}>
+        <div className={`bg-[rgb(22,22,22)] border ${
+          riskLevel === 'CRITICAL' ? 'border-red-500' : 
+          riskLevel === 'HIGH' ? 'border-orange-500' : 
+          riskLevel === 'MEDIUM' ? 'border-gray-600' : 
+          'border-gray-700'
+        } rounded-xl p-6`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="relative">
@@ -156,16 +161,19 @@ export default function AdminAnalytics() {
               <div>
                 <div className={`text-3xl font-bold ${riskInfo.text} mb-1`}>{riskLevel} RISK</div>
                 <div className="text-gray-400 text-sm">Composite Score: {riskScore.toFixed(1)} / 100</div>
+                <div className="text-gray-500 text-xs mt-2">
+                  {report?.citizen_reports?.total_reports || 0} reports • {report?.active_alerts?.total_active || 0} alerts • {report?.red_zone_status?.immediate_evacuation_needed || 0} evacuations needed
+                </div>
               </div>
             </div>
             
             {stats?.needs_attention && (
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-4 py-3">
-                <div className="flex items-center gap-2 text-yellow-400">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
+                <div className="flex items-center gap-2 text-red-400">
                   <AlertTriangle className="w-5 h-5" />
                   <span className="font-semibold">Attention Required</span>
                 </div>
-                <div className="text-xs text-yellow-300/80 mt-1">
+                <div className="text-xs text-red-300/80 mt-1">
                   {stats.reports.pending} pending • {stats.alerts.critical} critical alerts
                 </div>
               </div>
@@ -188,11 +196,11 @@ export default function AdminAnalytics() {
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">Verified</span>
-                <span className="text-green-400 font-semibold">{report?.citizen_reports?.by_status?.verified || 0}</span>
+                <span className="text-sky-400 font-semibold">{report?.citizen_reports?.by_status?.verified || 0}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">Pending</span>
-                <span className="text-yellow-400 font-semibold">{report?.citizen_reports?.by_status?.pending || 0}</span>
+                <span className="text-gray-300 font-semibold">{report?.citizen_reports?.by_status?.pending || 0}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">Critical</span>
@@ -222,7 +230,7 @@ export default function AdminAnalytics() {
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">Positive</span>
-                <span className="text-green-400 font-semibold">{report?.social_media_analysis?.sentiment_distribution?.positive || 0}</span>
+                <span className="text-sky-400 font-semibold">{report?.social_media_analysis?.sentiment_distribution?.positive || 0}</span>
               </div>
             </div>
           </div>
@@ -243,7 +251,7 @@ export default function AdminAnalytics() {
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">Active Zones</span>
-                <span className="text-yellow-400 font-semibold">{report?.red_zone_status?.active_red_zones || 0}</span>
+                <span className="text-orange-400 font-semibold">{report?.red_zone_status?.active_red_zones || 0}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">Habitations</span>
@@ -272,7 +280,7 @@ export default function AdminAnalytics() {
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">Medium</span>
-                <span className="text-yellow-400 font-semibold">{report?.active_alerts?.by_severity?.medium || 0}</span>
+                <span className="text-gray-300 font-semibold">{report?.active_alerts?.by_severity?.medium || 0}</span>
               </div>
             </div>
           </div>
