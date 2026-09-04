@@ -53,7 +53,8 @@ class DataAggregator:
         """
         try:
             # Using USGS public API for significant earthquakes in India region
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=15)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 url = "https://earthquake.usgs.gov/fdsnws/event/1/query"
                 params = {
                     "format": "geojson",
@@ -63,38 +64,77 @@ class DataAggregator:
                     "maxlongitude": 98.0,
                     "minmagnitude": 4.0,
                     "starttime": (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d"),
-                    "endtime": datetime.utcnow().strftime("%Y-%m-%d")
+                    "endtime": datetime.utcnow().strftime("%Y-%m-%d"),
+                    "limit": 50  # Limit results to prevent large responses
                 }
                 
-                async with session.get(url, params=params, timeout=10) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        earthquakes = []
-                        
-                        for feature in data.get("features", [])[:10]:
-                            props = feature.get("properties", {})
-                            coords = feature.get("geometry", {}).get("coordinates", [])
+                try:
+                    async with session.get(url, params=params) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            earthquakes = []
                             
-                            earthquakes.append({
-                                "magnitude": props.get("mag"),
-                                "location": props.get("place"),
-                                "time": datetime.fromtimestamp(props.get("time", 0) / 1000).isoformat(),
-                                "latitude": coords[1] if len(coords) > 1 else None,
-                                "longitude": coords[0] if len(coords) > 0 else None,
-                                "depth_km": coords[2] if len(coords) > 2 else None
-                            })
-                        
-                        return {
-                            "source": "USGS",
-                            "earthquakes": earthquakes,
-                            "count": len(earthquakes),
-                            "last_updated": datetime.utcnow().isoformat()
-                        }
-                    else:
-                        return {"source": "USGS", "error": f"HTTP {response.status}"}
+                            for feature in data.get("features", [])[:10]:
+                                props = feature.get("properties", {})
+                                coords = feature.get("geometry", {}).get("coordinates", [])
+                                
+                                # Validate coordinates
+                                if len(coords) >= 2:
+                                    earthquakes.append({
+                                        "magnitude": props.get("mag"),
+                                        "location": props.get("place"),
+                                        "time": datetime.fromtimestamp(props.get("time", 0) / 1000).isoformat() if props.get("time") else None,
+                                        "latitude": coords[1],
+                                        "longitude": coords[0],
+                                        "depth_km": coords[2] if len(coords) > 2 else None,
+                                        "url": props.get("url")
+                                    })
+                            
+                            return {
+                                "source": "USGS",
+                                "earthquakes": earthquakes,
+                                "count": len(earthquakes),
+                                "last_updated": datetime.utcnow().isoformat(),
+                                "status": "success"
+                            }
+                        else:
+                            logger.warning(f"USGS API returned HTTP {response.status}")
+                            return {
+                                "source": "USGS", 
+                                "error": f"HTTP {response.status}",
+                                "earthquakes": [],
+                                "count": 0,
+                                "status": "error"
+                            }
+                            
+                except asyncio.TimeoutError:
+                    logger.error("USGS API timeout")
+                    return {
+                        "source": "USGS",
+                        "error": "API timeout",
+                        "earthquakes": [],
+                        "count": 0,
+                        "status": "timeout"
+                    }
+                except aiohttp.ClientError as e:
+                    logger.error(f"USGS API client error: {e}")
+                    return {
+                        "source": "USGS",
+                        "error": f"Network error: {str(e)}",
+                        "earthquakes": [],
+                        "count": 0,
+                        "status": "network_error"
+                    }
+                    
         except Exception as e:
-            logger.error(f"Seismic data fetch error: {e}")
-            return {"source": "USGS", "error": str(e)}
+            logger.error(f"Seismic data fetch error: {e}", exc_info=True)
+            return {
+                "source": "USGS",
+                "error": str(e),
+                "earthquakes": [],
+                "count": 0,
+                "status": "system_error"
+            }
     
     def get_citizen_reports_summary(self, hours: int = 24) -> Dict:
         """Summarize citizen reports from last N hours"""
@@ -303,9 +343,12 @@ class DataAggregator:
             consolidated_data["ai_executive_summary"] = ai_summary
         except Exception as e:
             logger.error(f"AI summary generation error: {e}")
+            # Provide a fallback summary when AI fails
             consolidated_data["ai_executive_summary"] = {
                 "error": str(e),
-                "summary": "AI analysis temporarily unavailable"
+                "analysis": self._generate_fallback_summary(consolidated_data),
+                "model": "Fallback Analysis",
+                "generated_at": datetime.utcnow().isoformat()
             }
         
         return consolidated_data
@@ -365,6 +408,86 @@ class DataAggregator:
         else:
             return "LOW"
     
+    def _generate_fallback_summary(self, data: Dict) -> str:
+        """Generate a rule-based summary when AI is unavailable"""
+        risk_score = data['risk_assessment']['overall_risk_score']
+        risk_level = data['risk_assessment']['risk_level']
+        district = data['district']
+        
+        # Key metrics
+        total_reports = data['citizen_reports']['total_reports']
+        verified_reports = data['citizen_reports']['by_status']['verified']
+        critical_reports = data['citizen_reports']['by_severity']['critical']
+        urgent_social = data['social_media_analysis']['urgent_count']
+        immediate_evac = data['red_zone_status']['immediate_evacuation_needed']
+        active_alerts = data['active_alerts']['total_active']
+        earthquakes = data['external_data']['seismic']['count']
+        
+        # Generate summary based on risk level
+        if risk_level == "CRITICAL":
+            executive = f"CRITICAL SITUATION: {district} is experiencing severe risk conditions requiring immediate action."
+            concerns = [
+                f"{critical_reports} critical severity reports require urgent attention",
+                f"{immediate_evac} settlements need immediate evacuation",
+                f"{urgent_social} social media posts indicate public distress"
+            ]
+            actions = [
+                "Activate emergency command center immediately",
+                "Deploy rescue teams to critical report locations",
+                "Issue public evacuation orders for red zones",
+                "Coordinate with neighboring districts for resources"
+            ]
+        elif risk_level == "HIGH":
+            executive = f"HIGH ALERT: {district} shows elevated disaster risk requiring enhanced monitoring and preparation."
+            concerns = [
+                f"{verified_reports} verified reports in last 24 hours",
+                f"{immediate_evac} areas flagged for potential evacuation",
+                f"Social media showing {urgent_social} urgent distress signals"
+            ]
+            actions = [
+                "Position emergency resources strategically",
+                "Verify and investigate pending reports",
+                "Prepare evacuation routes and shelters",
+                "Issue public safety advisories"
+            ]
+        elif risk_level == "MEDIUM":
+            executive = f"MODERATE RISK: {district} requires standard vigilance with some areas of concern."
+            concerns = [
+                f"{total_reports} reports received, {verified_reports} verified",
+                f"{active_alerts} active alerts in the region"
+            ]
+            actions = [
+                "Continue routine monitoring",
+                "Process pending report verifications",
+                "Review red zone assessments"
+            ]
+        else:  # LOW
+            executive = f"LOW RISK: {district} showing minimal disaster activity with routine monitoring sufficient."
+            concerns = ["No significant immediate threats identified"]
+            actions = ["Maintain standard monitoring protocols"]
+        
+        # Add earthquake info if relevant
+        if earthquakes > 0:
+            concerns.append(f"{earthquakes} earthquakes detected in region (M4.0+)")
+            if earthquakes >= 3:
+                actions.append("Monitor for potential aftershocks and structural damage")
+        
+        summary = f"""**EXECUTIVE SUMMARY**
+{executive}
+
+**KEY CONCERNS:**
+{chr(10).join(f'• {concern}' for concern in concerns[:5])}
+
+**IMMEDIATE ACTIONS REQUIRED:**
+{chr(10).join(f'• {action}' for action in actions[:5])}
+
+**24-HOUR OUTLOOK:**
+Based on current trends, maintain {risk_level.lower()} alert status. Continue monitoring citizen reports and social media signals. {"Weather and seismic conditions should be monitored closely." if risk_score > 25 else "No significant deterioration expected."}
+
+*This analysis was generated using rule-based algorithms due to AI service unavailability.*"""
+
+        return summary
+
     async def _generate_ai_executive_summary(self, data: Dict) -> Dict:
         """Generate AI-powered executive summary using AWS Bedrock"""
         from app.services.bedrock_ai import generate_ai_analysis

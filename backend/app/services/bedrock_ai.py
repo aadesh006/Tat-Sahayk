@@ -411,3 +411,61 @@ def analyze_report_cluster(reports_data: list) -> dict:
     except Exception as e:
         logger.error(f"Cluster analysis failed: {e}")
         return {"cluster_summary": "Analysis failed.", "severity": "MEDIUM", "confidence": 0.5}
+
+
+
+async def generate_ai_analysis(prompt: str, max_tokens: int = 800) -> str:
+    """
+    Generate AI analysis using AWS Bedrock Claude 3.5 Sonnet
+    Used for executive summaries and consolidated reports
+    
+    Args:
+        prompt: The analysis prompt
+        max_tokens: Maximum response length
+    
+    Returns:
+        str: AI-generated analysis text
+    """
+    try:
+        import boto3
+        import json
+        from app.core.config import settings
+        
+        # Use Claude 3.5 Sonnet for high-quality analysis
+        bedrock = boto3.client(
+            service_name="bedrock-runtime",
+            region_name=settings.AWS_REGION,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
+        
+        # Try latest Claude 3.5 Sonnet model ID (updated for 2026)
+        model_id = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+        
+        request_body = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": max_tokens,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": prompt}]
+                }
+            ],
+            "temperature": 0.7,
+            "top_p": 0.9
+        }
+        
+        response = bedrock.invoke_model(
+            modelId=model_id,
+            body=json.dumps(request_body)
+        )
+        
+        response_body = json.loads(response["body"].read())
+        analysis = response_body["content"][0]["text"]
+        
+        logger.info(f"AI analysis generated successfully ({len(analysis)} chars)")
+        return analysis.strip()
+        
+    except Exception as e:
+        logger.error(f"AI analysis generation failed: {e}", exc_info=True)
+        raise Exception(f"AI analysis failed: {str(e)}")
