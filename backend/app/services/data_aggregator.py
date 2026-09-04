@@ -34,16 +34,18 @@ class DataAggregator:
         try:
             from app.core.config import settings
             
-            # Use OpenWeatherMap API for weather warnings
-            timeout = aiohttp.ClientTimeout(total=10)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            # Shorter timeout for weather
+            timeout = aiohttp.ClientTimeout(total=5, connect=3)
+            connector = aiohttp.TCPConnector(limit=10, force_close=True)
+            
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
                 # Determine location based on district
-                location = self.district if self.district else "India"
+                location = self.district if self.district else "Mumbai,IN"
                 
-                # Get current weather and alerts
+                # Get current weather
                 url = "https://api.openweathermap.org/data/2.5/weather"
                 params = {
-                    "q": f"{location},IN",
+                    "q": location,
                     "appid": settings.OPENWEATHER_API_KEY,
                     "units": "metric"
                 }
@@ -59,35 +61,31 @@ class DataAggregator:
                             "conditions": data.get("weather", [{}])[0].get("description"),
                             "humidity": data.get("main", {}).get("humidity"),
                             "wind_speed": data.get("wind", {}).get("speed"),
-                            "pressure": data.get("main", {}).get("pressure"),
                             "last_updated": datetime.utcnow().isoformat(),
                             "status": "success"
                         }
                         
-                        # Check for severe weather conditions
+                        # Check for severe weather
                         weather_id = data.get("weather", [{}])[0].get("id", 0)
                         warnings = []
                         
-                        # Weather condition codes: https://openweathermap.org/weather-conditions
                         if 200 <= weather_id < 300:
-                            warnings.append("Thunderstorm conditions")
+                            warnings.append("Thunderstorm")
                         elif 500 <= weather_id < 600:
                             warnings.append("Heavy rainfall")
                         elif 600 <= weather_id < 700:
-                            warnings.append("Snow conditions")
+                            warnings.append("Snow")
                         elif 700 <= weather_id < 800:
-                            warnings.append("Atmospheric hazards (fog/dust)")
+                            warnings.append("Fog/Dust")
                         
-                        # Wind speed warning (>15 m/s is high wind)
                         wind_speed = data.get("wind", {}).get("speed", 0)
                         if wind_speed > 15:
-                            warnings.append(f"High wind speed: {wind_speed} m/s")
+                            warnings.append(f"High wind: {wind_speed} m/s")
                         
                         weather_info["warnings"] = warnings
                         return weather_info
                         
                     else:
-                        logger.warning(f"OpenWeather API returned HTTP {response.status}")
                         return {
                             "source": "OpenWeatherMap",
                             "status": "error",
@@ -95,8 +93,15 @@ class DataAggregator:
                             "warnings": []
                         }
                         
+        except asyncio.TimeoutError:
+            logger.warning("Weather API timeout")
+            return {
+                "source": "OpenWeatherMap",
+                "status": "timeout",
+                "warnings": []
+            }
         except Exception as e:
-            logger.error(f"Weather data fetch error: {e}", exc_info=True)
+            logger.error(f"Weather data error: {e}")
             return {
                 "source": "OpenWeatherMap",
                 "status": "error",
@@ -111,22 +116,22 @@ class DataAggregator:
         """
         try:
             from app.core.config import settings
-            import aiohttp
             
-            timeout = aiohttp.ClientTimeout(total=15)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            timeout = aiohttp.ClientTimeout(total=8, connect=3)
+            connector = aiohttp.TCPConnector(limit=10, force_close=True)
+            
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
                 url = "https://api.tavily.com/search"
                 
-                # Search for disaster news in the region
-                search_query = f"disaster OR earthquake OR flood OR cyclone {self.district or 'India'}"
+                # Simpler search query
+                search_query = f"disaster {self.district or 'India'} alert warning"
                 
                 payload = {
                     "api_key": settings.TAVILY_API_KEY,
                     "query": search_query,
                     "search_depth": "basic",
-                    "max_results": 5,
-                    "include_domains": ["ndma.gov.in", "mausam.imd.gov.in", "thehindu.com", "indianexpress.com"],
-                    "days": 3  # Last 3 days
+                    "max_results": 3,  # Reduced for faster response
+                    "days": 2  # Reduced time window
                 }
                 
                 async with session.post(url, json=payload) as response:
@@ -134,25 +139,22 @@ class DataAggregator:
                         data = await response.json()
                         
                         news_items = []
-                        for result in data.get("results", []):
+                        for result in data.get("results", [])[:3]:
                             news_items.append({
                                 "title": result.get("title"),
                                 "url": result.get("url"),
-                                "content": result.get("content"),
-                                "published_date": result.get("published_date"),
-                                "score": result.get("score")
+                                "content": result.get("content", "")[:200],  # Truncate
+                                "published_date": result.get("published_date")
                             })
                         
                         return {
                             "source": "Tavily",
                             "news_items": news_items,
                             "count": len(news_items),
-                            "query": search_query,
                             "last_updated": datetime.utcnow().isoformat(),
                             "status": "success"
                         }
                     else:
-                        logger.warning(f"Tavily API returned HTTP {response.status}")
                         return {
                             "source": "Tavily",
                             "status": "error",
@@ -161,8 +163,16 @@ class DataAggregator:
                             "count": 0
                         }
                         
+        except asyncio.TimeoutError:
+            logger.warning("Tavily API timeout")
+            return {
+                "source": "Tavily",
+                "status": "timeout",
+                "news_items": [],
+                "count": 0
+            }
         except Exception as e:
-            logger.error(f"Disaster news fetch error: {e}", exc_info=True)
+            logger.error(f"Disaster news error: {e}")
             return {
                 "source": "Tavily",
                 "status": "error",
@@ -492,14 +502,39 @@ class DataAggregator:
         red_zone_status = self.get_red_zone_status()
         active_alerts = self.get_active_alerts()
         
-        # Fetch external data asynchronously
-        weather_task = asyncio.create_task(self.fetch_weather_data())
-        seismic_task = asyncio.create_task(self.fetch_seismic_data())
-        news_task = asyncio.create_task(self.fetch_disaster_news())
+        # Fetch external data asynchronously with individual error handling
+        # Don't let external API failures block the entire report
+        weather_data = {"source": "OpenWeatherMap", "status": "loading", "warnings": []}
+        seismic_data = {"source": "USGS", "status": "loading", "earthquakes": [], "count": 0}
+        news_data = {"source": "Tavily", "status": "loading", "news_items": [], "count": 0}
         
-        weather_data = await weather_task
-        seismic_data = await seismic_task
-        news_data = await news_task
+        # Try to fetch external data but don't block if it fails
+        try:
+            weather_data = await asyncio.wait_for(self.fetch_weather_data(), timeout=8.0)
+        except asyncio.TimeoutError:
+            logger.warning("Weather data fetch timed out")
+            weather_data = {"source": "OpenWeatherMap", "status": "timeout", "warnings": []}
+        except Exception as e:
+            logger.error(f"Weather data fetch failed: {e}")
+            weather_data = {"source": "OpenWeatherMap", "status": "error", "error": str(e), "warnings": []}
+        
+        try:
+            seismic_data = await asyncio.wait_for(self.fetch_seismic_data(), timeout=15.0)
+        except asyncio.TimeoutError:
+            logger.warning("Seismic data fetch timed out")
+            seismic_data = {"source": "USGS", "status": "timeout", "earthquakes": [], "count": 0}
+        except Exception as e:
+            logger.error(f"Seismic data fetch failed: {e}")
+            seismic_data = {"source": "USGS", "status": "error", "error": str(e), "earthquakes": [], "count": 0}
+        
+        try:
+            news_data = await asyncio.wait_for(self.fetch_disaster_news(), timeout=10.0)
+        except asyncio.TimeoutError:
+            logger.warning("Disaster news fetch timed out")
+            news_data = {"source": "Tavily", "status": "timeout", "news_items": [], "count": 0}
+        except Exception as e:
+            logger.error(f"Disaster news fetch failed: {e}")
+            news_data = {"source": "Tavily", "status": "error", "error": str(e), "news_items": [], "count": 0}
         
         # Calculate risk score
         risk_score = self._calculate_risk_score(
