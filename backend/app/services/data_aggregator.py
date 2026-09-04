@@ -28,67 +28,264 @@ class DataAggregator:
         
     async def fetch_weather_data(self) -> Dict:
         """
-        Fetch weather data from IMD (India Meteorological Department)
-        Note: This requires IMD API access - using mock data for now
+        Fetch weather data from OpenWeatherMap API
+        Uses actual OpenWeather API with Indian location support
         """
         try:
-            # TODO: Replace with actual IMD API when credentials available
-            # url = "https://api.imd.gov.in/..."
+            from app.core.config import settings
             
-            # Mock severe weather data
-            return {
-                "source": "IMD",
-                "severe_weather_warnings": [],
-                "cyclone_alerts": [],
-                "rainfall_warnings": [],
-                "last_updated": datetime.utcnow().isoformat()
-            }
+            # Use OpenWeatherMap API for weather warnings
+            timeout = aiohttp.ClientTimeout(total=10)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                # Determine location based on district
+                location = self.district if self.district else "India"
+                
+                # Get current weather and alerts
+                url = "https://api.openweathermap.org/data/2.5/weather"
+                params = {
+                    "q": f"{location},IN",
+                    "appid": settings.OPENWEATHER_API_KEY,
+                    "units": "metric"
+                }
+                
+                async with session.get(url, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        
+                        weather_info = {
+                            "source": "OpenWeatherMap",
+                            "location": data.get("name"),
+                            "temperature": data.get("main", {}).get("temp"),
+                            "conditions": data.get("weather", [{}])[0].get("description"),
+                            "humidity": data.get("main", {}).get("humidity"),
+                            "wind_speed": data.get("wind", {}).get("speed"),
+                            "pressure": data.get("main", {}).get("pressure"),
+                            "last_updated": datetime.utcnow().isoformat(),
+                            "status": "success"
+                        }
+                        
+                        # Check for severe weather conditions
+                        weather_id = data.get("weather", [{}])[0].get("id", 0)
+                        warnings = []
+                        
+                        # Weather condition codes: https://openweathermap.org/weather-conditions
+                        if 200 <= weather_id < 300:
+                            warnings.append("Thunderstorm conditions")
+                        elif 500 <= weather_id < 600:
+                            warnings.append("Heavy rainfall")
+                        elif 600 <= weather_id < 700:
+                            warnings.append("Snow conditions")
+                        elif 700 <= weather_id < 800:
+                            warnings.append("Atmospheric hazards (fog/dust)")
+                        
+                        # Wind speed warning (>15 m/s is high wind)
+                        wind_speed = data.get("wind", {}).get("speed", 0)
+                        if wind_speed > 15:
+                            warnings.append(f"High wind speed: {wind_speed} m/s")
+                        
+                        weather_info["warnings"] = warnings
+                        return weather_info
+                        
+                    else:
+                        logger.warning(f"OpenWeather API returned HTTP {response.status}")
+                        return {
+                            "source": "OpenWeatherMap",
+                            "status": "error",
+                            "error": f"HTTP {response.status}",
+                            "warnings": []
+                        }
+                        
         except Exception as e:
-            logger.error(f"Weather data fetch error: {e}")
-            return {"source": "IMD", "error": str(e)}
+            logger.error(f"Weather data fetch error: {e}", exc_info=True)
+            return {
+                "source": "OpenWeatherMap",
+                "status": "error",
+                "error": str(e),
+                "warnings": []
+            }
+    
+    async def fetch_disaster_news(self) -> Dict:
+        """
+        Fetch disaster-related news from Tavily API
+        Searches for recent disaster news in India
+        """
+        try:
+            from app.core.config import settings
+            import aiohttp
+            
+            timeout = aiohttp.ClientTimeout(total=15)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                url = "https://api.tavily.com/search"
+                
+                # Search for disaster news in the region
+                search_query = f"disaster OR earthquake OR flood OR cyclone {self.district or 'India'}"
+                
+                payload = {
+                    "api_key": settings.TAVILY_API_KEY,
+                    "query": search_query,
+                    "search_depth": "basic",
+                    "max_results": 5,
+                    "include_domains": ["ndma.gov.in", "mausam.imd.gov.in", "thehindu.com", "indianexpress.com"],
+                    "days": 3  # Last 3 days
+                }
+                
+                async with session.post(url, json=payload) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        
+                        news_items = []
+                        for result in data.get("results", []):
+                            news_items.append({
+                                "title": result.get("title"),
+                                "url": result.get("url"),
+                                "content": result.get("content"),
+                                "published_date": result.get("published_date"),
+                                "score": result.get("score")
+                            })
+                        
+                        return {
+                            "source": "Tavily",
+                            "news_items": news_items,
+                            "count": len(news_items),
+                            "query": search_query,
+                            "last_updated": datetime.utcnow().isoformat(),
+                            "status": "success"
+                        }
+                    else:
+                        logger.warning(f"Tavily API returned HTTP {response.status}")
+                        return {
+                            "source": "Tavily",
+                            "status": "error",
+                            "error": f"HTTP {response.status}",
+                            "news_items": [],
+                            "count": 0
+                        }
+                        
+        except Exception as e:
+            logger.error(f"Disaster news fetch error: {e}", exc_info=True)
+            return {
+                "source": "Tavily",
+                "status": "error",
+                "error": str(e),
+                "news_items": [],
+                "count": 0
+            }
     
     async def fetch_seismic_data(self) -> Dict:
         """
-        Fetch earthquake data from USGS or IMD
+        Fetch earthquake data from USGS - Improved reliability with fallback
         """
         try:
-            # Using USGS public API for significant earthquakes in India region
-            timeout = aiohttp.ClientTimeout(total=15)
+            # Try significant earthquakes endpoint first (simpler, more reliable)
+            timeout = aiohttp.ClientTimeout(total=30)  # Generous timeout
             async with aiohttp.ClientSession(timeout=timeout) as session:
-                url = "https://earthquake.usgs.gov/fdsnws/event/1/query"
+                
+                # Try the "significant" endpoint first (pre-filtered, faster)
+                url_significant = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson"
+                
+                try:
+                    logger.info("Fetching USGS significant earthquakes...")
+                    async with session.get(url_significant) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            earthquakes = []
+                            
+                            features = data.get("features", [])
+                            logger.info(f"USGS returned {len(features)} significant earthquakes")
+                            
+                            # Filter for India region
+                            for feature in features:
+                                try:
+                                    props = feature.get("properties", {})
+                                    coords = feature.get("geometry", {}).get("coordinates", [])
+                                    
+                                    if len(coords) >= 2:
+                                        lat, lon = coords[1], coords[0]
+                                        
+                                        # India region filter
+                                        if 6 <= lat <= 36 and 68 <= lon <= 98:
+                                            timestamp = props.get("time")
+                                            eq_time = None
+                                            if timestamp:
+                                                try:
+                                                    eq_time = datetime.fromtimestamp(timestamp / 1000).isoformat()
+                                                except:
+                                                    pass
+                                            
+                                            earthquakes.append({
+                                                "magnitude": props.get("mag"),
+                                                "location": props.get("place", "Unknown location"),
+                                                "time": eq_time,
+                                                "latitude": lat,
+                                                "longitude": lon,
+                                                "depth_km": coords[2] if len(coords) > 2 else None,
+                                                "url": props.get("url")
+                                            })
+                                except Exception as eq_error:
+                                    logger.warning(f"Error parsing earthquake: {eq_error}")
+                                    continue
+                            
+                            return {
+                                "source": "USGS",
+                                "earthquakes": earthquakes[:10],  # Top 10
+                                "count": len(earthquakes),
+                                "last_updated": datetime.utcnow().isoformat(),
+                                "status": "success"
+                            }
+                            
+                except Exception as sig_error:
+                    logger.warning(f"Significant earthquakes endpoint failed: {sig_error}")
+                
+                # Fallback to query endpoint
+                logger.info("Trying USGS query endpoint as fallback...")
+                url_query = "https://earthquake.usgs.gov/fdsnws/event/1/query"
+                end_date = datetime.utcnow()
+                start_date = end_date - timedelta(days=7)
+                
                 params = {
                     "format": "geojson",
-                    "minlatitude": 6.0,
-                    "maxlatitude": 36.0,
-                    "minlongitude": 68.0,
-                    "maxlongitude": 98.0,
-                    "minmagnitude": 4.0,
-                    "starttime": (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d"),
-                    "endtime": datetime.utcnow().strftime("%Y-%m-%d"),
-                    "limit": 50  # Limit results to prevent large responses
+                    "starttime": start_date.strftime("%Y-%m-%d"),
+                    "endtime": end_date.strftime("%Y-%m-%d"),
+                    "minmagnitude": "4.0",
+                    "minlatitude": "6",
+                    "maxlatitude": "36",
+                    "minlongitude": "68",
+                    "maxlongitude": "98",
+                    "orderby": "magnitude",
+                    "limit": "20"
                 }
                 
                 try:
-                    async with session.get(url, params=params) as response:
+                    async with session.get(url_query, params=params) as response:
                         if response.status == 200:
                             data = await response.json()
                             earthquakes = []
                             
                             for feature in data.get("features", [])[:10]:
-                                props = feature.get("properties", {})
-                                coords = feature.get("geometry", {}).get("coordinates", [])
-                                
-                                # Validate coordinates
-                                if len(coords) >= 2:
-                                    earthquakes.append({
-                                        "magnitude": props.get("mag"),
-                                        "location": props.get("place"),
-                                        "time": datetime.fromtimestamp(props.get("time", 0) / 1000).isoformat() if props.get("time") else None,
-                                        "latitude": coords[1],
-                                        "longitude": coords[0],
-                                        "depth_km": coords[2] if len(coords) > 2 else None,
-                                        "url": props.get("url")
-                                    })
+                                try:
+                                    props = feature.get("properties", {})
+                                    coords = feature.get("geometry", {}).get("coordinates", [])
+                                    
+                                    if len(coords) >= 2:
+                                        timestamp = props.get("time")
+                                        eq_time = None
+                                        if timestamp:
+                                            try:
+                                                eq_time = datetime.fromtimestamp(timestamp / 1000).isoformat()
+                                            except:
+                                                pass
+                                        
+                                        earthquakes.append({
+                                            "magnitude": props.get("mag"),
+                                            "location": props.get("place", "Unknown"),
+                                            "time": eq_time,
+                                            "latitude": coords[1],
+                                            "longitude": coords[0],
+                                            "depth_km": coords[2] if len(coords) > 2 else None,
+                                            "url": props.get("url")
+                                        })
+                                except:
+                                    continue
                             
                             return {
                                 "source": "USGS",
@@ -98,33 +295,22 @@ class DataAggregator:
                                 "status": "success"
                             }
                         else:
-                            logger.warning(f"USGS API returned HTTP {response.status}")
-                            return {
-                                "source": "USGS", 
-                                "error": f"HTTP {response.status}",
-                                "earthquakes": [],
-                                "count": 0,
-                                "status": "error"
-                            }
+                            error_text = await response.text()
+                            logger.error(f"USGS query API HTTP {response.status}: {error_text[:200]}")
                             
                 except asyncio.TimeoutError:
-                    logger.error("USGS API timeout")
-                    return {
-                        "source": "USGS",
-                        "error": "API timeout",
-                        "earthquakes": [],
-                        "count": 0,
-                        "status": "timeout"
-                    }
-                except aiohttp.ClientError as e:
-                    logger.error(f"USGS API client error: {e}")
-                    return {
-                        "source": "USGS",
-                        "error": f"Network error: {str(e)}",
-                        "earthquakes": [],
-                        "count": 0,
-                        "status": "network_error"
-                    }
+                    logger.error("USGS query API timeout")
+                except Exception as query_error:
+                    logger.error(f"USGS query API error: {query_error}")
+                
+                # Both endpoints failed
+                return {
+                    "source": "USGS",
+                    "error": "All USGS endpoints failed or timed out",
+                    "earthquakes": [],
+                    "count": 0,
+                    "status": "timeout"
+                }
                     
         except Exception as e:
             logger.error(f"Seismic data fetch error: {e}", exc_info=True)
@@ -309,9 +495,11 @@ class DataAggregator:
         # Fetch external data asynchronously
         weather_task = asyncio.create_task(self.fetch_weather_data())
         seismic_task = asyncio.create_task(self.fetch_seismic_data())
+        news_task = asyncio.create_task(self.fetch_disaster_news())
         
         weather_data = await weather_task
         seismic_data = await seismic_task
+        news_data = await news_task
         
         # Calculate risk score
         risk_score = self._calculate_risk_score(
@@ -333,7 +521,8 @@ class DataAggregator:
             "active_alerts": active_alerts,
             "external_data": {
                 "weather": weather_data,
-                "seismic": seismic_data
+                "seismic": seismic_data,
+                "news": news_data
             }
         }
         
