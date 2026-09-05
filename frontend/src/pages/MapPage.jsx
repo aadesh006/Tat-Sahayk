@@ -19,12 +19,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Custom icons for deployments and shelters
+// Custom icons for different map elements
 const deploymentIcon = new L.Icon({
   iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="blue" stroke-width="2">
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5">
       <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
-      <circle cx="12" cy="10" r="3" fill="blue"/>
+      <circle cx="12" cy="10" r="3" fill="#2563eb" stroke="white" stroke-width="1"/>
+      <path d="M12 7v6M9 10h6" stroke="white" stroke-width="1.5"/>
     </svg>
   `),
   iconSize: [32, 32],
@@ -34,9 +35,23 @@ const deploymentIcon = new L.Icon({
 
 const shelterIcon = new L.Icon({
   iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="green" stroke-width="2">
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5">
       <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" transform="translate(0, 2) scale(0.6)" transform-origin="12 12" fill="green"/>
+      <rect x="8" y="8" width="8" height="8" fill="#16a34a" stroke="white" stroke-width="1" rx="1"/>
+      <path d="M12 8v-2M12 16v-2M8 12h-2M16 12h-2" stroke="white" stroke-width="1.5"/>
+    </svg>
+  `),
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -32],
+});
+
+const relocationIcon = new L.Icon({
+  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0891b2" stroke-width="2.5">
+      <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
+      <polygon points="12,6 9,12 15,12" fill="#0891b2" stroke="white" stroke-width="1"/>
+      <rect x="10" y="12" width="4" height="4" fill="#0891b2" stroke="white" stroke-width="1"/>
     </svg>
   `),
   iconSize: [32, 32],
@@ -841,7 +856,7 @@ const MapPage = () => {
             <Marker
               key={`site-${site.properties.id}`}
               position={site.geometry.coordinates.slice().reverse()}
-              icon={shelterIcon}
+              icon={relocationIcon}
             >
               <Popup maxWidth={300}>
                 <div className="p-2">
@@ -922,7 +937,7 @@ const MapPage = () => {
 
         {/* Admin Floating Action Buttons */}
         {isAdmin && !isDrawingPolygon && !pickingMode && (
-          <div className="absolute bottom-4 left-4 z-[1000]">
+          <div className="absolute bottom-20 lg:bottom-4 left-4 z-[1000]">
             {showAdminMenu && (
               <div className="mb-3 space-y-2 animate-in slide-in-from-bottom-2 duration-200">
                 <button
@@ -964,14 +979,14 @@ const MapPage = () => {
         {/* Legend Button (Mobile) */}
         <button
           onClick={() => setShowLegend(!showLegend)}
-          className="lg:hidden absolute bottom-4 right-4 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-3 shadow-lg z-[1000] flex items-center gap-2"
+          className="lg:hidden absolute bottom-20 right-4 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-3 shadow-lg z-[1000] flex items-center gap-2"
         >
           <Map size={16} className="text-gray-700 dark:text-gray-300" />
           <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Legend</span>
         </button>
 
         {/* Legend Panel (Desktop: Always visible, Mobile: Toggle) */}
-        <div className={`absolute bottom-4 right-4 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl shadow-lg z-[1000] text-xs max-w-[240px] transition-all ${
+        <div className={`absolute bottom-20 lg:bottom-4 right-4 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl shadow-lg z-[1000] text-xs max-w-[240px] transition-all ${
           showLegend ? 'block' : 'hidden lg:block'
         }`}>
           <div className="p-4">
@@ -1024,7 +1039,8 @@ const MapPage = () => {
                   <span className="text-gray-700 dark:text-gray-300">Vulnerable Area</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Home size={12} className="text-green-600" />
+                  <div className="w-3 h-3 bg-cyan-600" style={{clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}>
+                  </div>
                   <span className="text-gray-700 dark:text-gray-300">Relocation Site</span>
                 </div>
               </div>
@@ -1037,11 +1053,15 @@ const MapPage = () => {
               <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Resources</p>
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <Shield size={12} className="text-blue-600" />
+                  <div className="w-3 h-3 rounded-full bg-blue-600 flex items-center justify-center">
+                    <div className="w-1 h-1 bg-white rounded-full"></div>
+                  </div>
                   <span className="text-gray-700 dark:text-gray-300">Rescue Team</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Home size={12} className="text-green-600" />
+                  <div className="w-3 h-3 bg-green-600 rounded-sm flex items-center justify-center">
+                    <div className="w-1 h-1 bg-white rounded-full"></div>
+                  </div>
                   <span className="text-gray-700 dark:text-gray-300">Emergency Shelter</span>
                 </div>
               </div>

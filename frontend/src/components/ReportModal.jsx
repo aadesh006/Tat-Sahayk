@@ -97,7 +97,7 @@ const ReportModal = ({ report, onClose }) => {
 
           {/* Scrollable Content */}
           <div className="overflow-y-auto flex-1">
-            <div className="p-4 md:p-6 space-y-4">
+            <div className="p-4 md:p-6 space-y-4 pb-20 lg:pb-6">
             {/* Reporter info */}
             <div className="flex items-center gap-3">
               {report.reporter_profile_photo ? (

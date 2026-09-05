@@ -155,8 +155,8 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
                       onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
                     />
                     
-                    {/* Dropdown menu */}
-                    <div className="absolute right-0 top-full mt-1 z-20 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl shadow-lg overflow-hidden min-w-[140px]">
+                    {/* Dropdown menu - positioned to avoid going off screen */}
+                    <div className="absolute right-0 top-full mt-1 z-20 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl shadow-lg overflow-hidden min-w-[140px] transform -translate-x-2 sm:translate-x-0">
                       <button
                         onClick={(e) => { 
                           e.stopPropagation(); 
@@ -263,7 +263,7 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
 
           {/* Comments section */}
           {commentsOpen && (
-            <div className="mt-4 border-t border-gray-100 dark:border-[rgb(47,51,54)] pt-4" onClick={(e) => e.stopPropagation()}>
+            <div className="mt-4 border-t border-gray-100 dark:border-[rgb(47,51,54)] pt-4 pb-20 lg:pb-4" onClick={(e) => e.stopPropagation()}>
               <CommentSection reportId={report.id} />
             </div>
           )}
