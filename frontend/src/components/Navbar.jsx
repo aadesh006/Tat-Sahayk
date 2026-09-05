@@ -7,6 +7,7 @@ import useAuthUser from "../hooks/useAuthUser.js";
 import { Link, useLocation, useSearchParams } from "react-router";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { logout } from "../lib/api.js";
+import { axiosInstance } from "../lib/axios.js";
 
 const LANGUAGES = [
   { code: "en", label: "English",    native: "EN" },
@@ -89,16 +90,29 @@ const Navbar = () => {
           // Create SOS message
           const sosMessage = `🚨 EMERGENCY SOS 🚨\n\nI need immediate help!\n\nMy Location: ${locationUrl}\nCoordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}\n\nPlease send rescue assistance immediately.`;
           
-          // Try to send SMS to emergency services (if supported by device)
-          // Note: SMS sending requires native app or specific permissions
-          // For web, we'll copy to clipboard and dial 112
-          
           try {
             // Copy SOS message to clipboard
             await navigator.clipboard.writeText(sosMessage);
-            toast.success("SOS message copied to clipboard! Dialing 112...", { duration: 3000 });
+            
+            // Send SOS alert to backend for admin visibility
+            try {
+              await axiosInstance.post('/reports', {
+                hazard_type: 'Emergency SOS',
+                description: `Emergency SOS activated. Immediate assistance required at location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+                severity: 'critical',
+                latitude: latitude,
+                longitude: longitude,
+                image_filenames: []
+              });
+              
+              toast.success("🚨 SOS sent to emergency services and admin!", { duration: 4000 });
+            } catch (apiError) {
+              console.error("Failed to send SOS to backend:", apiError);
+              toast.success("SOS message copied to clipboard! Dialing 112...", { duration: 3000 });
+            }
           } catch (err) {
             console.error("Failed to copy to clipboard:", err);
+            toast.error("Unable to send SOS alert");
           }
           
           // Dial emergency number
@@ -173,10 +187,11 @@ const Navbar = () => {
         {!isAdmin && (
           <button
             onClick={handleSOS}
-            className="flex items-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-full transition-all shadow-sm hover:shadow-md active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-full transition-all shadow-sm hover:shadow-md active:scale-95 relative"
           >
             <Phone size={14} />
             <span className="hidden sm:inline">SOS 112</span>
+            <span className="sm:hidden">SOS</span>
           </button>
         )}
 
