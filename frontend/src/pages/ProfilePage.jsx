@@ -524,6 +524,7 @@ const ProfilePage = () => {
               report={report}
               onDelete={handleDelete}
               onCardClick={(r) => setSelectedReport(r)}
+              isProfileView={true}
             />
           ))
         ) : (
