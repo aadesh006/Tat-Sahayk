@@ -301,7 +301,7 @@ const ProfilePage = () => {
 
       {/* User Info */}
       <div className="px-4 lg:px-8 mb-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
           <div className="flex-1">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
               {authUser.full_name}
@@ -319,16 +319,18 @@ const ProfilePage = () => {
                   ? new Date(authUser.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
                   : 'N/A'}
               </span>
-              {!isAdmin && authUser.district && authUser.state && (
-                <span className="flex items-center gap-1.5">
-                  <MapPin size={14} className="text-green-500" />
-                  <span className="font-medium">{authUser.district}, {authUser.state}</span>
-                </span>
-              )}
             </div>
+            
+            {/* Location display with compact mobile layout */}
+            {!isAdmin && authUser.district && authUser.state && (
+              <div className="flex items-center gap-1.5 mt-2 text-sm">
+                <MapPin size={14} className="text-green-500 shrink-0" />
+                <span className="font-medium text-gray-700 dark:text-gray-300">{authUser.district}, {authUser.state}</span>
+              </div>
+            )}
           </div>
 
-          {/* Location button for non-admin users */}
+          {/* Location button for non-admin users - mobile optimized */}
           {!isAdmin && (
             <button
               onClick={() => {
@@ -336,11 +338,11 @@ const ProfilePage = () => {
                 setSelectedDistrict(authUser?.district || "");
                 setLocationModalOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-xl hover:bg-green-100 dark:hover:bg-green-500/20 transition-colors group"
+              className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-500/20 transition-colors group shrink-0 self-start"
               title="Set your location"
             >
-              <MapPinned size={16} className="text-green-600 dark:text-green-400 group-hover:scale-110 transition-transform" />
-              <span className="text-xs font-semibold text-green-700 dark:text-green-400">
+              <MapPinned size={14} className="text-green-600 dark:text-green-400 group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-semibold text-green-700 dark:text-green-400 whitespace-nowrap">
                 {authUser.district ? 'Change' : 'Set'} Location
               </span>
             </button>

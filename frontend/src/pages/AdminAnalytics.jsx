@@ -29,8 +29,19 @@ const fetchRealTimeStats = async () => {
 };
 
 export default function AdminAnalytics() {
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  // Initialize autoRefresh from localStorage, default to true
+  const [autoRefresh, setAutoRefresh] = useState(() => {
+    const saved = localStorage.getItem('admin-analytics-auto-refresh');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Save autoRefresh state to localStorage whenever it changes
+  const toggleAutoRefresh = () => {
+    const newValue = !autoRefresh;
+    setAutoRefresh(newValue);
+    localStorage.setItem('admin-analytics-auto-refresh', JSON.stringify(newValue));
+  };
   
   // Main consolidated report (refreshes every 5 minutes)
   const { 
@@ -118,7 +129,7 @@ export default function AdminAnalytics() {
             
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
               <button
-                onClick={() => setAutoRefresh(!autoRefresh)}
+                onClick={toggleAutoRefresh}
                 className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm transition-colors flex-1 sm:flex-initial justify-center ${
                   autoRefresh 
                     ? 'bg-green-500/10 border border-green-500/20 text-green-400' 
@@ -295,11 +306,6 @@ export default function AdminAnalytics() {
             <div className="flex items-center gap-2 mb-4">
               <Brain className="w-5 h-5 text-sky-500" />
               <h3 className="text-lg font-semibold text-white">AI Analysis</h3>
-              {report?.ai_executive_summary?.model && (
-                <span className="ml-auto text-[10px] text-gray-500 bg-gray-800 px-2 py-1 rounded">
-                  {report.ai_executive_summary.model}
-                </span>
-              )}
             </div>
             
             {report?.ai_executive_summary?.analysis ? (
