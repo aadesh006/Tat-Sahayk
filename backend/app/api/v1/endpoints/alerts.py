@@ -40,9 +40,9 @@ def get_alerts(
 ):
     query = db.query(Alert).filter(Alert.is_active == True)
 
-    # Filter alerts based on user's location if authenticated
-    if current_user and current_user.role == "citizen":
-        # Citizens see alerts for their location OR nationwide alerts (no district/state set)
+    # Filter alerts based on user's location
+    if current_user:
+        # Both citizens AND admins see location-filtered alerts
         filters = []
         
         # Nationwide alerts (no district and no state)
@@ -52,9 +52,12 @@ def get_alerts(
         if current_user.state:
             filters.append((Alert.state == current_user.state) & (Alert.district == None))
         
-        # District-level alerts (matching both district and state)
+        # District-level alerts (use ilike for partial matching like reports)
         if current_user.district and current_user.state:
-            filters.append((Alert.district == current_user.district) & (Alert.state == current_user.state))
+            filters.append(
+                Alert.district.ilike(f"%{current_user.district}%") & 
+                (Alert.state == current_user.state)
+            )
         
         from sqlalchemy import or_
         query = query.filter(or_(*filters))
@@ -245,16 +248,15 @@ def get_circulars(
 ):
     """
     Get all informational circulars.
-    Citizens see circulars for their location.
-    Admins see all circulars.
+    Both citizens and admins see circulars for their location.
     """
     query = db.query(Alert).filter(Alert.hazard_type == "info")
     
     if active_only:
         query = query.filter(Alert.is_active == True)
     
-    # Filter by location for citizens
-    if current_user and current_user.role == "citizen":
+    # Filter by location for all authenticated users (citizens AND admins)
+    if current_user:
         filters = []
         
         # Nationwide circulars
@@ -264,9 +266,12 @@ def get_circulars(
         if current_user.state:
             filters.append((Alert.state == current_user.state) & (Alert.district == None))
         
-        # District-level circulars
+        # District-level circulars (use ilike for partial matching)
         if current_user.district and current_user.state:
-            filters.append((Alert.district == current_user.district) & (Alert.state == current_user.state))
+            filters.append(
+                Alert.district.ilike(f"%{current_user.district}%") & 
+                (Alert.state == current_user.state)
+            )
         
         from sqlalchemy import or_
         query = query.filter(or_(*filters))

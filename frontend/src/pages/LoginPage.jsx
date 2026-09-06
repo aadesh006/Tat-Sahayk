@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { login, adminLogin, googleLogin } from "../lib/api.js";
+import { login, adminLogin, googleLogin, trackActivity } from "../lib/api.js";
 import { Lock, Mail, Loader2, ShieldAlert, Home, Sun, Moon, Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router";
 import toast, { Toaster } from "react-hot-toast";
@@ -20,6 +20,7 @@ const LoginPage = () => {
   const { mutate: loginMutation, isPending } = useMutation({
     mutationFn: isAdmin ? adminLogin : login,
     onSuccess: () => {
+      trackActivity('login').catch(err => console.error('Failed to track login:', err));
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
       // Force navigation after successful login
       window.location.href = "/";
@@ -37,6 +38,7 @@ const LoginPage = () => {
   const { mutate: googleLoginMutation, isPending: isGooglePending } = useMutation({
     mutationFn: googleLogin,
     onSuccess: () => {
+      trackActivity('login').catch(err => console.error('Failed to track login:', err));
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
       // Force navigation after successful Google login
       window.location.href = "/";

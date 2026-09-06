@@ -4,9 +4,10 @@ import {
   AlertTriangle, TrendingUp, Users, Activity, 
   MapPin, Radio, Brain, RefreshCw, Clock,
   AlertCircle, CheckCircle, XCircle, Loader2,
-  Shield, FileText, Zap
+  Shield, FileText, Zap, TrendingDown, Home
 } from 'lucide-react';
 import { axiosInstance } from '../lib/axios';
+import { getActivityStats } from '../lib/api';
 
 // Risk score color coding - neutral palette
 const getRiskColor = (score) => {
@@ -66,6 +67,26 @@ export default function AdminAnalytics() {
     queryFn: fetchRealTimeStats,
     refetchInterval: autoRefresh ? 60 * 1000 : false,
     retry: 2
+  });
+
+  // Activity stats (live user activity)
+  const { data: activityStats } = useQuery({
+    queryKey: ['activityStats'],
+    queryFn: () => getActivityStats(3),
+    refetchInterval: autoRefresh ? 60 * 1000 : false,
+    retry: 2
+  });
+
+  // AI Insights
+  const { data: aiInsights } = useQuery({
+    queryKey: ['aiInsights'],
+    queryFn: async () => {
+      const res = await axiosInstance.get('/activity/ai-insights');
+      return res.data;
+    },
+    refetchInterval: autoRefresh ? 120 * 1000 : false,
+    retry: 2,
+    enabled: !!activityStats // Only fetch if activity stats are available
   });
   
   // Handle manual refresh with animation
@@ -196,8 +217,25 @@ export default function AdminAnalytics() {
         
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Active Users - NEW */}
+          {activityStats && (
+            <div className="bg-[rgb(22,22,22)] border border-[rgb(47,51,54)] rounded-xl p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-2">
+                <Users className="w-5 h-5 text-blue-500" />
+                <Activity className="w-4 h-4 text-green-500" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold text-white mb-1">
+                {activityStats.active_users}
+              </div>
+              <div className="text-xs text-gray-400">Active Users (3h)</div>
+              <div className="text-[10px] text-gray-500 mt-1">
+                {activityStats.activity_breakdown?.safety_checks || 0} safety checks
+              </div>
+            </div>
+          )}
+          
           {/* Citizen Reports */}
-          <div className="bg-[rgb(22,22,22)] border border-[rgb(47,51,54)] rounded-xl p-5">
+          <div className="bg-[rgb(22,22,22)] border border-[rgb(47,51,54)] rounded-xl p-4 sm:p-5">
             <div className="flex items-center justify-between mb-4">
               <FileText className="w-5 h-5 text-gray-400" />
               <span className="text-xs text-gray-500">{report?.citizen_reports?.time_window_hours}h</span>
@@ -298,6 +336,64 @@ export default function AdminAnalytics() {
             </div>
           </div>
         </div>
+        
+        {/* AI-Powered Activity Insights - NEW COMPACT SECTION */}
+        {aiInsights && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+            {/* Engagement Status */}
+            <div className={`${
+              aiInsights.engagement_analysis?.alert_level === 'CRITICAL' ? 'bg-red-500/10 border-red-500/20' :
+              aiInsights.engagement_analysis?.alert_level === 'MEDIUM' ? 'bg-orange-500/10 border-orange-500/20' :
+              'bg-green-500/10 border-green-500/20'
+            } border rounded-xl p-4`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-4 h-4 text-white" />
+                <span className="text-xs font-semibold text-white">Engagement</span>
+              </div>
+              <div className="text-xl font-bold text-white mb-1">
+                {(aiInsights.engagement_analysis?.engagement_ratio * 100).toFixed(0)}%
+              </div>
+              <div className="text-[10px] text-gray-400 leading-tight">
+                {aiInsights.engagement_analysis?.recommendation?.substring(0, 80)}...
+              </div>
+            </div>
+
+            {/* Evacuation Progress */}
+            {aiInsights.evacuation_progress?.status !== 'INSUFFICIENT_DATA' && (
+              <div className="bg-[rgb(22,22,22)] border border-[rgb(47,51,54)] rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingDown className="w-4 h-4 text-blue-500" />
+                  <span className="text-xs font-semibold text-white">Evacuation</span>
+                </div>
+                <div className={`text-xl font-bold mb-1 ${
+                  aiInsights.evacuation_progress?.activity_change_percent < -20 ? 'text-green-500' : 'text-orange-500'
+                }`}>
+                  {aiInsights.evacuation_progress?.activity_change_percent > 0 ? '+' : ''}
+                  {aiInsights.evacuation_progress?.activity_change_percent}%
+                </div>
+                <div className="text-[10px] text-gray-400 leading-tight">
+                  {aiInsights.evacuation_progress?.status?.replace(/_/g, ' ')}
+                </div>
+              </div>
+            )}
+
+            {/* Shelter Capacity */}
+            <div className={`${
+              aiInsights.shelter_capacity?.status === 'INSUFFICIENT' ? 'bg-red-500/10 border-red-500/20' : 'bg-[rgb(22,22,22)] border-[rgb(47,51,54)]'
+            } border rounded-xl p-4`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Home className="w-4 h-4 text-green-500" />
+                <span className="text-xs font-semibold text-white">Shelter</span>
+              </div>
+              <div className="text-xl font-bold text-white mb-1">
+                {aiInsights.shelter_capacity?.available_capacity?.toLocaleString() || 0}
+              </div>
+              <div className="text-[10px] text-gray-400 leading-tight">
+                {aiInsights.shelter_capacity?.status} • Gap: {aiInsights.shelter_capacity?.capacity_gap || 0}
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* AI Analysis & External Data */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">

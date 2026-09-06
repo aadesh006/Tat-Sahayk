@@ -5,7 +5,7 @@ import { useSearchParams } from "react-router";
 import useAuthUser from '../hooks/useAuthUser.js';
 import ReportCard from '../components/ReportCard.jsx';
 import ReportModal from '../components/ReportModal.jsx';
-import { fetchReports, fetchSocialFeed, fetchAlerts, getLocationBasedAlerts } from '../lib/api.js';
+import { fetchReports, fetchSocialFeed, fetchAlerts, getLocationBasedAlerts, trackActivity } from '../lib/api.js';
 import { AlertOctagon, MapPin, Globe, Shield, Home, Users, Navigation, Phone, X, Loader2, ShieldAlert, HeartPulse, Flame, AlertTriangle, ChevronRight, ClipboardList, PhoneCall } from "lucide-react";
 
 const STATUS_FILTERS = [
@@ -63,6 +63,15 @@ const { data: alerts } = useQuery({
   useEffect(() => {
     if (authUser && authUser.role !== 'admin') {
       checkRedZoneStatus();
+    }
+  }, [authUser]);
+
+  // Track app_open activity when homepage loads
+  useEffect(() => {
+    if (authUser) {
+      trackActivity('app_open').catch(err => {
+        console.error('Failed to track activity:', err);
+      });
     }
   }, [authUser]);
 
