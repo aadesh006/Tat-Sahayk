@@ -38,17 +38,23 @@ def get_district_from_coords(lat: float, lon: float) -> Optional[str]:
         data = response.json()
         address = data.get("address", {})
         
-        # Nominatim returns district in different fields depending on region
-        # Try multiple fields in order of preference
+        # For administrative jurisdiction, we need broader classification
+        # Priority order for admin purposes:
+        # 1. City (major urban centers) - Mumbai, Chennai, Jaipur city proper
+        # 2. County/Tehsil (administrative subdivision) - Sanganer Tehsil, Bagru area
+        # 3. State District (broader district) - Jaipur district, Mumbai district
+        # Skip village/hamlet as they're too granular for admin jurisdiction
+        
         district = (
-            address.get("city") or
-            address.get("county") or
-            address.get("state_district") or
-            address.get("suburb") or
-            address.get("town") or
-            address.get("village") or
+            address.get("city") or              # Major cities: Mumbai, Jaipur city
+            address.get("county") or            # Tehsil level: Sanganer Tehsil
+            address.get("state_district") or    # District level: Jaipur, Mumbai
             None
         )
+        
+        # Clean up tehsil suffix if present (e.g., "Sanganer Tehsil" → "Sanganer")
+        if district and "Tehsil" in district:
+            district = district.replace(" Tehsil", "").strip()
         
         if district:
             print(f"Geocoded ({lat}, {lon}) → {district}")
