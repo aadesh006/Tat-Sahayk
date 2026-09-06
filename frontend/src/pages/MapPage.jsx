@@ -84,7 +84,11 @@ const MapBounds = ({ authUser, districtCoordinates }) => {
       console.log('District:', authUser.district);
       console.log('Available districts:', Object.keys(districtCoordinates));
       
-      const districtCenter = districtCoordinates[authUser.district];
+      // Case-insensitive lookup for district
+      const districtKey = Object.keys(districtCoordinates).find(
+        key => key.toLowerCase() === authUser.district.toLowerCase()
+      );
+      const districtCenter = districtKey ? districtCoordinates[districtKey] : null;
       console.log('District center:', districtCenter);
       
       if (districtCenter) {

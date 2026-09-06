@@ -336,9 +336,14 @@ const CreateReport = () => {
               className={`w-full py-3.5 text-white font-semibold text-sm rounded-full shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2
                 ${isPending ? "bg-gray-400 cursor-not-allowed opacity-70" : "bg-sky-600 hover:bg-sky-700"}`}
             >
-              {isPending
-                ? <><Loader2 className="animate-spin" size={18} /> {t("transmitting")}</>
-                : t("submitReport")}
+              {isPending ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} />
+                  <span>Uploading images & analyzing...</span>
+                </>
+              ) : (
+                t("submitReport")
+              )}
             </button>
           </div>
         </form>

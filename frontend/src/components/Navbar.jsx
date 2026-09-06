@@ -170,17 +170,6 @@ const Navbar = () => {
 
       {/* Right controls */}
       <div className="flex items-center gap-2 relative z-40">
-        {/* Home button for admins - desktop only (mobile has it on left) */}
-        {isAdmin && (
-          <Link
-            to="/"
-            className="hidden lg:block p-2.5 rounded-full bg-gray-100 dark:bg-[rgb(22,22,22)] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(38,38,38)] transition-colors"
-            title="Home"
-          >
-            <Home size={18} />
-          </Link>
-        )}
-
         {/* Local/Nationwide Toggle - Only on homepage for citizens */}
         {showLocationToggle && authUser?.district && (
           <div className="flex items-center gap-2 bg-gray-100 dark:bg-[rgb(22,22,22)] rounded-full p-1">
