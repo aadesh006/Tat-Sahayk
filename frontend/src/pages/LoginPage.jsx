@@ -156,7 +156,7 @@ const LoginPage = () => {
       {/* Logo - adjusted spacing for mobile */}
       <div className="mb-6 sm:mb-8 mt-12 sm:mt-0">
         <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
-          तट-Sahayk
+          तत्-Sahayk
         </h1>
       </div>
 

@@ -143,7 +143,7 @@ const Navbar = () => {
       <div className="flex items-center gap-3">
         {/* Logo - always visible */}
         <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
-          <img src="/anchor-nobg.png" alt="तट-Sahayk Logo" className="h-10 w-auto object-contain" />
+          <img src="/anchor-nobg.png" alt="तत्-Sahayk Logo" className="h-10 w-auto object-contain" />
           {isAdmin && (
             <span className="ml-2 px-2 py-1 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-full border border-purple-200 dark:border-purple-500/20">
               ADMIN

@@ -69,7 +69,7 @@ const SideBar = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between h-16 px-6 shrink-0">
           <Link to="/" className="hover:opacity-80 transition-opacity">
             <span className="text-2xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
-              तट-Sahayk
+              तत्-Sahayk
             </span>
           </Link>
         </div>
