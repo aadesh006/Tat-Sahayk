@@ -79,7 +79,8 @@ const AlertsPage = () => {
   };
 
   const filteredAlerts = alerts?.filter(alert => 
-    !severityFilter || alert.severity === severityFilter
+    alert.hazard_type !== 'info' && // Exclude circulars from alerts
+    (!severityFilter || alert.severity === severityFilter)
   );
 
   const severityConfig = {
@@ -189,7 +190,7 @@ const AlertsPage = () => {
                 : "bg-white dark:bg-[rgb(22,22,22)] text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-[rgb(47,51,54)]"
             }`}
           >
-            Alerts
+            Emergency Alerts
           </button>
           <button
             onClick={() => setMobileTab("information")}
@@ -199,7 +200,7 @@ const AlertsPage = () => {
                 : "bg-white dark:bg-[rgb(22,22,22)] text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-[rgb(47,51,54)]"
             }`}
           >
-            Information
+            Info & Resources
           </button>
         </div>
 

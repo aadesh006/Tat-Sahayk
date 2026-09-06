@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Camera, MapPin, AlertTriangle, X, Loader2, Plus, Navigation } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createReport } from "../lib/api.js";
+import { createReport, trackActivity } from "../lib/api.js";
 import { useTranslation } from "react-i18next";
 
 const CreateReport = () => {
@@ -64,6 +64,7 @@ const CreateReport = () => {
   const { mutate, isPending } = useMutation({
     mutationFn: createReport,
     onSuccess: () => {
+      trackActivity('report_submit').catch(err => console.error('Failed to track report submission:', err));
       toast.success(t("reportSubmitted"));
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       queryClient.invalidateQueries({ queryKey: ["mapPoints"] });

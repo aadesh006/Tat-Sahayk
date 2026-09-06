@@ -139,10 +139,15 @@ const Navbar = () => {
   return (
     <header className="h-16 bg-white dark:bg-black border-b border-gray-200 dark:border-[rgb(47,51,54)] flex items-center justify-between px-4 lg:px-6 shrink-0 z-30 backdrop-blur-sm bg-white/80 dark:bg-black/80">
 
-      {/* Left — logo (no hamburger needed - bottom nav on mobile) */}
+      {/* Left — logo */}
       <div className="flex items-center gap-3">
-        {/* Logo - always visible */}
-        <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
+        {/* Logo - hidden on mobile for admins, always visible for citizens */}
+        <Link 
+          to="/" 
+          className={`flex items-center hover:opacity-80 transition-opacity ${
+            isAdmin ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
           <img src="/anchor-nobg.png" alt="तत्-Sahayk Logo" className="h-10 w-auto object-contain" />
           {isAdmin && (
             <span className="ml-2 px-2 py-1 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-full border border-purple-200 dark:border-purple-500/20">
@@ -150,15 +155,26 @@ const Navbar = () => {
             </span>
           )}
         </Link>
+        
+        {/* Home button for admins on mobile - replaces logo */}
+        {isAdmin && (
+          <Link
+            to="/"
+            className="lg:hidden flex items-center gap-2 p-2 rounded-full bg-gray-100 dark:bg-[rgb(22,22,22)] hover:bg-gray-200 dark:hover:bg-[rgb(38,38,38)] transition-colors"
+            title="Home"
+          >
+            <Home size={20} className="text-gray-700 dark:text-gray-300" />
+          </Link>
+        )}
       </div>
 
       {/* Right controls */}
       <div className="flex items-center gap-2 relative z-40">
-        {/* Home button for admins - top right */}
+        {/* Home button for admins - desktop only (mobile has it on left) */}
         {isAdmin && (
           <Link
             to="/"
-            className="p-2.5 rounded-full bg-gray-100 dark:bg-[rgb(22,22,22)] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(38,38,38)] transition-colors"
+            className="hidden lg:block p-2.5 rounded-full bg-gray-100 dark:bg-[rgb(22,22,22)] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(38,38,38)] transition-colors"
             title="Home"
           >
             <Home size={18} />
@@ -277,8 +293,9 @@ const Navbar = () => {
                     {authUser.full_name}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{authUser.email}</p>
+                  {/* ADMIN badge - desktop only */}
                   {isAdmin && (
-                    <span className="inline-block mt-1.5 px-2 py-0.5 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-full">
+                    <span className="hidden lg:inline-block mt-1.5 px-2 py-0.5 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-full">
                       ADMIN
                     </span>
                   )}

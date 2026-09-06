@@ -499,3 +499,20 @@ export const createCircular = async (circularData) => {
   const res = await axiosInstance.post(`/alerts/circular?${params.toString()}`);
   return res.data;
 };
+
+// ─── USER ACTIVITY TRACKING (Privacy-safe) ──────────────────────────────────
+
+export const trackActivity = async (activityType) => {
+  const res = await axiosInstance.post(`/activity/track?activity_type=${activityType}`);
+  return res.data;
+};
+
+export const getActivityStats = async (hours = 3) => {
+  const res = await axiosInstance.get(`/activity/stats?hours=${hours}`);
+  return res.data;
+};
+
+export const getHourlyTrend = async (hours = 24) => {
+  const res = await axiosInstance.get(`/activity/hourly-trend?hours=${hours}`);
+  return res.data;
+};

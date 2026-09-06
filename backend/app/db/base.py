@@ -11,3 +11,5 @@ from app.models.map_annotation import MapAnnotation, DeployedForce
 from app.models.rescue_deployment import RescueDeployment, Shelter
 # Red Zone Management Extension
 from app.models.red_zone import HazardZone, RelocationSite, VulnerableHabitation
+# User Activity Tracking
+from app.models.user_activity import UserActivity

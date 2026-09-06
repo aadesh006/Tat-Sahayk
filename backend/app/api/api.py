@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, reports, media, social, comments, alerts, map_admin, ai_analysis, map_resources, map_data, red_zone, admin_analytics
+from app.api.v1.endpoints import auth, reports, media, social, comments, alerts, map_admin, ai_analysis, map_resources, map_data, red_zone, admin_analytics, user_activity
 
 api_router = APIRouter()
 
@@ -38,3 +38,6 @@ api_router.include_router(red_zone.router, prefix="/red-zones", tags=["red-zones
 
 # Admin Analytics (Real-time Consolidated Reports & AI Analysis)
 api_router.include_router(admin_analytics.router, prefix="/admin/analytics", tags=["admin-analytics"])
+
+# User Activity (Privacy-safe activity tracking)
+api_router.include_router(user_activity.router, prefix="/activity", tags=["user-activity"])

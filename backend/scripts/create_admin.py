@@ -23,6 +23,13 @@ ADMINS = [
         "state":     "Tamil Nadu",
     },
     {
+        "email":     "admin.jaipur@tatsahayk.gov.in",
+        "full_name": "District Admin — Jaipur",
+        "password":  "JAIPUR_ADMIN_123",
+        "district":  "Jaipur",
+        "state":     "Rajasthan",
+    },
+    {
         "email":     "admin.national@tatsahayk.gov.in",
         "full_name": "National Admin",
         "password":  "NATIONAL_ADMIN_123",

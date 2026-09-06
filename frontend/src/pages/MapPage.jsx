@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Marker, useMapEvents, Tooltip, Polygon } from 'react-leaflet';
-import { fetchReports } from '../lib/api';
+import { fetchReports, getActivityStats } from '../lib/api';
 import { axiosInstance } from '../lib/axios';
 import useAuthUser from '../hooks/useAuthUser';
-import { AlertTriangle, MapPin, Clock, Shield, Home, Filter, X, Loader2, Plus, Target, Pentagon, RefreshCw, Map } from 'lucide-react';
+import { AlertTriangle, MapPin, Clock, Shield, Home, Filter, X, Loader2, Plus, Target, Pentagon, RefreshCw, Map, Users } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { DeploymentModal, ShelterModal } from '../components/MapResourceModals';
 import { HazardZoneModal } from '../components/HazardZoneModal';
 import MapPolygonDrawer from '../components/MapPolygonDrawer';
@@ -138,6 +139,15 @@ const MapPage = () => {
   const [habitations, setHabitations] = useState([]);
   const [relocationSites, setRelocationSites] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  // Activity tracking for admins - shows active user count
+  const { data: activityStats } = useQuery({
+    queryKey: ['activityStats'],
+    queryFn: () => getActivityStats(3), // Last 3 hours
+    refetchInterval: 60000, // Refresh every minute
+    enabled: authUser?.role === 'admin', // Only for admins
+    retry: false,
+  });
   
   // District coordinates mapping for major Indian districts
   const districtCoordinates = {
@@ -422,6 +432,16 @@ const MapPage = () => {
               {reports.length} Reports
             </span>
           </div>
+          
+          {/* Active Users - Admin Only */}
+          {authUser?.role === 'admin' && activityStats && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg">
+              <Users size={14} className="text-blue-600 dark:text-blue-400" />
+              <span className="text-xs sm:text-sm font-semibold text-blue-700 dark:text-blue-400">
+                {activityStats.active_users || 0} Active
+              </span>
+            </div>
+          )}
           
           {/* Refresh Button */}
           <button
