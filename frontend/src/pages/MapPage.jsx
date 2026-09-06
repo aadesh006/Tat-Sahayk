@@ -211,6 +211,8 @@ const MapPage = () => {
     
     // Rajasthan
     'Jaipur': [26.9124, 75.7873],
+    'Bagru': [26.8153, 75.5439],
+    'Sanganer': [26.8167, 75.8125],
     'Udaipur': [24.5854, 73.7125],
     
     // Himachal Pradesh

@@ -30,6 +30,13 @@ ADMINS = [
         "state":     "Rajasthan",
     },
     {
+        "email":     "admin.sanganer@tatsahayk.gov.in",
+        "full_name": "Tehsil Admin — Sanganer",
+        "password":  "SANGANER_ADMIN_123",
+        "district":  "Sanganer",
+        "state":     "Rajasthan",
+    },
+    {
         "email":     "admin.national@tatsahayk.gov.in",
         "full_name": "National Admin",
         "password":  "NATIONAL_ADMIN_123",
