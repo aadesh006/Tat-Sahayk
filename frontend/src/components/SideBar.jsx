@@ -30,7 +30,7 @@ const SideBar = ({ isOpen, onClose }) => {
 
   const navItems = [
     { to: "/",        label: "Home", icon: <Home size={20} />, public: true },
-    { to: "/alerts",  label: "Alerts & Notices", icon: <Bell size={20} />, public: true },
+    { to: "/alerts",  label: "Alerts & Safety", icon: <Bell size={20} />, public: true },
     ...(authUser && !isAdmin ? [
       { to: "/profile", label: t("myProfile"), icon: <User size={20} /> },
       { to: "/map",     label: t("map"),        icon: <Map size={20} /> },

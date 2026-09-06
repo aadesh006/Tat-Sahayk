@@ -11,6 +11,7 @@ import AdminDashboard from './pages/AdminDashboard.jsx';
 import AlertsPage from './pages/AlertsPage.jsx';
 import RedZoneManagement from './pages/RedZoneManagement.jsx';
 import AdminAnalytics from './pages/AdminAnalytics.jsx';
+import LocationAlertsPage from './pages/LocationAlertsPage.jsx';
 import { Loader2 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -95,6 +96,7 @@ const App = () => {
         <Route path="/"      element={<PublicOrProtected><HomePage /></PublicOrProtected>} />
         <Route path="/map"   element={<Protected><MapPage /></Protected>} />
         <Route path="/alerts" element={<PublicOrProtected><AlertsPage /></PublicOrProtected>} />
+        <Route path="/safety" element={<PublicOrProtected><LocationAlertsPage /></PublicOrProtected>} />
         <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
         <Route path="/new"   element={<Protected><CreateReport /></Protected>} />
         <Route path="/admin" element={<AdminOnly><AdminDashboard /></AdminOnly>} />

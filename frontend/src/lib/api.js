@@ -469,3 +469,33 @@ export const fetchMapResources = async () => {
   const res = await axiosInstance.get('/map/resources');
   return res.data;
 };
+
+
+// ─── LOCATION-BASED ALERTS ──────────────────────────────────────────────────
+
+export const getLocationBasedAlerts = async (latitude, longitude, radius_km = 50) => {
+  const res = await axiosInstance.get("/alerts/location-based", {
+    params: { latitude, longitude, radius_km }
+  });
+  return res.data;
+};
+
+export const getCirculars = async (active_only = true) => {
+  const res = await axiosInstance.get("/alerts/circulars", {
+    params: { active_only }
+  });
+  return res.data;
+};
+
+export const createCircular = async (circularData) => {
+  const params = new URLSearchParams();
+  params.append("title", circularData.title);
+  params.append("message", circularData.message);
+  params.append("severity", circularData.severity || "low");
+  if (circularData.district) params.append("district", circularData.district);
+  if (circularData.state) params.append("state", circularData.state);
+  if (circularData.expires_at) params.append("expires_at", circularData.expires_at);
+  
+  const res = await axiosInstance.post(`/alerts/circular?${params.toString()}`);
+  return res.data;
+};
