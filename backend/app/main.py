@@ -10,18 +10,32 @@ from app.db.session import engine
 from app.db.base import Base
 from scripts.harvest_social import harvest
 from app.services.cluster_analyzer import run_cluster_analysis
+from app.services.spatial_operations import merge_overlapping_zones, decay_zone_intensity
+from app.db.session import SessionLocal
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
 
-    # Start scheduler with both jobs
+    # Define zone evolution job
+    def zone_evolution_task():
+        """Merge overlapping zones and decay old zone intensity"""
+        db = SessionLocal()
+        try:
+            merge_overlapping_zones(db)
+            decay_zone_intensity(db, decay_days=30)
+        finally:
+            db.close()
+
+    # Start scheduler with all jobs
     scheduler = BackgroundScheduler()
     scheduler.add_job(harvest, "interval", minutes=15, id="social_harvester")
     scheduler.add_job(run_cluster_analysis, "interval", minutes=15, id="bedrock_cluster_analysis")
+    scheduler.add_job(zone_evolution_task, "interval", hours=6, id="zone_evolution")
     scheduler.start()
     print("Social Harvester Scheduler Started")
     print("Bedrock Cluster Analyzer Started")
+    print("Red Zone Evolution Task Started (runs every 6 hours)")
 
     # Run cluster analysis once immediately on startup
     threading.Thread(target=run_cluster_analysis, daemon=True).start()

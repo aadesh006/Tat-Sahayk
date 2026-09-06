@@ -8,6 +8,7 @@ from app.api import deps
 from app.models.user  import User
 from app.models.alert import Alert
 from app.schemas.alert import AlertCreate, AlertResponse
+from app.services.citizen_alerts import get_location_based_alerts
 
 router = APIRouter()
 
@@ -15,6 +16,21 @@ def require_admin(current_user: User = Depends(deps.get_current_user)) -> User:
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
+
+# NEW: Get location-based alerts for citizens
+@router.get("/location-based")
+def get_citizen_location_alerts(
+    latitude: float = Query(..., description="Citizen's current latitude"),
+    longitude: float = Query(..., description="Citizen's current longitude"),
+    radius_km: float = Query(50.0, description="Search radius in kilometers"),
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(deps.get_current_user_optional)
+):
+    """
+    Get comprehensive location-based alerts for citizens.
+    Returns red zones, safe sites, admin alerts, and evacuation recommendations.
+    """
+    return get_location_based_alerts(db, latitude, longitude, radius_km)
 
 # GET alerts — filtered by user's location (district/state) or all if not authenticated
 @router.get("/", response_model=List[AlertResponse])
@@ -149,3 +165,129 @@ def deactivate_alert(
     alert.is_active = False
     db.commit()
     return {"message": "Alert deactivated"}
+
+
+# NEW: Create informational circular/announcement (admin only)
+@router.post("/circular", response_model=AlertResponse)
+def create_circular(
+    title: str = Query(..., description="Circular title"),
+    message: str = Query(..., description="Circular message/content"),
+    severity: str = Query("low", description="Severity: low/medium/high/critical"),
+    district: Optional[str] = Query(None, description="Target district"),
+    state: Optional[str] = Query(None, description="Target state"),
+    expires_at: Optional[datetime] = Query(None, description="Expiration date/time"),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """
+    Create informational circular for citizens.
+    Examples:
+    - "Bridge on Highway 47 damaged - use alternate route via Highway 52"
+    - "Relief supplies being distributed at Community Center from 10 AM"
+    - "Medical teams deployed to affected areas - contact 1078 for assistance"
+    - "Power restoration expected by 6 PM today in affected districts"
+    """
+    # Jurisdiction validation
+    target_district = district or admin.district
+    target_state = state or admin.state
+    
+    if admin.district and target_district and target_district != admin.district:
+        raise HTTPException(
+            status_code=403,
+            detail=f"You can only create circulars for your district: {admin.district}"
+        )
+    
+    if admin.state and target_state and target_state != admin.state:
+        raise HTTPException(
+            status_code=403,
+            detail=f"You can only create circulars for your state: {admin.state}"
+        )
+    
+    # Create circular as an alert with hazard_type="info"
+    circular = Alert(
+        admin_id=admin.id,
+        title=title,
+        message=message,
+        hazard_type="info",  # Special type for circulars
+        severity=severity,
+        district=target_district,
+        state=target_state,
+        expires_at=expires_at,
+        is_active=True
+    )
+    
+    db.add(circular)
+    db.commit()
+    db.refresh(circular)
+    
+    return AlertResponse(
+        id=circular.id,
+        admin_id=circular.admin_id,
+        title=circular.title,
+        message=circular.message,
+        hazard_type=circular.hazard_type,
+        severity=circular.severity,
+        district=circular.district,
+        state=circular.state,
+        is_active=circular.is_active,
+        created_at=circular.created_at,
+        expires_at=circular.expires_at,
+        admin_name=admin.full_name
+    )
+
+
+# GET: List all circulars/info announcements
+@router.get("/circulars", response_model=List[AlertResponse])
+def get_circulars(
+    active_only: bool = Query(True, description="Only show active circulars"),
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(deps.get_current_user_optional)
+):
+    """
+    Get all informational circulars.
+    Citizens see circulars for their location.
+    Admins see all circulars.
+    """
+    query = db.query(Alert).filter(Alert.hazard_type == "info")
+    
+    if active_only:
+        query = query.filter(Alert.is_active == True)
+    
+    # Filter by location for citizens
+    if current_user and current_user.role == "citizen":
+        filters = []
+        
+        # Nationwide circulars
+        filters.append((Alert.district == None) & (Alert.state == None))
+        
+        # State-level circulars
+        if current_user.state:
+            filters.append((Alert.state == current_user.state) & (Alert.district == None))
+        
+        # District-level circulars
+        if current_user.district and current_user.state:
+            filters.append((Alert.district == current_user.district) & (Alert.state == current_user.state))
+        
+        from sqlalchemy import or_
+        query = query.filter(or_(*filters))
+    
+    circulars = query.order_by(Alert.created_at.desc()).limit(50).all()
+    
+    result = []
+    for c in circulars:
+        result.append(AlertResponse(
+            id=c.id,
+            admin_id=c.admin_id,
+            title=c.title,
+            message=c.message,
+            hazard_type=c.hazard_type,
+            severity=c.severity,
+            district=c.district,
+            state=c.state,
+            is_active=c.is_active,
+            created_at=c.created_at,
+            expires_at=c.expires_at,
+            admin_name=c.issued_by_admin.full_name if c.issued_by_admin else "System"
+        ))
+    
+    return result
