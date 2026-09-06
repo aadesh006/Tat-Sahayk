@@ -30,7 +30,7 @@ const SideBar = ({ isOpen, onClose }) => {
 
   const navItems = [
     { to: "/",        label: "Home", icon: <Home size={20} />, public: true },
-    { to: "/alerts",  label: "Alerts & Notices", icon: <Bell size={20} />, public: true },
+    { to: "/alerts",  label: "Alerts & Safety", icon: <Bell size={20} />, public: true },
     ...(authUser && !isAdmin ? [
       { to: "/profile", label: t("myProfile"), icon: <User size={20} /> },
       { to: "/map",     label: t("map"),        icon: <Map size={20} /> },
@@ -69,7 +69,7 @@ const SideBar = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between h-16 px-6 shrink-0">
           <Link to="/" className="hover:opacity-80 transition-opacity">
             <span className="text-2xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
-              तट-Sahayk
+              तत्-Sahayk
             </span>
           </Link>
         </div>

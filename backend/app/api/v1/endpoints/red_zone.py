@@ -2,7 +2,7 @@
 Red Zone Management API Endpoints
 Handles hazard zones, relocation sites, vulnerable habitations, spatial analysis, and SDMA dashboard
 """
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text
@@ -34,6 +34,7 @@ from app.services.red_zone_ai import (
     assess_relocation_site,
     generate_sdma_summary
 )
+from app.services.risk_reassessment import trigger_zone_impact_reassessment
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -106,10 +107,11 @@ def get_hazard_zones(
 @router.post("/hazard-zones/", response_model=HazardZoneResponse)
 def create_hazard_zone(
     zone_data: HazardZoneCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Create a new hazard zone (admin only)"""
+    """Create a new hazard zone (admin only) with automatic lifecycle triggers"""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -149,6 +151,24 @@ def create_hazard_zone(
     db.add(new_zone)
     db.commit()
     db.refresh(new_zone)
+    
+    logger.info(f"✓ Created hazard zone #{new_zone.id}: {new_zone.name}")
+    
+    # === LIFECYCLE HOOKS: Trigger automated processes ===
+    
+    try:
+        # Trigger risk reassessment for habitations within 15km (in background)
+        reassessment_result = trigger_zone_impact_reassessment(
+            db, 
+            new_zone.id, 
+            background_tasks,
+            radius_km=15.0
+        )
+        logger.info(f"  ✓ Queued {reassessment_result.get('queued', 0)} habitations for risk reassessment")
+        
+    except Exception as e:
+        logger.error(f"Error in lifecycle hooks for zone #{new_zone.id}: {e}")
+        # Don't fail the entire request if lifecycle hooks fail
     
     # Convert boundary back to GeoJSON for response
     response_data = {

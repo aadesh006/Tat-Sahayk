@@ -30,7 +30,7 @@ def send_otp_sms(phone: str, otp: str) -> bool:
         if not phone.startswith('+'):
             phone = f'+91{phone}'
         
-        message = f"Your तट-Sahayk verification code is: {otp}\n\nThis code expires in 10 minutes.\n\nDo not share this code with anyone."
+        message = f"Your तत्-Sahayk verification code is: {otp}\n\nThis code expires in 10 minutes.\n\nDo not share this code with anyone."
         
         response = sns_client.publish(
             PhoneNumber=phone,
@@ -82,7 +82,7 @@ def send_disaster_alert_email(to_email: str, user_name: str, disaster_type: str,
         <body>
             <div class="container">
                 <div class="header">
-                    <h1 style="margin: 0; font-size: 28px;">तट-Sahayk</h1>
+                    <h1 style="margin: 0; font-size: 28px;">तत्-Sahayk</h1>
                     <p style="margin: 10px 0 0 0; opacity: 0.9;">Disaster Alert System</p>
                 </div>
                 <div class="content">
@@ -101,11 +101,11 @@ def send_disaster_alert_email(to_email: str, user_name: str, disaster_type: str,
                         <li>Stay alert and follow official instructions</li>
                         <li>Keep emergency contacts handy</li>
                         <li>Prepare emergency supplies if needed</li>
-                        <li>Monitor updates on तट-Sahayk platform</li>
+                        <li>Monitor updates on तत्-Sahayk platform</li>
                     </ul>
                     
                     <div style="text-align: center;">
-                        <a href="https://tat-sahayk.com" class="button">View on तट-Sahayk</a>
+                        <a href="https://tat-sahayk.com" class="button">View on तत्-Sahayk</a>
                     </div>
                     
                     <div style="background: #fef3c7; border: 1px solid #fbbf24; padding: 15px; 
@@ -117,7 +117,7 @@ def send_disaster_alert_email(to_email: str, user_name: str, disaster_type: str,
                     </div>
                 </div>
                 <div class="footer">
-                    <p>This is an automated alert from तट-Sahayk Disaster Management System</p>
+                    <p>This is an automated alert from तत्-Sahayk Disaster Management System</p>
                     <p>You received this because a disaster was reported near your registered location</p>
                 </div>
             </div>
@@ -126,7 +126,7 @@ def send_disaster_alert_email(to_email: str, user_name: str, disaster_type: str,
         """
         
         text_body = f"""
-        तट-Sahayk Disaster Alert
+        तत्-Sahayk Disaster Alert
         
         Hello {user_name},
         
@@ -141,7 +141,7 @@ def send_disaster_alert_email(to_email: str, user_name: str, disaster_type: str,
         - Stay alert and follow official instructions
         - Keep emergency contacts handy
         - Prepare emergency supplies if needed
-        - Monitor updates on तट-Sahayk platform
+        - Monitor updates on तत्-Sahayk platform
         
         Emergency Helplines:
         Disaster Management: 1077
@@ -150,7 +150,7 @@ def send_disaster_alert_email(to_email: str, user_name: str, disaster_type: str,
         
         Visit: https://tat-sahayk.com
         
-        This is an automated alert from तट-Sahayk Disaster Management System.
+        This is an automated alert from तत्-Sahayk Disaster Management System.
         """
         
         response = ses_client.send_email(

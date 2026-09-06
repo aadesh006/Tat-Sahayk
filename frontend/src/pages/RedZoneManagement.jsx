@@ -138,12 +138,12 @@ export default function RedZoneManagement() {
     <div className="min-h-screen bg-gray-50 dark:bg-black">
       <Toaster position="top-right" />
       
-      {/* Header - Match AdminDashboard style */}
-      <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-6 py-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+      {/* Header - Match AdminDashboard style - Mobile optimized */}
+      <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-4 sm:px-6 py-3 sm:py-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Shield size={18} className="text-red-500" />
+            <h1 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Shield size={16} className="text-red-500" />
               Red Zone Management — {authUser?.district || 'National'}
             </h1>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -152,47 +152,47 @@ export default function RedZoneManagement() {
           </div>
         </div>
 
-        {/* Stats Cards - Clean AdminDashboard style */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-          <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4">
+        {/* Stats Cards - Compact mobile layout */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mt-3 sm:mt-4">
+          <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-3 sm:p-4">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Active Red Zones</p>
-            <p className="text-2xl font-semibold text-red-600 dark:text-red-400">{stats?.active_red_zones || 0}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-red-600 dark:text-red-400">{stats?.active_red_zones || 0}</p>
           </div>
-          <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4">
+          <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-3 sm:p-4">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">People at Risk</p>
-            <p className="text-2xl font-semibold text-orange-600 dark:text-orange-400">{(stats?.total_population_at_risk || 0).toLocaleString()}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-orange-600 dark:text-orange-400">{(stats?.total_population_at_risk || 0).toLocaleString()}</p>
           </div>
-          <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4">
+          <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-3 sm:p-4">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Relocation Sites</p>
-            <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats?.total_relocation_sites || 0}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">{stats?.total_relocation_sites || 0}</p>
           </div>
-          <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-4">
+          <div className="bg-gray-50 dark:bg-[rgb(38,38,38)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl p-3 sm:p-4">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Immediate Priority</p>
-            <p className="text-2xl font-semibold text-red-600 dark:text-red-400">{stats?.immediate_priority_count || 0}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-red-600 dark:text-red-400">{stats?.immediate_priority_count || 0}</p>
           </div>
         </div>
       </div>
 
-      {/* Tab Bar - Match AdminDashboard */}
-      <div className="flex overflow-x-auto border-b border-gray-200 dark:border-[rgb(47,51,54)] bg-white dark:bg-[rgb(22,22,22)] px-4 md:px-6 scrollbar-hide">
+      {/* Tab Bar - Mobile optimized */}
+      <div className="flex overflow-x-auto border-b border-gray-200 dark:border-[rgb(47,51,54)] bg-white dark:bg-[rgb(22,22,22)] px-3 sm:px-4 md:px-6 scrollbar-hide">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 md:px-5 py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-5 py-2.5 sm:py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab.id
                 ? 'border-red-500 text-red-500'
                 : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
             }`}
           >
             <tab.icon size={14} />
-            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="hidden xs:inline sm:inline">{tab.label}</span>
           </button>
         ))}
       </div>
 
-      {/* Content */}
-      <div className="px-4 sm:px-6 py-6">
+      {/* Content - Mobile optimized spacing */}
+      <div className="px-3 sm:px-4 md:px-6 py-4 sm:py-6 pb-20 lg:pb-6">
         {activeTab === 'overview' && (
           <OverviewTab stats={stats} statsLoading={statsLoading} onBulkAssess={() => bulkAssessMutation.mutate()} />
         )}
@@ -431,15 +431,15 @@ function HazardZonesTab({ zones, loading, onAdd, onEdit, onDelete }) {
 
   return (
     <div className="space-y-4">
-      {/* Header with Filters */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      {/* Header with Filters - Mobile optimized */}
+      <div className="flex flex-col gap-3">
         <h2 className="text-base font-semibold text-gray-900 dark:text-white">
           Hazard Zones ({filteredZones.length})
         </h2>
         
-        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
           {/* Search */}
-          <div className="relative flex-1 sm:flex-initial sm:w-56">
+          <div className="relative w-full sm:flex-1 sm:max-w-xs">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -450,30 +450,32 @@ function HazardZonesTab({ zones, loading, onAdd, onEdit, onDelete }) {
             />
           </div>
 
-          {/* Intensity Filter */}
-          <div className="relative">
-            <select
-              value={intensityFilter}
-              onChange={(e) => setIntensityFilter(e.target.value)}
-              className="appearance-none pl-3 pr-8 py-2 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20 cursor-pointer"
-            >
-              <option value="all">All Severity</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Intensity Filter */}
+            <div className="relative flex-1 sm:flex-initial">
+              <select
+                value={intensityFilter}
+                onChange={(e) => setIntensityFilter(e.target.value)}
+                className="w-full appearance-none pl-3 pr-8 py-2 border border-gray-200 dark:border-[rgb(47,51,54)] dark:bg-[rgb(38,38,38)] dark:text-white rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20 cursor-pointer"
+              >
+                <option value="all">All Severity</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
 
-          {/* Add Button */}
-          <button
-            onClick={onAdd}
-            className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
-          >
-            <Plus size={16} />
-            Add Zone
-          </button>
+            {/* Add Button */}
+            <button
+              onClick={onAdd}
+              className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">Add Zone</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -483,36 +485,37 @@ function HazardZonesTab({ zones, loading, onAdd, onEdit, onDelete }) {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-[rgb(38,38,38)] border-b border-gray-200 dark:border-[rgb(47,51,54)]">
               <tr>
-                <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">District</th>
-                <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Intensity</th>
-                <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Population</th>
-                <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">AI Score</th>
-                <th className="px-4 py-3 text-right text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                <th className="px-3 sm:px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                <th className="hidden sm:table-cell px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">District</th>
+                <th className="px-3 sm:px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Intensity</th>
+                <th className="hidden md:table-cell px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Population</th>
+                <th className="hidden lg:table-cell px-4 py-3 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">AI Score</th>
+                <th className="px-3 sm:px-4 py-3 text-right text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-[rgb(47,51,54)]">
               {filteredZones.map(zone => (
                 <tr key={zone.id} className="hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-colors">
-                  <td className="px-4 py-3">
+                  <td className="px-3 sm:px-4 py-3">
                     <div className="text-sm font-medium text-gray-900 dark:text-white">{zone.name}</div>
                     <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
                       {zone.hazard_types?.slice(0, 2).join(', ')}
+                      <span className="sm:hidden ml-2 text-gray-600 dark:text-gray-300">• {zone.district}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-700 dark:text-gray-300">{zone.district}</td>
-                  <td className="px-4 py-3">
+                  <td className="hidden sm:table-cell px-4 py-3 text-xs text-gray-700 dark:text-gray-300">{zone.district}</td>
+                  <td className="px-3 sm:px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-medium border ${INTENSITY_CONFIG[zone.intensity]?.badge || INTENSITY_CONFIG.medium.badge}`}>
                       {INTENSITY_CONFIG[zone.intensity]?.label || zone.intensity}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs font-medium text-gray-900 dark:text-white">
+                  <td className="hidden md:table-cell px-4 py-3 text-xs font-medium text-gray-900 dark:text-white">
                     {zone.population_at_risk?.toLocaleString() || 0}
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-700 dark:text-gray-300">
+                  <td className="hidden lg:table-cell px-4 py-3 text-xs text-gray-700 dark:text-gray-300">
                     {Math.round((zone.ai_confidence || 0) * 100)}%
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-3 sm:px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button 
                         onClick={() => onEdit(zone)}
@@ -847,27 +850,27 @@ function VulnerableHabitationsTab({ habitations, loading, onAdd, onBulkAssess, o
 }
 
 // ==================== MODALS WITH PROPER FORMS ====================
-function AddHazardZoneModal({ onClose }) {
+function AddHazardZoneModal({ editingZone, onClose }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
-    name: '',
-    district: '',
-    state: '',
-    center_lat: '',
-    center_lon: '',
-    intensity: 'medium',
-    hazard_types: [],
-    population_at_risk: 0
+    name: editingZone?.name || '',
+    district: editingZone?.district || '',
+    state: editingZone?.state || '',
+    center_lat: editingZone?.center_lat || '',
+    center_lon: editingZone?.center_lon || '',
+    intensity: editingZone?.intensity || 'medium',
+    hazard_types: editingZone?.hazard_types || [],
+    population_at_risk: editingZone?.population_at_risk || 0
   });
 
   const mutation = useMutation({
-    mutationFn: createHazardZone,
+    mutationFn: (data) => editingZone ? updateHazardZone(editingZone.id, data) : createHazardZone(data),
     onSuccess: () => {
-      toast.success('Hazard zone created');
+      toast.success(editingZone ? 'Hazard zone updated' : 'Hazard zone created');
       queryClient.invalidateQueries(['hazard-zones']);
       onClose();
     },
-    onError: () => toast.error('Failed to create zone')
+    onError: () => toast.error(editingZone ? 'Failed to update zone' : 'Failed to create zone')
   });
 
   return (
@@ -880,8 +883,12 @@ function AddHazardZoneModal({ onClose }) {
               <ShieldAlert size={18} className="text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <h2 className="text-gray-900 dark:text-white font-semibold text-base">Add Hazard Zone</h2>
-              <p className="text-gray-500 dark:text-gray-400 text-xs">Mark a new permanently unsafe area</p>
+              <h2 className="text-gray-900 dark:text-white font-semibold text-base">
+                {editingZone ? 'Edit Hazard Zone' : 'Add Hazard Zone'}
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400 text-xs">
+                {editingZone ? 'Update hazard zone details' : 'Mark a new permanently unsafe area'}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors">
@@ -1006,28 +1013,28 @@ function AddHazardZoneModal({ onClose }) {
   );
 }
 
-function AddRelocationSiteModal({ onClose }) {
+function AddRelocationSiteModal({ editingSite, onClose }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
-    name: '',
-    district: '',
-    state: '',
-    latitude: '',
-    longitude: '',
-    carrying_capacity: 0,
-    current_occupancy: 0,
-    facilities: [],
-    land_area_sqkm: 0
+    name: editingSite?.name || '',
+    district: editingSite?.district || '',
+    state: editingSite?.state || '',
+    latitude: editingSite?.latitude || '',
+    longitude: editingSite?.longitude || '',
+    carrying_capacity: editingSite?.carrying_capacity || 0,
+    current_occupancy: editingSite?.current_occupancy || 0,
+    facilities: editingSite?.facilities || [],
+    land_area_sqkm: editingSite?.land_area_sqkm || 0
   });
 
   const mutation = useMutation({
-    mutationFn: createRelocationSite,
+    mutationFn: (data) => editingSite ? updateRelocationSite(editingSite.id, data) : createRelocationSite(data),
     onSuccess: () => {
-      toast.success('Relocation site created');
+      toast.success(editingSite ? 'Relocation site updated' : 'Relocation site created');
       queryClient.invalidateQueries(['relocation-sites']);
       onClose();
     },
-    onError: () => toast.error('Failed to create site')
+    onError: () => toast.error(editingSite ? 'Failed to update site' : 'Failed to create site')
   });
 
   return (
@@ -1039,8 +1046,12 @@ function AddRelocationSiteModal({ onClose }) {
               <Building2 size={18} className="text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <h2 className="text-gray-900 dark:text-white font-semibold text-base">Add Relocation Site</h2>
-              <p className="text-gray-500 dark:text-gray-400 text-xs">Register a safe relocation area</p>
+              <h2 className="text-gray-900 dark:text-white font-semibold text-base">
+                {editingSite ? 'Edit Relocation Site' : 'Add Relocation Site'}
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400 text-xs">
+                {editingSite ? 'Update relocation site details' : 'Register a safe relocation area'}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors">
@@ -1168,27 +1179,27 @@ function AddRelocationSiteModal({ onClose }) {
   );
 }
 
-function AddHabitationModal({ onClose }) {
+function AddHabitationModal({ editingHabitation, onClose }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
-    name: '',
-    district: '',
-    state: '',
-    latitude: '',
-    longitude: '',
-    population: 0,
-    households: 0,
-    hazard_types: []
+    name: editingHabitation?.name || '',
+    district: editingHabitation?.district || '',
+    state: editingHabitation?.state || '',
+    latitude: editingHabitation?.latitude || '',
+    longitude: editingHabitation?.longitude || '',
+    population: editingHabitation?.population || 0,
+    households: editingHabitation?.households || 0,
+    hazard_types: editingHabitation?.hazard_types || []
   });
 
   const mutation = useMutation({
-    mutationFn: createHabitation,
+    mutationFn: (data) => editingHabitation ? updateHabitation(editingHabitation.id, data) : createHabitation(data),
     onSuccess: () => {
-      toast.success('Habitation registered');
+      toast.success(editingHabitation ? 'Habitation updated' : 'Habitation registered');
       queryClient.invalidateQueries(['vulnerable-habitations']);
       onClose();
     },
-    onError: () => toast.error('Failed to register habitation')
+    onError: () => toast.error(editingHabitation ? 'Failed to update habitation' : 'Failed to register habitation')
   });
 
   return (
@@ -1200,8 +1211,12 @@ function AddHabitationModal({ onClose }) {
               <Home size={18} className="text-orange-600 dark:text-orange-400" />
             </div>
             <div>
-              <h2 className="text-gray-900 dark:text-white font-semibold text-base">Register Vulnerable Habitation</h2>
-              <p className="text-gray-500 dark:text-gray-400 text-xs">Add a settlement requiring assessment</p>
+              <h2 className="text-gray-900 dark:text-white font-semibold text-base">
+                {editingHabitation ? 'Edit Vulnerable Habitation' : 'Register Vulnerable Habitation'}
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400 text-xs">
+                {editingHabitation ? 'Update habitation details' : 'Add a settlement requiring assessment'}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-[rgb(38,38,38)] rounded-lg transition-colors">

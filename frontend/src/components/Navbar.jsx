@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../context/ThemeContext.jsx";
-import { Sun, Moon, Menu, ChevronDown, Phone, User, LogOut, MapPin, Globe } from "lucide-react";
+import { Sun, Moon, Menu, ChevronDown, Phone, User, LogOut, MapPin, Globe, Home } from "lucide-react";
 import toast from "react-hot-toast";
 import useAuthUser from "../hooks/useAuthUser.js";
 import { Link, useLocation, useSearchParams } from "react-router";
@@ -143,7 +143,7 @@ const Navbar = () => {
       <div className="flex items-center gap-3">
         {/* Logo - always visible */}
         <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
-          <img src="/anchor-nobg.png" alt="तट-Sahayk Logo" className="h-10 w-auto object-contain" />
+          <img src="/anchor-nobg.png" alt="तत्-Sahayk Logo" className="h-10 w-auto object-contain" />
           {isAdmin && (
             <span className="ml-2 px-2 py-1 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-full border border-purple-200 dark:border-purple-500/20">
               ADMIN
@@ -154,6 +154,16 @@ const Navbar = () => {
 
       {/* Right controls */}
       <div className="flex items-center gap-2 relative z-40">
+        {/* Home button for admins - top right */}
+        {isAdmin && (
+          <Link
+            to="/"
+            className="p-2.5 rounded-full bg-gray-100 dark:bg-[rgb(22,22,22)] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[rgb(38,38,38)] transition-colors"
+            title="Home"
+          >
+            <Home size={18} />
+          </Link>
+        )}
 
         {/* Local/Nationwide Toggle - Only on homepage for citizens */}
         {showLocationToggle && authUser?.district && (

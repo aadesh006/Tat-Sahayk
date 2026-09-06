@@ -247,9 +247,25 @@ def _detect_red_zones_from_clusters(db: Session, clusters: list):
                     last_incident_date=cluster[0].created_at,
                 )
                 
-                db.add(new_zone)
-                logger.info(f"✓ Auto-created Red Zone for {cluster[0].hazard_type} cluster in {cluster_payload['district']}")
+                logger.info(f"✓ Auto-created Red Zone #{new_zone.id} for {cluster[0].hazard_type} cluster in {cluster_payload['district']}")
                 logger.info(f"  Confidence: {assessment.get('confidence', 0):.2f}, Intensity: {assessment.get('intensity')}")
+                
+                # Trigger lifecycle hooks for auto-created zones
+                try:
+                    from app.services.risk_reassessment import trigger_zone_impact_reassessment
+                    
+                    # Trigger risk reassessment (synchronous in this context)
+                    reassessment_result = trigger_zone_impact_reassessment(
+                        db,
+                        new_zone.id,
+                        background_tasks=None,
+                        radius_km=15.0
+                    )
+                    logger.info(f"  ✓ Queued {reassessment_result.get('queued', 0)} habitations for reassessment")
+                
+                except Exception as hook_error:
+                    logger.error(f"  Error in lifecycle hooks: {hook_error}")
+                
             else:
                 logger.info(f"Cluster did not qualify as Red Zone (confidence: {assessment.get('confidence', 0):.2f})")
                 

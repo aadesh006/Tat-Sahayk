@@ -26,10 +26,10 @@ const BottomNavBar = () => {
 
   // Admin navigation items
   const adminNavItems = [
-    { to: "/", label: "Home", icon: Home },
+    { to: "/alerts", label: "Alerts", icon: Bell },
     { to: "/map", label: "Map", icon: Map },
     { to: "/admin", label: "", icon: LayoutDashboard, isCenter: true }, // Center FAB
-    { to: "/admin/analytics", label: "Analytics", icon: Brain },
+    { to: "/admin/analytics", label: "AI Analysis", icon: Brain },
     { to: "/red-zone", label: "Red Zone", icon: AlertTriangle },
   ];
 
