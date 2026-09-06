@@ -170,6 +170,34 @@ def deactivate_alert(
     return {"message": "Alert deactivated"}
 
 
+# DELETE alert (permanent deletion)
+@router.delete("/{alert_id}")
+def delete_alert(
+    alert_id: int,
+    db:       Session = Depends(get_db),
+    admin:    User    = Depends(require_admin)
+):
+    """
+    Permanently delete an alert or circular.
+    Admins can only delete their own alerts/circulars.
+    """
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    
+    # Authorization: Admins can only delete their own alerts
+    if alert.admin_id != admin.id:
+        raise HTTPException(
+            status_code=403, 
+            detail="You can only delete alerts you created"
+        )
+    
+    # Delete the alert
+    db.delete(alert)
+    db.commit()
+    return {"message": "Alert deleted successfully"}
+
+
 # NEW: Create informational circular/announcement (admin only)
 @router.post("/circular", response_model=AlertResponse)
 def create_circular(

@@ -743,6 +743,88 @@ const ProfilePage = () => {
               Set your location to receive localized disaster alerts and see relevant reports from your area.
             </p>
 
+            {/* GPS Auto-fetch Button */}
+            <button
+              onClick={async () => {
+                if (!navigator.geolocation) {
+                  toast.error("Geolocation not supported by your browser");
+                  return;
+                }
+
+                const loadingToast = toast.loading("Getting your location...");
+                
+                navigator.geolocation.getCurrentPosition(
+                  async (position) => {
+                    try {
+                      const { latitude, longitude } = position.coords;
+                      const geocodeUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`;
+                      const response = await fetch(geocodeUrl);
+                      const data = await response.json();
+                      
+                      if (data.address) {
+                        const state = data.address.state;
+                        const district = data.address.county || data.address.state_district || data.address.city;
+                        
+                        if (state && district) {
+                          const matchedState = Object.keys(statesAndDistricts).find(s => 
+                            s.toLowerCase() === state.toLowerCase()
+                          );
+                          
+                          if (matchedState) {
+                            const districts = statesAndDistricts[matchedState];
+                            let matchedDistrict = districts.find(d => 
+                              d.toLowerCase() === district.toLowerCase()
+                            );
+                            
+                            if (!matchedDistrict) {
+                              matchedDistrict = districts.find(d => 
+                                d.toLowerCase().includes(district.toLowerCase()) || 
+                                district.toLowerCase().includes(d.toLowerCase())
+                              );
+                            }
+                            
+                            if (matchedDistrict) {
+                              setSelectedState(matchedState);
+                              setSelectedDistrict(matchedDistrict);
+                              toast.success(`Location set to ${matchedDistrict}, ${matchedState}`, { id: loadingToast });
+                            } else {
+                              toast.error("District not found. Please select manually.", { id: loadingToast });
+                              setSelectedState(matchedState);
+                              setSelectedDistrict("");
+                            }
+                          } else {
+                            toast.error("State not supported. Please select manually.", { id: loadingToast });
+                          }
+                        } else {
+                          toast.error("Could not determine location. Please select manually.", { id: loadingToast });
+                        }
+                      } else {
+                        toast.error("Could not determine location. Please select manually.", { id: loadingToast });
+                      }
+                    } catch (error) {
+                      console.error("Geocoding error:", error);
+                      toast.error("Failed to get location. Please select manually.", { id: loadingToast });
+                    }
+                  },
+                  (error) => {
+                    console.error("Geolocation error:", error);
+                    toast.error("Location access denied. Please select manually.", { id: loadingToast });
+                  },
+                  { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+              }}
+              className="w-full mb-4 py-3 bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white rounded-xl font-semibold text-sm transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+            >
+              <MapPinned size={18} />
+              Use My Current GPS Location
+            </button>
+
+            <div className="h-px bg-gray-200 dark:bg-[rgb(47,51,54)] mb-4 relative">
+              <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-[rgb(22,22,22)] px-3 text-xs text-gray-500 dark:text-gray-400">
+                or select manually
+              </span>
+            </div>
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">
