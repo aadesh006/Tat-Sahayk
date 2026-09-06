@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, AlertOctagon, MapPin, Calendar, Shield, Bell, Filter, Loader2, Home, Users, Navigation, Phone, Clock, PlusCircle, X, FileText, RefreshCw, Info } from 'lucide-react';
+import { ArrowLeft, AlertOctagon, MapPin, Calendar, Shield, Bell, Filter, Loader2, Home, Users, Navigation, Phone, Clock, PlusCircle, X, FileText, RefreshCw, Info, Trash2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchAlerts, getLocationBasedAlerts, getCirculars, createCircular } from '../lib/api.js';
+import { fetchAlerts, getLocationBasedAlerts, getCirculars, createCircular, deleteAlert } from '../lib/api.js';
 import useAuthUser from '../hooks/useAuthUser.js';
 import { Toaster, toast } from 'react-hot-toast';
 
@@ -35,6 +35,25 @@ const AlertsPage = () => {
     queryFn: () => getCirculars(true),
     refetchInterval: 60000,
   });
+
+  // Delete alert/circular mutation
+  const deleteMutation = useMutation({
+    mutationFn: deleteAlert,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['alerts']);
+      queryClient.invalidateQueries(['circulars']);
+      toast.success('Deleted successfully');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Failed to delete');
+    }
+  });
+
+  const handleDelete = (alertId) => {
+    if (window.confirm('Are you sure you want to delete this alert/circular? This action cannot be undone.')) {
+      deleteMutation.mutate(alertId);
+    }
+  };
 
   // Auto-show safety popup for regular users on first visit
   useEffect(() => {
@@ -341,6 +360,16 @@ const AlertsPage = () => {
                             {alert.message}
                           </p>
                         </div>
+                        {authUser?.role === 'admin' && authUser?.id === alert.admin_id && (
+                          <button
+                            onClick={() => handleDelete(alert.id)}
+                            disabled={deleteMutation.isPending}
+                            className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition disabled:opacity-50"
+                            title="Delete alert"
+                          >
+                            <Trash2 size={16} className="text-red-500" />
+                          </button>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-3 pt-3 border-t border-gray-200 dark:border-[rgb(47,51,54)] text-[11px] text-gray-600 dark:text-gray-400 flex-wrap">
@@ -405,9 +434,21 @@ const AlertsPage = () => {
                           <h3 className="font-semibold text-gray-900 dark:text-white text-xs flex-1">
                             {circular.title}
                           </h3>
-                          <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${config.badge}`}>
-                            {circular.severity}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${config.badge}`}>
+                              {circular.severity}
+                            </span>
+                            {authUser?.role === 'admin' && authUser?.id === circular.admin_id && (
+                              <button
+                                onClick={() => handleDelete(circular.id)}
+                                disabled={deleteMutation.isPending}
+                                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition disabled:opacity-50"
+                                title="Delete circular"
+                              >
+                                <Trash2 size={12} className="text-red-500" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <p className="text-[11px] text-gray-700 dark:text-gray-300 mb-2 line-clamp-2">
                           {circular.message}

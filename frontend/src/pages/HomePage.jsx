@@ -196,11 +196,11 @@ const { data: alerts } = useQuery({
           </a>
         </div>
         
-        {!alerts?.filter(a => a.is_active).length ? (
+        {!alerts?.filter(a => a.is_active && a.hazard_type !== 'info').length ? (
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">No active alerts</p>
         ) : (
           <div className="space-y-2">
-            {alerts.filter(a => a.is_active).slice(0, 3).map((alert) => {
+            {alerts.filter(a => a.is_active && a.hazard_type !== 'info').slice(0, 3).map((alert) => {
   const severityConfig = {
     critical: { 
       bg: "bg-red-50 dark:bg-red-500/10", 

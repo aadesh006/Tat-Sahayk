@@ -344,6 +344,11 @@ export const deactivateAlert = async (alertId) => {
   return res.data;
 };
 
+export const deleteAlert = async (alertId) => {
+  const res = await axiosInstance.delete(`/alerts/${alertId}`);
+  return res.data;
+};
+
 // ─── ADMIN REPORT SUMMARY (AI) ───────────────────────────────────────────────
 
 export const fetchAdminReports = async ({ status, severity } = {}) => {
