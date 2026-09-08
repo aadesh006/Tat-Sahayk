@@ -35,7 +35,6 @@ const SideBar = ({ isOpen, onClose }) => {
       { to: "/profile", label: t("myProfile"), icon: <User size={20} /> },
       { to: "/map",     label: t("map"),        icon: <Map size={20} /> },
     ] : []),
-    // Admin sees Map link and Red Zone Management
     ...(isAdmin ? [
       { to: "/map",      label: t("map"),        icon: <Map size={20} /> },
       { to: "/admin",    label: t("adminPanel"), icon: <ShieldAlert size={20} /> },

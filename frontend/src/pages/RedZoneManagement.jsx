@@ -352,7 +352,7 @@ function OverviewTab({ stats, statsLoading, onBulkAssess }) {
         <div className="mt-6 pt-6 border-t border-gray-200 dark:border-[rgb(47,51,54)]">
           <button
             onClick={onBulkAssess}
-            className="w-full px-4 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-sm"
+            className="w-full px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-sm"
           >
             <Zap size={16} />
             Run AI Assessment

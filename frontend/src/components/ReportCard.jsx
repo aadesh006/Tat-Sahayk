@@ -102,7 +102,6 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
                 <span className="text-gray-900 dark:text-white font-semibold">{report.reporterName || "Anonymous"}</span>
                 {!isProfileView && (
                   <>
-                    <Clock size={12} />
                     <span>{report.date || "Just Now"}</span>
                   </>
                 )}
@@ -300,7 +299,6 @@ const ReportCard = ({ report, showAdminActions = false, onVerify, onDelete, onCa
                 
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                    <Clock size={14} className="shrink-0" />
                     <span className="font-medium">Reported:</span>
                     <span>{report.date || "Just Now"}</span>
                   </div>
