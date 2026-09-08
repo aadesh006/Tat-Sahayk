@@ -161,7 +161,8 @@ const { data: alerts } = useQuery({
 
     return (
     <div className="space-y-4">
-      {/* Emergency Contacts */}
+      {/* Emergency Contacts - Hidden */}
+      {false && (
       <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl p-4 border border-gray-200 dark:border-[rgb(47,51,54)]">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
           <ShieldAlert size={16} className="text-red-500" /> {t("emergencyDirectory")}
@@ -184,6 +185,7 @@ const { data: alerts } = useQuery({
           ))}
         </div>
       </div>
+      )}
 
       {/* Government Advisories */}
       <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl p-4 border border-gray-200 dark:border-[rgb(47,51,54)]">

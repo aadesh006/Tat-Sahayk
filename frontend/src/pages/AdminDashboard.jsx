@@ -5,10 +5,10 @@ import {
   fetchAlerts, createAlert, deactivateAlert
 } from '../lib/api.js';
 import useAuthUser from '../hooks/useAuthUser.js';
-import { ClipboardList, CheckCircle, XCircle, Clock, MapPin,
+import { ClipboardList, CheckCircle, XCircle, MapPin,
   Loader2, AlertTriangle, Bell, BellOff, Plus,
   X, Shield, TrendingUp, Users, Zap, ChevronDown,
-  Filter, Brain, MessageSquare, BarChart3, Map } from 'lucide-react';
+  Filter, Brain, MessageSquare, BarChart3, Map, AlertOctagon } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import ImageLightbox from '../components/ImageLightbox.jsx';
@@ -206,135 +206,123 @@ const AdminReportCard = ({ report, onVerify }) => {
 
   return (
     <>
-      <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)]">
-        <div className="p-5">
-          {/* Top Section */}
-          <div className="flex items-start gap-4 mb-4">
-            {/* Left stripe */}
-            <div className={`w-1 self-stretch rounded-full ${sev.bg} shrink-0`} />
-
-            {/* Content */}
+      <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] hover:bg-gray-50 dark:hover:bg-[rgb(10,10,10)] transition-colors">
+        <div className="p-4">
+          {/* Header with AI Score */}
+          <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex-1 min-w-0">
-              {/* Header */}
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{report.disasterType}</h3>
-                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border ${sev.light}`}>
-                  {report.severity}
-                </span>
-                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border
-                  ${report.status === "verified" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20" :
-                    report.status === "false"    ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/20" :
-                                                   "bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-500/20"}`}>
-                  {report.status === "verified" ? "VERIFIED" : report.status === "false" ? "FAKE" : "PENDING"}
-                </span>
-              </div>
+              {/* Title only */}
+              <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2">{report.disasterType}</h3>
 
               {/* Meta info */}
-              <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mb-3">
-                <span className="flex items-center gap-1"><MapPin size={12} /> {report.location}</span>
-                <span className="flex items-center gap-1"><Clock size={12} /> {report.date}</span>
-                <span className="font-medium">ID: #{report.id}</span>
+              <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                <span className="flex items-center gap-1"><MapPin size={11} /> {report.location}</span>
+                <span>{report.date}</span>
+                <span className="text-gray-400">#{report.id}</span>
               </div>
+            </div>
 
-              {/* Description */}
-              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3">
-                "{report.description || "No description provided."}"
-              </p>
-
-              {/* AI Analysis */}
-              {report.aiSummary && (
-                <div className="mb-3 p-3 bg-sky-50 dark:bg-sky-500/10 rounded-lg border border-sky-200 dark:border-sky-500/20">
-                  <div className="flex items-start gap-2">
-                    <Brain size={14} className="text-sky-500 shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase mb-1">AI ANALYSIS</div>
-                      <p className="text-xs text-sky-700 dark:text-sky-300 leading-relaxed">{report.aiSummary}</p>
-                    </div>
+            {/* AI Score - Compact */}
+            {(score !== null && score !== undefined) && (
+              <div className="shrink-0">
+                <div className={`px-2.5 py-1.5 rounded-lg border text-center ${
+                  score >= 0.85 ? 'border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10' :
+                  score >= 0.65 ? 'border-yellow-500/30 bg-yellow-50 dark:bg-yellow-500/10' :
+                  'border-red-500/30 bg-red-50 dark:bg-red-500/10'
+                }`}>
+                  <div className={`text-lg font-black leading-none ${AI_SCORE_COLOR(score)}`}>
+                    {Math.round(score * 100)}%
                   </div>
-                </div>
-              )}
-
-              {/* Media thumbnails */}
-              {images.length > 0 && (
-                <div className="flex gap-2 mb-3">
-                  {images.slice(0, 3).map((media, idx) => {
-                    const isVideo = typeof media === 'string' && (media.includes('.mp4') || media.includes('.mov') || media.includes('.webm'));
-                    return (
-                      <div key={idx} className="relative">
-                        {isVideo ? (
-                          <video
-                            src={media}
-                            className="w-20 h-14 object-cover rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)]"
-                            controls
-                            preload="metadata"
-                          />
-                        ) : (
-                          <button onClick={() => openLightbox(idx)}>
-                            <img 
-                              src={media} 
-                              alt={`Media ${idx + 1}`}
-                              className="w-20 h-14 object-cover rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] hover:opacity-80 transition-opacity"
-                              onError={(e) => { e.target.style.display = "none"; }} 
-                            />
-                          </button>
-                        )}
-                        {isVideo && (
-                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/80 text-white text-[8px] font-bold rounded">
-                            Video
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {images.length > 3 && (
-                    <div className="w-20 h-14 rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-100 dark:bg-[rgb(38,38,38)] flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-400">
-                      +{images.length - 3}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Action buttons */}
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onVerify(report.id, "verified"); }}
-                  disabled={report.status === "verified"}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Verify
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onVerify(report.id, "false"); }}
-                  disabled={report.status === "false"}
-                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Fake
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onVerify(report.id, "pending"); }}
-                  disabled={report.status === "pending"}
-                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-
-            {/* AI Score Badge */}
-            <div className="shrink-0">
-              <div className={`w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center ${
-                score >= 0.85 ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' :
-                score >= 0.65 ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-500/10' :
-                'border-red-500 bg-red-50 dark:bg-red-500/10'
-              }`}>
-                <div className={`text-xl font-black ${AI_SCORE_COLOR(score)}`}>
-                  {score !== null && score !== undefined ? `${Math.round(score * 100)}%` : "—"}
-                </div>
-                <div className="text-[8px] font-bold text-gray-500 dark:text-gray-400 uppercase">
-                  AI SCORE
+                  <div className="text-[9px] font-semibold text-gray-400 mt-0.5">AI</div>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* Description */}
+          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3">
+            "{report.description || "No description provided."}"
+          </p>
+
+          {/* AI Analysis - Simplified */}
+          {report.aiSummary && (
+            <div className="mb-3 p-2.5 bg-gray-50 dark:bg-[rgb(30,30,30)] rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)]">
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                <span className="font-semibold text-gray-700 dark:text-gray-300">AI: </span>
+                {report.aiSummary}
+              </p>
             </div>
+          )}
+
+          {/* Media thumbnails - Larger and better positioned */}
+          {images.length > 0 && (
+            <div className="flex gap-2.5 mb-4 overflow-x-auto pb-1">
+              {images.slice(0, 5).map((media, idx) => {
+                const isVideo = typeof media === 'string' && (media.includes('.mp4') || media.includes('.mov') || media.includes('.webm'));
+                return (
+                  <div key={idx} className="relative shrink-0">
+                    {isVideo ? (
+                      <video
+                        src={media}
+                        className="w-24 h-24 object-cover rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)]"
+                        controls
+                        preload="metadata"
+                      />
+                    ) : (
+                      <button onClick={() => openLightbox(idx)}>
+                        <img 
+                          src={media} 
+                          alt={`Media ${idx + 1}`}
+                          className="w-24 h-24 object-cover rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] hover:opacity-70 transition-opacity"
+                          onError={(e) => { e.target.style.display = "none"; }} 
+                        />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+              {images.length > 5 && (
+                <div className="w-24 h-24 shrink-0 rounded-lg border border-gray-200 dark:border-[rgb(47,51,54)] bg-gray-100 dark:bg-[rgb(38,38,38)] flex items-center justify-center text-sm font-semibold text-gray-600 dark:text-gray-400">
+                  +{images.length - 5}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action buttons - Smaller and compact */}
+          <div className="flex gap-2 items-center">
+            <button
+              onClick={(e) => { e.stopPropagation(); onVerify(report.id, "verified"); }}
+              disabled={report.status === "verified"}
+              className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Verify
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onVerify(report.id, "false"); }}
+              disabled={report.status === "false"}
+              className="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Fake
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onVerify(report.id, "pending"); }}
+              disabled={report.status === "pending"}
+              className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-semibold rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Reset
+            </button>
+            
+            {/* Status indicator */}
+            {report.status !== "pending" && (
+              <span className="ml-auto text-xs font-medium">
+                {report.status === "verified" ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">✓ Verified</span>
+                ) : (
+                  <span className="text-red-600 dark:text-red-400">✗ Marked Fake</span>
+                )}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -511,21 +499,21 @@ const AdminDashboard = () => {
       {/* ── Tab Bar ── */}
       <div className="flex overflow-x-auto border-b border-gray-200 dark:border-[rgb(47,51,54)] bg-white dark:bg-[rgb(22,22,22)] px-4 md:px-6 scrollbar-hide">
         {[
-          { key: "sos", label: "SOS Triggers", icon: <AlertTriangle size={14} /> },
-          { key: "reports", label: "All Reports", icon: <ClipboardList size={14} /> },
-          { key: "alerts",  label: "Issued Alerts", icon: <Bell size={15} /> },
-          { key: "ai", label: "AI Intelligence", icon: <Brain size={15} /> },
-          { key: "map", label: "Map Resources", icon: <Map size={15} /> },
+          { key: "sos", label: "SOS Triggers" },
+          { key: "reports", label: "All Reports" },
+          { key: "alerts",  label: "Issued Alerts" },
+          { key: "ai", label: "AI Intelligence" },
+          { key: "map", label: "Map Resources" },
         ].map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 md:px-5 py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap
+            className={`px-4 md:px-5 py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap
               ${activeTab === tab.key
                 ? "border-sky-500 text-sky-500"
                 : "border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"}`}
           >
-            {tab.icon} <span className="hidden sm:inline">{tab.label}</span>
+            <span className="hidden sm:inline">{tab.label}</span>
             <span className="sm:hidden">{tab.key.toUpperCase()}</span>
           </button>
         ))}
@@ -552,84 +540,130 @@ const AdminDashboard = () => {
           <p className="text-xs text-gray-400 dark:text-gray-500">Waiting for 2+ reports near each other</p>
         </div>
       ) : (
-        meaningfulClusters.map((cluster) => {
+        <div className="space-y-3 sm:space-y-4">
+        {meaningfulClusters.map((cluster) => {
           return (
             <div key={cluster.cluster_id}
-              className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-xl sm:rounded-2xl p-3 sm:p-4 space-y-3">
+              className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] hover:bg-gray-50 dark:hover:bg-[rgb(10,10,10)] transition-colors p-4">
 
-            {/* Header row - improved mobile layout */}
-            <div className="flex items-start justify-between gap-3">
+            {/* Header row */}
+            <div className="flex items-start justify-between gap-3 mb-3">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                  <h3 className="font-bold text-gray-900 dark:text-white text-base sm:text-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="font-bold text-gray-900 dark:text-white text-base">
                     {cluster.hazard_type}
                   </h3>
-                  <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-[10px] sm:text-xs font-semibold rounded-md whitespace-nowrap">
+                  <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-semibold rounded-md">
                     {cluster.report_count} reports
                   </span>
                 </div>
-                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
-                  {cluster.center_lat.toFixed(3)}°N, {cluster.center_lon.toFixed(3)}°E · {cluster.max_severity}
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {cluster.center_lat.toFixed(3)}°N, {cluster.center_lon.toFixed(3)}°E
                 </p>
               </div>
               
-              {/* AI Score - improved mobile size */}
-              <div className="text-right shrink-0">
-                <div className={`text-2xl sm:text-3xl font-black ${
-                  cluster.authenticity_score >= 0.8 ? "text-emerald-500" :
-                  cluster.authenticity_score >= 0.5 ? "text-yellow-500" : "text-red-500"
+              {/* AI Score - Compact */}
+              <div className="shrink-0">
+                <div className={`px-2.5 py-1.5 rounded-lg border text-center ${
+                  cluster.authenticity_score >= 0.8 ? 'border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10' :
+                  cluster.authenticity_score >= 0.5 ? 'border-yellow-500/30 bg-yellow-50 dark:bg-yellow-500/10' :
+                  'border-red-500/30 bg-red-50 dark:bg-red-500/10'
                 }`}>
-                  {Math.round(cluster.authenticity_score * 100)}%
+                  <div className={`text-lg font-black leading-none ${
+                    cluster.authenticity_score >= 0.8 ? "text-emerald-500" :
+                    cluster.authenticity_score >= 0.5 ? "text-yellow-500" : "text-red-500"
+                  }`}>
+                    {Math.round(cluster.authenticity_score * 100)}%
+                  </div>
+                  <div className="text-[9px] font-semibold text-gray-400 mt-0.5">AI</div>
                 </div>
-                <div className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500 font-semibold uppercase">AI Score</div>
               </div>
             </div>
 
-            {/* AI Summary - improved mobile padding */}
-            <div className="bg-gray-50 dark:bg-[rgb(30,30,30)] rounded-lg sm:rounded-xl p-2.5 sm:p-3 border border-gray-100 dark:border-[rgb(40,40,40)]">
-              <p className="text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1">
-                <Brain size={11} /> AI Analysis
+            {/* AI Summary - Simplified */}
+            <div className="bg-gray-50 dark:bg-[rgb(30,30,30)] rounded-lg p-2.5 border border-gray-200 dark:border-[rgb(47,51,54)] mb-3">
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                <span className="font-semibold text-gray-700 dark:text-gray-300">AI: </span>
+                {cluster.ai_summary}
               </p>
-              <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{cluster.ai_summary}</p>
             </div>
 
-            {/* Action buttons - improved mobile layout */}
-            <div className="flex gap-1.5 sm:gap-2 flex-wrap">
+            {/* Cyclone Classification - if applicable */}
+            {cluster.cyclone_classification && (
+              <div className={`rounded-lg border-l-4 p-3 mb-3 ${
+                cluster.cyclone_classification.color === 'red' ? 'bg-red-50/50 dark:bg-red-950/20 border-red-500' :
+                cluster.cyclone_classification.color === 'orange' ? 'bg-orange-50/50 dark:bg-orange-950/20 border-orange-500' :
+                cluster.cyclone_classification.color === 'yellow' ? 'bg-yellow-50/50 dark:bg-yellow-950/20 border-yellow-500' :
+                'bg-green-50/50 dark:bg-green-950/20 border-green-500'
+              }`}>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                  IMD Cyclone Classification
+                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <span className={`inline-block px-2.5 py-1 rounded text-sm font-semibold ${
+                      cluster.cyclone_classification.color === 'red' ? 'bg-red-500 text-white' :
+                      cluster.cyclone_classification.color === 'orange' ? 'bg-orange-500 text-white' :
+                      cluster.cyclone_classification.color === 'yellow' ? 'bg-yellow-500 text-white' :
+                      'bg-green-500 text-white'
+                    }`}>
+                      {cluster.cyclone_classification.category}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">
+                      {cluster.cyclone_classification.wind_speed}
+                    </span>
+                    <span className={`font-semibold ${
+                      cluster.cyclone_classification.color === 'red' ? 'text-red-600 dark:text-red-400' :
+                      cluster.cyclone_classification.color === 'orange' ? 'text-orange-600 dark:text-orange-400' :
+                      cluster.cyclone_classification.color === 'yellow' ? 'text-yellow-600 dark:text-yellow-400' :
+                      'text-green-600 dark:text-green-400'
+                    }`}>
+                      {cluster.cyclone_classification.severity} Risk
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action buttons - Smaller and cleaner */}
+            <div className="flex gap-2 items-center">
               <button
                 onClick={() => setAlertModal(true)}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-red-500 text-white text-[10px] sm:text-xs font-semibold rounded-lg hover:bg-red-600 active:scale-95 transition-all"
+                className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-md hover:bg-red-600 transition-colors"
               >
-                <Bell size={12} className="sm:w-[13px] sm:h-[13px]" /> 
-                <span className="hidden xs:inline">Issue</span> Alert
+                Alert
               </button>
               <button
                 onClick={() => {
                   cluster.report_ids.forEach(id => doVerify({ id, status: "verified" }));
                   toast.success(`Verified ${cluster.report_count} reports`);
                 }}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-emerald-500 text-white text-[10px] sm:text-xs font-semibold rounded-lg hover:bg-emerald-600 active:scale-95 transition-all"
+                className="px-3 py-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-md hover:bg-emerald-600 transition-colors"
               >
-                <CheckCircle size={12} className="sm:w-[13px] sm:h-[13px]" /> Verify
+                Verify
               </button>
               <button
                 onClick={() => {
                   cluster.report_ids.forEach(id => doVerify({ id, status: "false" }));
                   toast.success("Marked as fake");
                 }}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-[10px] sm:text-xs font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 transition-all"
+                className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
               >
-                <XCircle size={12} className="sm:w-[13px] sm:h-[13px]" /> Fake
+                Fake
               </button>
               <button
                 onClick={() => setSelectedCluster(cluster)}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-sky-500 text-white text-[10px] sm:text-xs font-semibold rounded-lg hover:bg-sky-600 active:scale-95 transition-all ml-auto"
+                className="px-3 py-1.5 bg-sky-500 text-white text-xs font-semibold rounded-md hover:bg-sky-600 transition-colors ml-auto"
               >
-                <ClipboardList size={12} className="sm:w-[13px] sm:h-[13px]" /> View ({cluster.report_count})
+                View ({cluster.report_count})
               </button>
             </div>
           </div>
         );
-      })
+      })}
+      </div>
       );
     })()}
   </div>
@@ -737,7 +771,7 @@ const AdminDashboard = () => {
                 <Loader2 className="animate-spin text-sky-500" size={36} />
               </div>
             ) : reports?.length > 0 ? (
-              <div className="space-y-3">
+              <div>
                 {reports.map((r) => (
                   <AdminReportCard
                     key={r.id}
