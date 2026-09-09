@@ -48,7 +48,7 @@ const BottomNavBar = () => {
               <button
                 key={item.to}
                 onClick={() => navigate(item.to)}
-                className="relative -mt-8 w-14 h-14 rounded-full bg-gradient-to-br from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center"
+                className="relative -mt-8 w-14 h-14 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center"
               >
                 <Icon size={28} className="text-white" strokeWidth={2.5} />
               </button>
