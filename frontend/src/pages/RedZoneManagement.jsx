@@ -142,8 +142,7 @@ export default function RedZoneManagement() {
       <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Shield size={16} className="text-red-500" />
+            <h1 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
               Red Zone Management — {authUser?.district || 'National'}
             </h1>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">

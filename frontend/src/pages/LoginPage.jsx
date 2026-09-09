@@ -136,15 +136,6 @@ const LoginPage = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-black flex flex-col items-center p-4 sm:p-6 py-8 sm:py-12 relative overflow-y-auto">
       {/* Top-right controls - adjusted for mobile */}
       <div className="absolute top-3 right-3 sm:top-6 sm:right-6 flex items-center gap-1.5 sm:gap-2">
-        {/* Theme toggle */}
-        <button
-          onClick={toggle}
-          className="p-2 sm:p-3 bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-full hover:bg-gray-50 dark:hover:bg-[rgb(38,38,38)] transition-all hover:scale-110 shadow-sm"
-          title={dark ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          {dark ? <Sun size={16} className="sm:w-5 sm:h-5 text-gray-300" /> : <Moon size={16} className="sm:w-5 sm:h-5 text-gray-700" />}
-        </button>
-        
         {/* Home icon */}
         <Link 
           to="/" 
