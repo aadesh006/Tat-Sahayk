@@ -77,16 +77,12 @@ export default function AdminAnalytics() {
     retry: 2
   });
 
-  // AI Insights
-  const { data: aiInsights } = useQuery({
+  // AI Insights - TEMPORARILY DISABLED (backend crashes on this endpoint)
+  const { data: aiInsights, error: aiError } = useQuery({
     queryKey: ['aiInsights'],
-    queryFn: async () => {
-      const res = await axiosInstance.get('/activity/ai-insights');
-      return res.data;
-    },
-    refetchInterval: autoRefresh ? 120 * 1000 : false,
-    retry: 2,
-    enabled: !!activityStats // Only fetch if activity stats are available
+    queryFn: async () => null,
+    enabled: false, // Disabled - backend endpoint causing 500 errors
+    retry: 0
   });
   
   // Handle manual refresh with animation
@@ -138,8 +134,7 @@ export default function AdminAnalytics() {
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2 sm:gap-3">
-                <Shield className="w-6 h-6 sm:w-7 sm:h-7 text-sky-500" />
+              <h1 className="text-xl sm:text-2xl font-bold text-white">
                 <span className="hidden sm:inline">Real-Time Intelligence Dashboard</span>
                 <span className="sm:hidden">Intelligence</span>
               </h1>

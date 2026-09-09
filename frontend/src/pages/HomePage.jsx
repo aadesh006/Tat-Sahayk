@@ -190,8 +190,8 @@ const { data: alerts } = useQuery({
       {/* Government Advisories */}
       <div className="bg-white dark:bg-[rgb(22,22,22)] rounded-2xl p-4 border border-gray-200 dark:border-[rgb(47,51,54)]">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <AlertOctagon size={16} className="text-sky-500" /> Government Alerts
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+            Government Alerts
           </h3>
           <a href="/alerts" className="text-xs font-medium text-sky-500 hover:text-sky-600 transition-colors">
             View All →

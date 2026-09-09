@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, AlertOctagon, MapPin, Calendar, Shield, Bell, Filter, Loader2, Home, Users, Navigation, Phone, Clock, PlusCircle, X, FileText, RefreshCw, Info, Trash2 } from 'lucide-react';
+import { AlertOctagon, MapPin, Calendar, Shield, Bell, Filter, Loader2, Home, Users, Navigation, Phone, Clock, PlusCircle, X, FileText, RefreshCw, Info, Trash2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchAlerts, getLocationBasedAlerts, getCirculars, createCircular, deleteAlert } from '../lib/api.js';
 import useAuthUser from '../hooks/useAuthUser.js';
@@ -172,9 +172,6 @@ const AlertsPage = () => {
       {/* Header */}
       <div className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur-md px-4 lg:px-6 py-3 border-b border-gray-200 dark:border-[rgb(47,51,54)]">
         <div className="max-w-7xl mx-auto flex items-center gap-4">
-          <Link to="/" className="p-2 hover:bg-gray-100 dark:hover:bg-[rgb(22,22,22)] rounded-full transition-colors">
-            <ArrowLeft size={20} className="text-gray-900 dark:text-white" />
-          </Link>
           <div className="flex-1">
             <h1 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Bell size={20} className="text-sky-500" />
@@ -409,8 +406,7 @@ const AlertsPage = () => {
           <div className={`lg:col-span-1 ${mobileTab === "alerts" ? "hidden lg:block" : ""}`}>
             <div className="bg-white dark:bg-[rgb(22,22,22)] border border-gray-200 dark:border-[rgb(47,51,54)] rounded-2xl p-4 sticky top-24">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <FileText size={16} className="text-blue-500" />
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
                   Information
                 </h2>
                 {authUser?.role === 'admin' && (

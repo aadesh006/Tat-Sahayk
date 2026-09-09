@@ -451,8 +451,7 @@ const AdminDashboard = () => {
       <div className="bg-white dark:bg-[rgb(22,22,22)] border-b border-gray-200 dark:border-[rgb(47,51,54)] px-6 py-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Shield size={18} className="text-sky-500" />
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
               District Command — {authUser?.district || "National"}
             </h1>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -791,13 +790,13 @@ const AdminDashboard = () => {
         {/* ── Alerts Tab ── */}
         {activeTab === "alerts" && (
           <div className="space-y-3">
-            {!myAlerts?.length ? (
+            {!myAlerts?.filter(a => a.hazard_type !== 'info').length ? (
               <div className="text-center py-20 bg-white dark:bg-[rgb(22,22,22)] border border-dashed border-gray-300 dark:border-[rgb(47,51,54)] rounded-2xl">
                 <BellOff className="mx-auto text-gray-300 mb-2" size={40} />
                 <p className="text-xs text-gray-400 uppercase tracking-widest">No alerts issued yet</p>
               </div>
             ) : (
-              myAlerts.map((alert) => {
+              myAlerts.filter(alert => alert.hazard_type !== 'info').map((alert) => {
                 const sev = SEVERITY_COLORS[alert.severity] || SEVERITY_COLORS.medium;
                 return (
                   <div key={alert.id}
@@ -825,28 +824,27 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                       </div>
-                      {alert.is_active && (() => {
-                        // Check if this is a national alert (no district and no state)
-                        const isNationalAlert = !alert.district && !alert.state;
-                        // Check if current admin is a district admin (has a district)
-                        const isDistrictAdmin = authUser?.district;
-                        // District admins cannot deactivate national alerts
-                        const canDeactivate = !(isNationalAlert && isDistrictAdmin);
-                        
-                        return canDeactivate ? (
-                          <button
-                            onClick={() => doDeactivate(alert.id)}
-                            className="shrink-0 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                            title="Deactivate alert"
-                          >
-                            <BellOff size={16} />
-                          </button>
-                        ) : (
-                          <div className="shrink-0 p-2 text-gray-300 dark:text-gray-600" title="Only national admins can deactivate national alerts">
-                            <BellOff size={16} />
-                          </div>
-                        );
-                      })()}
+                      {alert.is_active && (
+                        <button
+                          onClick={() => {
+                            // Check if this is a national alert (no district and no state)
+                            const isNationalAlert = !alert.district && !alert.state;
+                            // Check if current admin is a district admin (has a district)
+                            const isDistrictAdmin = authUser?.district;
+                            // District admins cannot deactivate national alerts
+                            const canDeactivate = !(isNationalAlert && isDistrictAdmin);
+                            
+                            if (canDeactivate) {
+                              doDeactivate(alert.id);
+                            }
+                          }}
+                          disabled={!alert.district && !alert.state && authUser?.district}
+                          className="shrink-0 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-400 disabled:hover:bg-transparent"
+                          title={(!alert.district && !alert.state && authUser?.district) ? "Only national admins can deactivate national alerts" : "Deactivate alert"}
+                        >
+                          <BellOff size={16} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
