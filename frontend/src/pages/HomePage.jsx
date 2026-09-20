@@ -242,7 +242,7 @@ const { data: alerts } = useQuery({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className={`text-xs font-semibold ${config.text}`}>
-              🏛 Government Advisory
+              Government Advisory
             </span>
             <span className={`text-[10px] font-medium uppercase px-2 py-0.5 rounded-full ${config.bg} ${config.text} border ${config.border}`}>
               {alert.severity}
